@@ -2,102 +2,226 @@
 
 **Secure LLM Agent Proxy Environment: Network Isolation & Resilience**
 
-## Overview
+A zero-knowledge credential sanitization proxy for AI agents, providing network isolation and automatic secret management.
 
-SLAPENIR is a "Zero-Knowledge" execution sandbox designed to host high-privilege Autonomous Agents. The architecture enforces a strict separation of **Capability** (the Agent's ability to execute logic) and **Authority** (the credentials required to interact with external systems).
+## 🎯 Overview
 
-## Architecture
+SLAPENIR is a security-focused proxy system that sits between AI agents and external APIs, automatically:
+- **Injecting** real credentials into outbound requests
+- **Sanitizing** secrets from inbound responses
+- **Isolating** agents in a controlled network environment
+- **Supervising** agent processes with automatic restart
 
-The system relies on a Polyglot Architecture:
+This enables AI agents to make API calls without ever seeing real credentials, dramatically reducing the attack surface.
 
-- **Security Gateway (Proxy):** Written in **Rust** for deterministic memory management and high-throughput stream processing
-- **Execution Environment (Agent):** Built on **Wolfi OS** for minimal attack surface with full glibc compatibility
-- **Identity Plane:** Managed by **Step-CA** for automated, short-lived mutual TLS (mTLS) certificates
+## 🏗️ Architecture
 
-## Key Features
+```
+┌──────────────┐
+│  step-ca     │ Certificate Authority (future mTLS)
+│  :9000       │
+└──────────────┘
 
-- 🔒 **Zero-Knowledge Sanitization**: Agent never sees real credentials
-- 🔐 **Mutual TLS**: All connections authenticated via Step-CA certificates
-- 🛡️ **Network Isolation**: Agent has no direct internet access
-- 🔄 **Resilient Recovery**: Dual-layer disaster recovery with s6-overlay
-- 🚀 **AI-Ready**: Full glibc compatibility for PyTorch, TensorFlow, etc.
+┌──────────────┐
+│  proxy       │ Rust Sanitizing Gateway
+│  :3000       │ • Aho-Corasick pattern matching O(N)
+│              │ • Zero-knowledge credential handling
+│              │ • Memory-safe with Zeroize trait
+└──────┬───────┘
+       │
+       │ HTTP (future: mTLS)
+       ↓
+┌──────────────┐
+│  agent       │ Wolfi Python Environment  
+│  Python 3.11 │ • s6-overlay supervision
+│              │ • glibc for PyTorch/ML libraries
+│              │ • Network-isolated workspace
+└──────────────┘
+```
 
-## Project Status
-
-🔄 **Phase 2 In Progress** - Proxy Core 60% Complete (35% overall)
-
-**Current Achievement:** Production-ready credential sanitization engine with 100% test coverage
-
-## Documentation
-
-- [Architecture Specification](docs/SLAPENIR_Architecture.md)
-- [System Specifications](docs/SLAPENIR_Specifications.md)
-- [Implementation Roadmap](docs/SLAPENIR_Roadmap.md)
-- [TDD Strategy](docs/SLAPENIR_TDD_Strategy.md)
-- [Git Strategy](docs/SLAPENIR_Git_Strategy.md)
-- [Risk Analysis](docs/SLAPENIR_Risks.md)
-
-## Quick Start
-
-> **Note:** Detailed setup instructions will be added as the project progresses through implementation phases.
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Docker Engine & Docker Compose
-- Rust 1.75+ (for proxy development)
-- Python 3.11+ (for agent development)
+- Docker Desktop (v27+)
+- Docker Compose (v2.24+)
+- Rust 1.93+ (for local development)
+- Git
 
-### Development Setup
+### 1. Validate System
 
 ```bash
-# Clone repository
-git clone git@github.com:andrewgibson-cic/slapenir.git
-cd slapenir
-
-# Set up git configuration
-git config user.name "andrewgibson-cic"
-git config user.email "andrew.gibson-cic@ibm.com"
-
-# Install development tools (coming soon)
+./test-system.sh
 ```
 
-## Project Structure
+### 2. Start Services
 
-```
-slapenir/
-├── docs/                   # Architecture & strategy documentation
-├── proxy/                  # Rust proxy service (Phase 2)
-├── agent/                  # Agent environment (Phase 3)
-├── tests/                  # Integration & E2E tests (Phase 5)
-├── docker-compose.yml      # Orchestration (Phase 4)
-└── README.md              # This file
+```bash
+# Build and start all services
+docker compose up --build
+
+# Or run in background
+docker compose up --build -d
 ```
 
-## Implementation Phases
+### 3. Verify Health
 
-- **Phase 0**: Prerequisites & Procurement ⏳
-- **Phase 1**: Identity & Foundation (Days 1-2)
-- **Phase 2**: Rust Proxy Core (Days 3-7)
-- **Phase 3**: Agent Environment (Days 8-10)
-- **Phase 4**: Security Wiring & Orchestration (Days 11-13)
-- **Phase 5**: Resilience & Chaos Testing (Days 14-15)
+```bash
+# Check proxy health
+curl http://localhost:3000/health
 
-## Contributing
+# View logs
+docker compose logs -f proxy
+docker compose logs -f agent
+```
 
-This is currently a solo project. For questions or issues, please contact:
+### 4. Stop Services
 
-**Author:** andrewgibson-cic  
-**Email:** andrew.gibson-cic@ibm.com
+```bash
+docker compose down
 
-## License
+# Remove volumes too
+docker compose down -v
+```
 
-[License information to be added]
+## 📦 Components
 
-## Security
+### Proxy (Rust)
+- **Location**: `proxy/`
+- **Port**: 3000
+- **Features**:
+  - Aho-Corasick streaming sanitization
+  - Secret injection/replacement
+  - Health check endpoint
+  - 15/15 unit tests passing
+  - Memory-safe with Zeroize
 
-This project handles sensitive security infrastructure. If you discover a security vulnerability, please contact the author directly rather than opening a public issue.
+### Agent (Python)
+- **Location**: `agent/`
+- **Environment**: Wolfi Linux + Python 3.11
+- **Features**:
+  - s6-overlay process supervision
+  - Graceful shutdown handling
+  - Proxy health checks
+  - glibc compatibility for ML libraries
+
+### Certificate Authority
+- **Location**: Step-CA container
+- **Port**: 9000 (internal)
+- **Status**: Configured (initialization deferred)
+
+## 🧪 Testing
+
+### Unit Tests (Proxy)
+
+```bash
+cd proxy
+cargo test
+cargo test -- --nocapture  # with output
+```
+
+### Integration Testing
+
+```bash
+# System validation
+./test-system.sh
+
+# Manual integration test
+docker compose up -d
+curl http://localhost:3000/health
+docker compose logs agent | grep "health check"
+```
+
+## 📊 Project Status
+
+- **Overall Progress**: 55% Complete
+- **Phase 0** (Prerequisites): ✅ 100% Complete
+- **Phase 1** (Identity/Network): 🔄 50% Complete
+- **Phase 2** (Proxy Core): ✅ 90% Complete
+- **Phase 3** (Agent Environment): 🔄 80% Complete
+- **Phase 4** (Orchestration): 🔄 40% Complete
+- **Phase 5** (Chaos Testing): ⏳ Planned
+
+See [PROGRESS.md](PROGRESS.md) for detailed status.
+
+## 🔧 Development
+
+### Running Proxy Locally
+
+```bash
+cd proxy
+cargo run
+```
+
+### Running Tests
+
+```bash
+cd proxy
+cargo test
+cargo clippy  # linting
+cargo fmt     # formatting
+```
+
+### Environment Variables
+
+For the proxy service:
+```bash
+export OPENAI_API_KEY="your-key"
+export ANTHROPIC_API_KEY="your-key"
+```
+
+## 📚 Documentation
+
+- [Architecture](docs/SLAPENIR_Architecture.md) - System design and components
+- [Specifications](docs/SLAPENIR_Specifications.md) - Technical requirements
+- [Roadmap](docs/SLAPENIR_Roadmap.md) - Development phases
+- [TDD Strategy](docs/SLAPENIR_TDD_Strategy.md) - Testing approach
+- [Git Strategy](docs/SLAPENIR_Git_Strategy.md) - Commit conventions
+- [Risk Analysis](docs/SLAPENIR_Risks.md) - Security considerations
+
+## 🔒 Security Features
+
+- **Zero-Knowledge**: Agents never see real credentials
+- **Network Isolation**: Internal Docker network only
+- **Memory Safety**: Rust's ownership model + Zeroize trait
+- **Process Supervision**: Automatic restart on failure
+- **Non-root Execution**: Both proxy and agent run as unprivileged users
+
+## 🛣️ Roadmap
+
+- [x] Phase 0: Prerequisites & Environment Setup
+- [x] Phase 1: Network Foundation (partial)
+- [x] Phase 2: Rust Proxy Core
+- [x] Phase 3: Agent Environment (partial)
+- [ ] Phase 4: mTLS Integration
+- [ ] Phase 5: Chaos & Resilience Testing
+
+## 🤝 Contributing
+
+This is a development project. Follow the Git strategy in [docs/SLAPENIR_Git_Strategy.md](docs/SLAPENIR_Git_Strategy.md).
+
+### Commit Format
+
+```
+type(scope): subject
+
+body
+
+footer
+```
+
+Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`
+
+## 📝 License
+
+MIT License - See LICENSE file for details
+
+## 👤 Author
+
+Andrew Gibson (andrew.gibson-cic@ibm.com)
 
 ---
 
-**Version:** 0.1.0 (Initial Setup)  
-**Last Updated:** January 28, 2026
+**Status**: Active Development  
+**Last Updated**: 2026-01-28  
+**Version**: 0.1.0

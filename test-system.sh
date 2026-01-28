@@ -48,7 +48,7 @@ files=(
     "agent/Dockerfile"
     "agent/scripts/agent.py"
     "docker-compose.yml"
-    "PROGRESS.md"
+    "docs/PROGRESS.md"
 )
 
 for file in "${files[@]}"; do

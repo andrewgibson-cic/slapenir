@@ -1,0 +1,32 @@
+#!/bin/sh
+# S6 run script for SLAPENIR agent
+# This script starts the Python agent process with proper certificate handling
+
+set -e
+
+# Log startup
+echo "[agent-svc] Starting SLAPENIR agent..."
+
+# Bootstrap certificates if needed
+if [ ! -f /home/agent/certs/cert.pem ]; then
+    echo "[agent-svc] Certificates not found, bootstrapping..."
+    /home/agent/scripts/bootstrap-certs.sh
+fi
+
+# Set HTTP proxy to use the SLAPENIR proxy
+export HTTP_PROXY="https://proxy:443"
+export HTTPS_PROXY="https://proxy:443"
+export NO_PROXY="localhost,127.0.0.1,ca"
+
+# Set certificate paths for mTLS
+export SSL_CERT_FILE=/home/agent/certs/cert.pem
+export SSL_KEY_FILE=/home/agent/certs/key.pem
+export REQUESTS_CA_BUNDLE=/home/agent/certs/root_ca.pem
+
+# Log environment (without sensitive data)
+echo "[agent-svc] Proxy configured: $HTTP_PROXY"
+echo "[agent-svc] Certificates: $SSL_CERT_FILE"
+
+# Start the agent (replace with actual agent script)
+# For now, we'll run a simple Python process that stays alive
+exec python3 -u /home/agent/scripts/agent.py

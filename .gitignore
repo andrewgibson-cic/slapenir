@@ -1,0 +1,51 @@
+# === Secrets & Credentials ===
+*.pem
+*.key
+*.crt
+!tests/fixtures/certs/*.crt  # Test certs are OK
+*.env
+.env.local
+secrets.json
+!tests/fixtures/tokens.json  # Dummy tokens only
+
+# === Rust ===
+target/
+Cargo.lock  # Include for binary projects
+**/*.rs.bk
+*.pdb
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# === Docker ===
+.docker/volumes/
+*.log
+
+# === IDE ===
+.vscode/settings.json  # Local settings
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Coverage & Reports ===
+target/coverage/
+coverage/
+*.profraw
+
+# === Temporary ===
+*.tmp
+*.bak
+temp/

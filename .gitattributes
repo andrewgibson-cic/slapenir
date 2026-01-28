@@ -1,0 +1,19 @@
+# Auto-detect text files
+* text=auto
+
+# Enforce LF for source code
+*.rs text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.wasm binary

@@ -34,6 +34,70 @@ services:
       - "slapenir.service=ca"
       - "slapenir.phase=1"
 
+  # ============================================================================
+  # Proxy: Rust-based sanitizing gateway
+  # ============================================================================
+  proxy:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    container_name: slapenir-proxy
+    hostname: proxy
+    networks:
+      - slape-net
+    ports:
+      - "3000:3000"  # Proxy API (expose for testing)
+    environment:
+      - RUST_LOG=info
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    depends_on:
+      step-ca:
+        condition: service_healthy
+    labels:
+      - "slapenir.service=proxy"
+      - "slapenir.phase=2"
+
+  # ============================================================================
+  # Agent: Wolfi-based Python execution environment
+  # ============================================================================
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: slapenir-agent
+    hostname: agent
+    networks:
+      - slape-net
+    environment:
+      - HTTP_PROXY=http://proxy:3000
+      - HTTPS_PROXY=http://proxy:3000
+      - PROXY_HOST=proxy
+      - PROXY_PORT=3000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - agent-workspace:/home/agent/workspace
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    depends_on:
+      proxy:
+        condition: service_healthy
+    labels:
+      - "slapenir.service=agent"
+      - "slapenir.phase=3"
+
 # ============================================================================
 # Networks
 # ============================================================================
@@ -61,3 +125,8 @@ volumes:
     name: slapenir-ca-certs
     labels:
       - "slapenir.volume=ca-certs"
+  
+  agent-workspace:
+    name: slapenir-agent-workspace
+    labels:
+      - "slapenir.volume=agent-workspace"

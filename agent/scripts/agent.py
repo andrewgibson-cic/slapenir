@@ -73,6 +73,33 @@ def check_environment():
     
     return True
 
+def test_proxy_health():
+    """Test proxy health endpoint"""
+    try:
+        import requests
+        
+        # Test direct connection to proxy health endpoint
+        proxy_host = os.getenv('PROXY_HOST', 'proxy')
+        proxy_port = os.getenv('PROXY_PORT', '3000')
+        health_url = f"http://{proxy_host}:{proxy_port}/health"
+        
+        logger.info(f"Testing proxy health at: {health_url}")
+        response = requests.get(health_url, timeout=5)
+        
+        if response.status_code == 200:
+            logger.info(f"✓ Proxy health check passed: {response.text}")
+            return True
+        else:
+            logger.warning(f"✗ Proxy health check failed: {response.status_code}")
+            return False
+            
+    except ImportError:
+        logger.warning("requests library not available, skipping health check")
+        return True
+    except Exception as e:
+        logger.warning(f"Proxy health check error: {e}")
+        return False
+
 def main():
     """Main agent loop"""
     global shutdown_requested
@@ -89,6 +116,11 @@ def main():
     if not check_environment():
         logger.error("Environment check failed")
         return 1
+    
+    # Test proxy connection
+    proxy_healthy = test_proxy_health()
+    if not proxy_healthy:
+        logger.warning("Proxy health check failed, but continuing anyway")
     
     logger.info("Agent initialization complete")
     logger.info("Entering main loop (heartbeat every 30 seconds)...")

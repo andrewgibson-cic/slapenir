@@ -1,0 +1,52 @@
+[package]
+name = "slapenir-proxy"
+version = "0.1.0"
+edition = "2021"
+authors = ["andrewgibson-cic <andrew.gibson-cic@ibm.com>"]
+description = "SLAPENIR Secure Proxy - Zero-Knowledge credential sanitization gateway"
+license = "MIT"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# HTTP server framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+
+# HTTP client for proxying
+hyper = { version = "1.1", features = ["client", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", "http2", "tokio"] }
+
+# TLS support
+rustls = "0.22"
+tokio-rustls = "0.25"
+rustls-pemfile = "2.0"
+
+# Streaming pattern matching (Aho-Corasick)
+aho-corasick = "1.1"
+
+# Secure memory handling
+zeroize = { version = "1.7", features = ["derive"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Environment variables
+dotenvy = "0.15"
+
+[dev-dependencies]
+# Testing
+proptest = "1.4"
+criterion = { version = "0.5", features = ["html_reports"] }
+mockito = "1.2"

@@ -18,7 +18,7 @@ mkdir -p ./ca-data
 
 echo "📦 Starting Step-CA container for initialization..."
 docker run --rm \
-  -v "$(pwd)/ca-/home/step" \
+  -v "$(pwd)/ca-data:/home/step" \
   -e "DOCKER_STEPCA_INIT_NAME=${CA_NAME}" \
   -e "DOCKER_STEPCA_INIT_DNS_NAMES=${CA_DNS}" \
   -e "DOCKER_STEPCA_INIT_ADDRESS=${CA_ADDRESS}" \

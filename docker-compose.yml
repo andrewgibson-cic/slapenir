@@ -1,0 +1,63 @@
+version: '3.8'
+
+# SLAPENIR: Secure LLM Agent Proxy Environment
+# Phase 1: Identity & Foundation - Step-CA Certificate Authority
+
+services:
+  # ============================================================================
+  # Step-CA: Certificate Authority for mTLS
+  # ============================================================================
+  step-ca:
+    image: smallstep/step-ca:latest
+    container_name: slapenir-ca
+    hostname: ca
+    networks:
+      - slape-net
+    ports:
+      - "9000:9000"  # CA API (internal only, exposed for initial setup)
+    volumes:
+      - step-ca-config:/home/step
+    environment:
+      - DOCKER_STEPCA_INIT_NAME=SLAPENIR-CA
+      - DOCKER_STEPCA_INIT_DNS_NAMES=ca,step-ca,localhost
+      - DOCKER_STEPCA_INIT_PROVISIONER_NAME=admin
+      - DOCKER_STEPCA_INIT_PASSWORD=slapenir-dev-password-change-in-prod
+      - DOCKER_STEPCA_INIT_ADDRESS=:9000
+    healthcheck:
+      test: ["CMD", "step", "ca", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    labels:
+      - "slapenir.service=ca"
+      - "slapenir.phase=1"
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  slape-net:
+    name: slape-net
+    driver: bridge
+    internal: true  # No direct internet access
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+    labels:
+      - "slapenir.network=internal"
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  step-ca-config:
+    name: slapenir-ca-config
+    labels:
+      - "slapenir.volume=ca-config"
+  
+  step-ca-certs:
+    name: slapenir-ca-certs
+    labels:
+      - "slapenir.volume=ca-certs"

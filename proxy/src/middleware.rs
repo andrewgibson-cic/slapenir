@@ -1,4 +1,5 @@
 // SLAPENIR Middleware - Request/Response Sanitization
+use crate::proxy::HttpClient;
 // Integrates SecretMap into the HTTP request/response pipeline
 
 use crate::sanitizer::SecretMap;
@@ -15,6 +16,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct AppState {
     pub secret_map: Arc<SecretMap>,
+    pub http_client: HttpClient,
 }
 
 /// Middleware to inject secrets into outbound requests (Agent -> Internet)
@@ -141,6 +143,7 @@ mod tests {
         let secret_map = SecretMap::new(secrets).unwrap();
         AppState {
             secret_map: Arc::new(secret_map),
+            http_client: crate::proxy::create_http_client(),
         }
     }
 

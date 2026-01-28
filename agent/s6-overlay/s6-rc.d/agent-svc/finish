@@ -1,0 +1,30 @@
+#!/bin/sh
+# S6 finish script for SLAPENIR agent
+# Handles process exit and determines whether to restart
+
+EXIT_CODE=$1
+EXIT_SIGNAL=$2
+
+echo "[agent-svc] Agent process exited with code: $EXIT_CODE, signal: $EXIT_SIGNAL"
+
+# Restart policy:
+# - Exit code 0: Clean shutdown, don't restart
+# - Exit code 1-99: Expected errors, restart after delay
+# - Exit code 100+: Fatal errors, stop container
+# - Signals (SIGTERM, SIGINT): Clean shutdown, don't restart
+
+case "$EXIT_CODE" in
+    0)
+        echo "[agent-svc] Clean shutdown, not restarting"
+        exit 0
+        ;;
+    [1-9]|[1-9][0-9])
+        echo "[agent-svc] Recoverable error, will restart after 5s delay"
+        sleep 5
+        exit 0  # Let s6 restart the service
+        ;;
+    *)
+        echo "[agent-svc] Fatal error (exit code $EXIT_CODE), stopping container"
+        exit 1  # Stop the container
+        ;;
+esac

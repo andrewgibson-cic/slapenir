@@ -51,6 +51,14 @@ services:
       - RUST_LOG=info
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # mTLS Configuration
+      - MTLS_ENABLED=${MTLS_ENABLED:-false}
+      - MTLS_ENFORCE=${MTLS_ENFORCE:-false}
+      - MTLS_CA_CERT=/certs/root_ca.crt
+      - MTLS_SERVER_CERT=/certs/proxy.crt
+      - MTLS_SERVER_KEY=/certs/proxy.key
+    volumes:
+      - proxy-certs:/certs:ro  # Read-only certificate access
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -82,8 +90,15 @@ services:
       - PROXY_HOST=proxy
       - PROXY_PORT=3000
       - PYTHONUNBUFFERED=1
+      # mTLS Configuration
+      - MTLS_ENABLED=${MTLS_ENABLED:-false}
+      - MTLS_CA_CERT=/certs/root_ca.crt
+      - MTLS_CLIENT_CERT=/certs/agent.crt
+      - MTLS_CLIENT_KEY=/certs/agent.key
+      - MTLS_VERIFY_HOSTNAME=${MTLS_VERIFY_HOSTNAME:-true}
     volumes:
       - agent-workspace:/home/agent/workspace
+      - agent-certs:/certs:ro  # Read-only certificate access
     healthcheck:
       test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
       interval: 30s
@@ -125,6 +140,18 @@ volumes:
     name: slapenir-ca-certs
     labels:
       - "slapenir.volume=ca-certs"
+  
+  proxy-certs:
+    name: slapenir-proxy-certs
+    labels:
+      - "slapenir.volume=proxy-certs"
+      - "slapenir.mtls=enabled"
+  
+  agent-certs:
+    name: slapenir-agent-certs
+    labels:
+      - "slapenir.volume=agent-certs"
+      - "slapenir.mtls=enabled"
   
   agent-workspace:
     name: slapenir-agent-workspace

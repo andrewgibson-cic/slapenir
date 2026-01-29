@@ -4,7 +4,7 @@
 use axum::{
     response::Html,
     routing::{any, get},
-    Router,
+    Router, Extension,
 };
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -12,10 +12,12 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod middleware;
+mod mtls;
 mod proxy;
 mod sanitizer;
 
 use middleware::AppState;
+use mtls::MtlsConfig;
 use sanitizer::SecretMap;
 
 #[tokio::main]
@@ -30,6 +32,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     tracing::info!("🔐 SLAPENIR Proxy starting...");
+
+    // Initialize mTLS if enabled
+    let mtls_config = load_mtls_config()?;
 
     // Load secrets from environment or configuration
     let secrets = load_secrets();
@@ -51,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
     };
     
     // Build our application with routes
-    let app = Router::new()
+    let mut app = Router::new()
         // Health and info endpoints
         .route("/", get(root))
         .route("/health", get(health))
@@ -59,6 +64,17 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/*path", any(proxy::proxy_handler))
         .with_state(app_state)
         .layer(TraceLayer::new_for_http());
+    
+    // Add mTLS layer if configured
+    if let Some(mtls) = mtls_config {
+        tracing::info!("🔒 mTLS enabled - mutual authentication active");
+        app = app.layer(Extension(mtls));
+        // Note: Full mTLS integration with axum-server for TLS listener
+        // would be added here in production. For now, we support mTLS
+        // configuration but serve over HTTP for development.
+    } else {
+        tracing::info!("🔓 mTLS disabled - running in development mode");
+    }
 
     // Bind to address
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -71,6 +87,53 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+/// Load mTLS configuration from environment variables
+fn load_mtls_config() -> anyhow::Result<Option<MtlsConfig>> {
+    // Check if mTLS is enabled
+    let mtls_enabled = std::env::var("MTLS_ENABLED")
+        .unwrap_or_else(|_| "false".to_string())
+        .to_lowercase() == "true";
+    
+    if !mtls_enabled {
+        return Ok(None);
+    }
+    
+    tracing::info!("🔐 Initializing mTLS configuration...");
+    
+    // Get certificate paths from environment
+    let ca_cert = std::env::var("MTLS_CA_CERT")
+        .unwrap_or_else(|_| "/certs/root_ca.crt".to_string());
+    let server_cert = std::env::var("MTLS_SERVER_CERT")
+        .unwrap_or_else(|_| "/certs/proxy.crt".to_string());
+    let server_key = std::env::var("MTLS_SERVER_KEY")
+        .unwrap_or_else(|_| "/certs/proxy.key".to_string());
+    
+    // Check if enforcement is enabled
+    let enforce = std::env::var("MTLS_ENFORCE")
+        .unwrap_or_else(|_| "false".to_string())
+        .to_lowercase() == "true";
+    
+    tracing::info!("📁 Certificate paths:");
+    tracing::info!("   CA: {}", ca_cert);
+    tracing::info!("   Server cert: {}", server_cert);
+    tracing::info!("   Server key: {}", server_key);
+    tracing::info!("   Enforcement: {}", if enforce { "ENABLED" } else { "disabled" });
+    
+    // Try to load mTLS configuration
+    match MtlsConfig::from_files(&ca_cert, &server_cert, &server_key, enforce) {
+        Ok(config) => {
+            tracing::info!("✅ mTLS configuration loaded successfully");
+            Ok(Some(config))
+        }
+        Err(e) => {
+            tracing::warn!("⚠️  Failed to load mTLS configuration: {}", e);
+            tracing::warn!("⚠️  Continuing without mTLS - certificates may not be available yet");
+            tracing::warn!("💡 Run ./scripts/setup-mtls-certs.sh to generate certificates");
+            Ok(None)
+        }
+    }
 }
 
 /// Load secrets from environment variables

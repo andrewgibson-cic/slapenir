@@ -80,9 +80,48 @@ jobs:
         flags: proxy
         name: proxy-coverage
 
+  python-lint:
+    name: Python Linting & Formatting
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff black
+    
+    - name: Run ruff linter
+      run: |
+        ruff check agent/scripts/ --output-format=github
+      continue-on-error: true
+    
+    - name: Check formatting with black
+      run: |
+        black --check agent/scripts/
+      continue-on-error: true
+    
+    - name: Generate lint report
+      if: always()
+      run: |
+        echo "## 🐍 Python Code Quality" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Linting (ruff)" >> $GITHUB_STEP_SUMMARY
+        ruff check agent/scripts/ --statistics || echo "⚠️ Linting issues found" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Formatting (black)" >> $GITHUB_STEP_SUMMARY
+        black --check agent/scripts/ && echo "✅ Code is properly formatted" >> $GITHUB_STEP_SUMMARY || echo "⚠️ Formatting issues found" >> $GITHUB_STEP_SUMMARY
+
   agent-tests:
     name: Agent Tests (Python)
     runs-on: ubuntu-latest
+    needs: [python-lint]
     
     steps:
     - uses: actions/checkout@v4

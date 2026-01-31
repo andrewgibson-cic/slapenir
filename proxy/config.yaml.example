@@ -1,0 +1,71 @@
+# SLAPENIR Configuration
+# Strategy-based credential injection and sanitization
+
+# Authentication Strategies
+strategies:
+  # OpenAI API
+  - name: openai
+    type: bearer
+    config:
+      env_var: OPENAI_API_KEY
+      dummy_pattern: "DUMMY_OPENAI"
+      allowed_hosts:
+        - "api.openai.com"
+        - "*.openai.com"
+  
+  # Anthropic Claude API
+  - name: anthropic
+    type: bearer
+    config:
+      env_var: ANTHROPIC_API_KEY
+      dummy_pattern: "DUMMY_ANTHROPIC"
+      allowed_hosts:
+        - "api.anthropic.com"
+        - "*.anthropic.com"
+  
+  # GitHub API
+  - name: github
+    type: bearer
+    config:
+      env_var: GITHUB_TOKEN
+      dummy_pattern: "DUMMY_GITHUB"
+      allowed_hosts:
+        - "api.github.com"
+        - "github.com"
+  
+  # AWS Services (SigV4 Support - NOW AVAILABLE!)
+  - name: aws-prod
+    type: aws_sigv4
+    config:
+      access_key_env: AWS_ACCESS_KEY_ID
+      secret_key_env: AWS_SECRET_ACCESS_KEY
+      region: us-east-1
+      allowed_hosts:
+        - "*.amazonaws.com"
+
+# Security Settings
+security:
+  # Fail mode: "closed" blocks requests on error, "open" allows pass-through
+  fail_mode: closed
+  
+  # Enable telemetry blocking
+  block_telemetry: true
+  
+  # Telemetry domains to block (privacy protection)
+  telemetry_domains:
+    - "telemetry.anthropic.com"
+    - "sentry.io"
+    - "*.sentry.io"
+    - "segment.com"
+    - "*.segment.com"
+    - "mixpanel.com"
+    - "*.mixpanel.com"
+    - "amplitude.com"
+    - "*.amplitude.com"
+    - "bugsnag.com"
+    - "*.bugsnag.com"
+
+# Logging Configuration
+logging:
+  level: info  # debug, info, warn, error
+  format: json  # json or text

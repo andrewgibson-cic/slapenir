@@ -11,16 +11,16 @@ use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-mod metrics;
-mod middleware;
-mod mtls;
-mod proxy;
-mod sanitizer;
-
-use middleware::AppState;
-use metrics::{init_metrics, gather_metrics};
-use mtls::MtlsConfig;
-use sanitizer::SecretMap;
+// Use the library modules
+use slapenir_proxy::{
+    build_strategies_from_config,
+    config::Config,
+    metrics::{init_metrics, gather_metrics},
+    middleware::AppState,
+    mtls::MtlsConfig,
+    proxy,
+    sanitizer::SecretMap,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -45,19 +45,8 @@ async fn main() -> anyhow::Result<()> {
     // Initialize mTLS if enabled
     let mtls_config = load_mtls_config()?;
 
-    // Load secrets from environment or configuration
-    let secrets = load_secrets();
-    
-    let secret_map = if secrets.is_empty() {
-        tracing::warn!("⚠️  No secrets configured. Using test secret for demonstration.");
-        // Create a test secret for demonstration
-        let mut test_secrets = HashMap::new();
-        test_secrets.insert("DUMMY_TOKEN".to_string(), "test_real_token_123".to_string());
-        SecretMap::new(test_secrets).map_err(|e| anyhow::anyhow!(e))?
-    } else {
-        tracing::info!("✅ Loaded {} secrets from configuration", secrets.len());
-        SecretMap::new(secrets).map_err(|e| anyhow::anyhow!(e))?
-    };
+    // Load secrets using strategy pattern (Phase 9)
+    let secret_map = load_secrets_with_strategies()?;
     
     let app_state = AppState {
         secret_map: std::sync::Arc::new(secret_map),
@@ -147,35 +136,79 @@ fn load_mtls_config() -> anyhow::Result<Option<MtlsConfig>> {
     }
 }
 
-/// Load secrets from environment variables
-fn load_secrets() -> HashMap<String, String> {
+/// Load secrets using strategy pattern (Phase 9 integration)
+/// 
+/// This function attempts to load config.yaml and build strategies.
+/// Falls back to environment variables if config doesn't exist.
+fn load_secrets_with_strategies() -> anyhow::Result<SecretMap> {
+    // Try to load config.yaml
+    let config_path = std::env::var("CONFIG_PATH")
+        .unwrap_or_else(|_| "config.yaml".to_string());
+    
+    match Config::from_file(&config_path) {
+        Ok(config) => {
+            tracing::info!("✅ Loaded configuration from {}", config_path);
+            tracing::info!("📋 Found {} strategies in config", config.strategies.len());
+            
+            // Build strategies from config
+            let strategies = build_strategies_from_config(&config)
+                .map_err(|e| anyhow::anyhow!("Failed to build strategies: {}", e))?;
+            
+            if strategies.is_empty() {
+                tracing::warn!("⚠️  No strategies built from config, falling back to env vars");
+                return load_secrets_fallback();
+            }
+            
+            tracing::info!("✅ Built {} strategies successfully", strategies.len());
+            
+            // Create SecretMap from strategies
+            SecretMap::from_strategies(&strategies)
+                .map_err(|e| anyhow::anyhow!("Failed to create SecretMap from strategies: {}", e))
+        }
+        Err(e) => {
+            tracing::warn!("⚠️  Could not load config file '{}': {}", config_path, e);
+            tracing::info!("💡 Falling back to environment variable configuration");
+            load_secrets_fallback()
+        }
+    }
+}
+
+/// Fallback: Load secrets from environment variables (old method)
+fn load_secrets_fallback() -> anyhow::Result<SecretMap> {
     let mut secrets = HashMap::new();
     
     // Load OpenAI API key
     if let Ok(key) = std::env::var("OPENAI_API_KEY") {
         secrets.insert("DUMMY_OPENAI".to_string(), key);
-        tracing::debug!("Loaded OPENAI_API_KEY");
+        tracing::debug!("Loaded OPENAI_API_KEY from environment");
     }
     
     // Load Anthropic API key
     if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
         secrets.insert("DUMMY_ANTHROPIC".to_string(), key);
-        tracing::debug!("Loaded ANTHROPIC_API_KEY");
+        tracing::debug!("Loaded ANTHROPIC_API_KEY from environment");
     }
     
     // Load GitHub token
     if let Ok(token) = std::env::var("GITHUB_TOKEN") {
         secrets.insert("DUMMY_GITHUB".to_string(), token);
-        tracing::debug!("Loaded GITHUB_TOKEN");
+        tracing::debug!("Loaded GITHUB_TOKEN from environment");
     }
     
     // Load generic API_KEY (for testing)
     if let Ok(key) = std::env::var("API_KEY") {
         secrets.insert("DUMMY_API_KEY".to_string(), key);
-        tracing::debug!("Loaded API_KEY");
+        tracing::debug!("Loaded API_KEY from environment");
     }
     
-    secrets
+    if secrets.is_empty() {
+        tracing::warn!("⚠️  No secrets configured. Using test secret for demonstration.");
+        secrets.insert("DUMMY_TOKEN".to_string(), "test_real_token_123".to_string());
+    } else {
+        tracing::info!("✅ Loaded {} secrets from environment variables", secrets.len());
+    }
+    
+    SecretMap::new(secrets).map_err(|e| anyhow::anyhow!(e))
 }
 
 /// Root endpoint

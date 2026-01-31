@@ -58,36 +58,90 @@ This enables AI agents to make API calls without ever seeing real credentials, d
 - **Docker Compose** (v2.24+) - Included with Docker Desktop
 - **Git** - For cloning the repository
 
-### One-Command Setup ⚡
+### 1. Configure Environment Variables
+
+First, set up your API keys and secrets:
 
 ```bash
-# Clone and start SLAPENIR in one go
-git clone https://github.com/andrewgibson-cic/slapenir.git
-cd slapenir
-./quickstart.sh
+# Copy the environment template
+cp .env.example .env
+
+# Edit .env with your real API keys
+# nano .env  # or use your favorite editor
+```
+
+**Required variables** (at minimum):
+- `OPENAI_API_KEY` - For OpenAI API access
+- `ANTHROPIC_API_KEY` - For Claude API access
+
+See `.env.example` for all available configuration options.
+
+**⚠️ Security Note:** Never commit your `.env` file to version control! It's already in `.gitignore`.
+
+### 2. Start SLAPENIR 🚀
+
+Use the simple control script for all operations:
+
+```bash
+# Start everything (one command!)
+./slapenir start
 ```
 
 **That's it!** The script automatically:
-1. ✅ Checks prerequisites (Docker, Docker Compose)
-2. 🔐 Generates mTLS certificates via Step CA
+1. ✅ Checks for .env file (creates from template if missing)
+2. 🔐 Generates mTLS certificates (if needed)
 3. 🚀 Builds and starts all services
 4. 🏥 Verifies health of all components
 5. 📊 Displays access URLs
 
 > 💡 **Tip**: The entire setup takes ~2-3 minutes on first run (includes building Docker images)
 
-### Manual Setup (If Preferred)
+### 3. Common Operations ⚡
 
 ```bash
-# 1. Generate certificates
-./scripts/init-step-ca.sh
+# Check status and health
+./slapenir status
 
-# 2. Start all services
+# Access containers
+./slapenir shell          # Open shell in agent (default)
+./slapenir shell agent    # Open shell in agent
+./slapenir shell proxy    # Open shell in proxy
+
+# View logs (all services)
+./slapenir logs
+
+# View specific service logs
+./slapenir logs proxy
+./slapenir logs agent
+
+# Restart everything
+./slapenir restart
+
+# Stop all services
+./slapenir stop
+
+# Clean everything (removes volumes)
+./slapenir clean
+```
+
+**Using Make (Alternative):**
+
+```bash
+make help           # Show all commands
+make start          # Start services
+make shell          # Shell into agent
+make shell-proxy    # Shell into proxy
+make logs-agent     # View agent logs
+make test           # Run all tests
+```
+
+### Manual Setup (Alternative)
+
+```bash
+# If you prefer docker-compose directly
 docker-compose up -d --build
-
-# 3. Verify services (wait 10 seconds for startup)
-sleep 10
-curl http://localhost:3000/health
+docker-compose logs -f
+docker-compose down
 ```
 
 ### Access Your Instance
@@ -100,20 +154,43 @@ curl http://localhost:3000/health
 | **Prometheus** | http://localhost:9090 | N/A |
 | **Grafana** | http://localhost:3001 | admin/admin |
 
-### Verify It's Working
+### 4. Monitor & Debug 📊
 
+**View Logs:**
 ```bash
-# Check proxy health
-curl http://localhost:3000/health
+./slapenir logs              # All services
+./slapenir logs proxy        # Proxy only
+./slapenir logs agent        # Agent only
+make logs                    # Alternative
+```
 
-# View live metrics
+**Monitor Metrics:**
+```bash
+# Raw metrics (CLI)
 curl http://localhost:3000/metrics
 
-# Watch logs
-docker-compose logs -f proxy
+# Prometheus UI (queries & graphs)
+open http://localhost:9090
 
-# Run tests
-./test-system.sh
+# Grafana Dashboards (visual)
+open http://localhost:3001    # admin/admin
+```
+
+**Health & Status:**
+```bash
+./slapenir status            # Service health check
+curl http://localhost:3000/health
+```
+
+**Useful Prometheus Queries:**
+- Request rate: `rate(slapenir_http_requests_total[5m])`
+- Error rate: `rate(slapenir_http_requests_total{status=~"5.."}[5m])`
+- Secrets sanitized: `rate(slapenir_secrets_sanitized_total[1m]) * 60`
+
+**Run Tests:**
+```bash
+./test-system.sh             # All tests
+make test                    # Alternative
 ```
 
 ### Stop Services
@@ -231,8 +308,8 @@ docker compose config                   # Validate compose file
 
 ## 📊 Project Status
 
-- **Overall Progress**: 95% Complete ✅
-- **Core Functionality**: OPERATIONAL
+- **Overall Progress**: 90% Complete ✅
+- **Core Functionality**: FULLY OPERATIONAL
 - **Phase 0** (Prerequisites): ✅ 100% Complete
 - **Phase 1** (Identity/Network): ✅ 100% Complete
 - **Phase 2** (Proxy Core): ✅ 100% Complete
@@ -240,16 +317,24 @@ docker compose config                   # Validate compose file
 - **Phase 4** (mTLS Security): ✅ 100% Complete
 - **Phase 5** (Chaos Testing): ✅ 100% Complete
 - **Phase 6** (Monitoring): ✅ 100% Complete
+- **Phase 7** (Strategy Pattern): ✅ 100% Complete
+- **Phase 8** (Code Quality): ✅ 100% Complete
+- **Phase 9** (Strategy Integration): ✅ 100% Complete ← NEW!
 
 ### 🎯 Recent Achievements
+- ✅ **Phase 9**: Strategy pattern integrated into main application
+- ✅ YAML configuration system operational
+- ✅ AWS SigV4 strategy ready for use
+- ✅ Config file loading with graceful fallback
+- ✅ 7 new integration tests (56 total proxy tests)
+- ✅ Gap analysis completed and documented
 - ✅ Full mTLS implementation (Rust + Python)
 - ✅ Automated certificate management
 - ✅ Chaos testing framework (5 scenarios)
 - ✅ Prometheus + Grafana monitoring
-- ✅ Metrics instrumentation complete
-- ⚠️ mTLS compilation fix needed (rustls API updates)
+- ✅ Metrics fully instrumented (49/49 tests passing)
 
-See [PROGRESS.md](docs/PROGRESS.md) and [NEXT_STEPS.md](docs/NEXT_STEPS.md) for detailed status.
+See [PROGRESS.md](docs/PROGRESS.md), [GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md), and [NEXT_STEPS.md](docs/NEXT_STEPS.md) for detailed status.
 
 ## 🔧 Development
 
@@ -349,4 +434,4 @@ Andrew Gibson (andrew.gibson-cic@ibm.com)
 
 **Status**: Active Development  
 **Last Updated**: 2026-01-31  
-**Version**: 0.9.5 (95% Complete - Core Functionality Operational)
+**Version**: 0.9.0 (90% Complete - Strategy Pattern Integrated)

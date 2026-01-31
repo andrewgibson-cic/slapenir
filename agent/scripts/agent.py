@@ -20,6 +20,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger('slapenir-agent')
 
+# Load environment variables
+def load_env_vars():
+    """Load and log important environment variables"""
+    env_vars = {
+        'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY'),
+        'ANTHROPIC_API_KEY': os.getenv('ANTHROPIC_API_KEY'),
+        'IBM_API_KEY': os.getenv('IBM_API_KEY'),
+        'SLACK_BOT_TOKEN': os.getenv('SLACK_BOT_TOKEN'),
+        'AWS_ACCESS_KEY_ID': os.getenv('AWS_ACCESS_KEY_ID'),
+    }
+    
+    logger.info("Environment Variables Status:")
+    for var_name, var_value in env_vars.items():
+        if var_value:
+            # Show only first 8 chars for security
+            masked_value = f"{var_value[:8]}..." if len(var_value) > 8 else "***"
+            logger.info(f"  ✓ {var_name}: {masked_value}")
+        else:
+            logger.warning(f"  ✗ {var_name}: Not set")
+    
+    return env_vars
+
 # Global flag for graceful shutdown
 shutdown_requested = False
 
@@ -111,6 +133,9 @@ def main():
     logger.info("=" * 60)
     logger.info("SLAPENIR Agent Starting")
     logger.info("=" * 60)
+    
+    # Load environment variables
+    env_vars = load_env_vars()
     
     # Check environment
     if not check_environment():

@@ -174,7 +174,7 @@ mod sanitizer_tests {
     #[test]
     fn test_secret_map_no_match() {
         let mut secrets = HashMap::new();
-        secrets.insert("TOKEN".to_string(), "secret".to_string());
+        secrets.insert("TOKEN".to_string(), "my_real_secret_key".to_string());
         
         let map = SecretMap::new(secrets).unwrap();
         
@@ -182,7 +182,7 @@ mod sanitizer_tests {
         let output = map.inject(input);
         assert_eq!(output, input);
         
-        let response = "No secrets here";
+        let response = "No matching patterns here";
         let sanitized = map.sanitize(response);
         assert_eq!(sanitized, response);
     }
@@ -211,7 +211,8 @@ mod sanitizer_tests {
         let input = "Start LONG End";
         let output = map.inject(input);
         assert!(output.contains(&long_secret));
-        assert_eq!(output.len(), 11 + long_secret.len());
+        // "Start " (6) + long_secret (1000) + " End" (4) = 1010
+        assert_eq!(output.len(), 1010);
     }
 
     #[test]

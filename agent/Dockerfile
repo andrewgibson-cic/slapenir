@@ -8,7 +8,7 @@ LABEL maintainer="andrew.gibson-cic@ibm.com"
 LABEL description="SLAPENIR Agent: Secure Python execution environment with process supervision"
 LABEL version="0.1.0"
 
-# Install build tools, Python, and s6-overlay for process supervision
+# Install build tools and Python
 RUN apk add --no-cache \
     python-3.11 \
     py3-pip \
@@ -16,7 +16,13 @@ RUN apk add --no-cache \
     git \
     curl \
     ca-certificates \
-    s6-overlay
+    xz
+
+# Install s6-overlay from GitHub releases (Wolfi doesn't have s6-overlay package)
+ARG S6_OVERLAY_VERSION=3.1.6.2
+ARG TARGETARCH=aarch64
+RUN curl -L "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" | tar -C / -Jxpf - && \
+    curl -L "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${TARGETARCH}.tar.xz" | tar -C / -Jxpf -
 
 # Install step-cli for certificate management (copy from step-ca image)
 COPY --from=smallstep/step-ca:latest /usr/local/bin/step /usr/local/bin/step

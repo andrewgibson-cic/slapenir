@@ -1,0 +1,68 @@
+# Prometheus Configuration for SLAPENIR
+# Phase 6: Monitoring & Observability
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'slapenir-local'
+    environment: 'development'
+
+# Alertmanager configuration (placeholder for future)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          phase: '6'
+
+  # Docker container metrics (via cAdvisor if added)
+  # - job_name: 'cadvisor'
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']
+
+  # Rust Proxy metrics (future endpoint at /metrics)
+  - job_name: 'slapenir-proxy'
+    static_configs:
+      - targets: ['proxy:3000']
+        labels:
+          service: 'proxy'
+          phase: '2'
+          component: 'gateway'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Python Agent metrics (future endpoint)
+  - job_name: 'slapenir-agent'
+    static_configs:
+      - targets: ['agent:8000']
+        labels:
+          service: 'agent'
+          phase: '3'
+          component: 'executor'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Step-CA metrics (if exposed)
+  - job_name: 'step-ca'
+    static_configs:
+      - targets: ['ca:9000']
+        labels:
+          service: 'step-ca'
+          phase: '1'
+          component: 'pki'
+    metrics_path: '/metrics'
+    scrape_interval: 30s

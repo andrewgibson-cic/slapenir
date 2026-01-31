@@ -1,0 +1,187 @@
+{
+  "dashboard": {
+    "title": "SLAPENIR System Overview",
+    "tags": ["slapenir", "overview"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Health",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "up{job=~\"slapenir-.*\"}",
+            "legendFormat": "{{job}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"value": 1, "text": "UP", "color": "green"},
+              {"value": 0, "text": "DOWN", "color": "red"}
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Request Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job=\"slapenir-proxy\"}[5m])",
+            "legendFormat": "{{method}} {{status}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Response Time (p95)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"slapenir-proxy\"}[5m]))",
+            "legendFormat": "p95 latency",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job=\"slapenir-proxy\",status=~\"5..\"}[5m])",
+            "legendFormat": "{{status}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Errors/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Secrets Sanitized",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "sum(secrets_sanitized_total{job=\"slapenir-proxy\"})",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value_and_name"
+        }
+      },
+      {
+        "id": 6,
+        "title": "mTLS Connections",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 16},
+        "targets": [
+          {
+            "expr": "sum(mtls_connections_total{job=\"slapenir-proxy\"})",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value_and_name"
+        }
+      },
+      {
+        "id": 7,
+        "title": "Certificate Expiry (Days)",
+        "type": "gauge",
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "(cert_expiry_timestamp{job=\"slapenir-proxy\"} - time()) / 86400",
+            "legendFormat": "{{cert_name}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 7, "color": "yellow"},
+                {"value": 30, "color": "green"}
+              ]
+            },
+            "unit": "d"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Active Agents",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 16},
+        "targets": [
+          {
+            "expr": "count(up{job=\"slapenir-agent\"} == 1)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "textMode": "value_and_name"
+        }
+      }
+    ]
+  },
+  "overwrite": true
+}

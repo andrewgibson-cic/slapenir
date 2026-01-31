@@ -2,6 +2,7 @@
 // Implements mutual TLS authentication for proxy-agent communication
 
 use axum::{
+    body::Body,
     extract::ConnectInfo,
     http::{Request, StatusCode},
     middleware::Next,
@@ -10,10 +11,12 @@ use axum::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio_rustls::rustls::{
-    server::WebPkiClientVerifier, Certificate, ClientConfig, RootCertStore, ServerConfig,
+    pki_types::CertificateDer,
+    server::WebPkiClientVerifier,
+    ClientConfig, RootCertStore, ServerConfig,
 };
 use tokio_rustls::TlsAcceptor;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// mTLS configuration for the proxy
 #[derive(Clone)]
@@ -48,30 +51,24 @@ impl MtlsConfig {
 
         // Load CA certificate for client verification
         let ca_cert_pem = std::fs::read(ca_cert_path)?;
-        let ca_cert = rustls_pemfile::certs(&mut &ca_cert_pem[..])?
+        let ca_certs = rustls_pemfile::certs(&mut &ca_cert_pem[..])
+            .collect::<Result<Vec<_>, _>>()?;
+        let ca_cert = ca_certs
             .into_iter()
             .next()
             .ok_or("No CA certificate found")?;
 
         // Create root certificate store
         let mut root_store = RootCertStore::empty();
-        root_store.add(&Certificate(ca_cert.clone()))?;
+        root_store.add(ca_cert.clone())?;
 
         // Load server certificate and key
         let server_cert_pem = std::fs::read(server_cert_path)?;
-        let server_certs: Vec<Certificate> = rustls_pemfile::certs(&mut &server_cert_pem[..])?
-            .into_iter()
-            .map(Certificate)
-            .collect();
+        let server_certs: Vec<CertificateDer> =
+            rustls_pemfile::certs(&mut &server_cert_pem[..]).collect::<Result<Vec<_>, _>>()?;
 
         let server_key_pem = std::fs::read(server_key_path)?;
-        let mut server_keys = rustls_pemfile::pkcs8_private_keys(&mut &server_key_pem[..])?;
-        if server_keys.is_empty() {
-            server_keys = rustls_pemfile::rsa_private_keys(&mut &server_key_pem[..])?;
-        }
-        let server_key = server_keys
-            .into_iter()
-            .next()
+        let server_key = rustls_pemfile::private_key(&mut &server_key_pem[..])?
             .ok_or("No private key found")?;
 
         // Configure client verification
@@ -89,13 +86,11 @@ impl MtlsConfig {
 
         // Create server configuration
         let server_config = ServerConfig::builder()
-            .with_safe_defaults()
-            .with_client_cert_verifier(Arc::new(client_verifier))
-            .with_single_cert(server_certs, tokio_rustls::rustls::PrivateKey(server_key))?;
+            .with_client_cert_verifier(client_verifier)
+            .with_single_cert(server_certs, server_key)?;
 
         // Create client configuration for outbound connections
         let client_config = ClientConfig::builder()
-            .with_safe_defaults()
             .with_root_certificates(root_store)
             .with_no_client_auth();
 
@@ -118,11 +113,11 @@ impl MtlsConfig {
 ///
 /// This middleware extracts and validates the client certificate from the connection.
 /// If mTLS is enforced and no valid certificate is present, the request is rejected.
-pub async fn verify_client_cert<B>(
+pub async fn verify_client_cert(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     mtls_config: axum::Extension<MtlsConfig>,
-    request: Request<B>,
-    next: Next<B>,
+    request: Request<Body>,
+    next: Next,
 ) -> Result<Response, StatusCode> {
     debug!("mTLS verification for client: {}", addr);
 
@@ -132,7 +127,7 @@ pub async fn verify_client_cert<B>(
         // TODO: Extract actual client certificate from TLS connection
         // This requires deeper integration with the TLS layer
         debug!("Client certificate verification requested");
-        
+
         // For development, we'll allow through but log
         warn!("mTLS enforcement enabled but certificate extraction not yet implemented");
     }
@@ -167,7 +162,7 @@ mod tests {
             "test_server.key",
             false,
         );
-        
+
         // This will fail without actual files, which is expected in unit tests
         assert!(result.is_err());
     }

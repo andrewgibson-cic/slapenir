@@ -47,10 +47,10 @@ services:
       - slape-net
     ports:
       - "3000:3000"  # Proxy API (expose for testing)
+    env_file:
+      - .env  # Load environment variables from .env file
     environment:
       - RUST_LOG=info
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       # mTLS Configuration
       - MTLS_ENABLED=${MTLS_ENABLED:-false}
       - MTLS_ENFORCE=${MTLS_ENFORCE:-false}
@@ -84,6 +84,8 @@ services:
     hostname: agent
     networks:
       - slape-net
+    env_file:
+      - .env  # Load environment variables from .env file
     environment:
       - HTTP_PROXY=http://proxy:3000
       - HTTPS_PROXY=http://proxy:3000

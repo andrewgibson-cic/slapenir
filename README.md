@@ -203,7 +203,380 @@ docker-compose down
 docker-compose down -v
 ```
 
+---
 
+## 🎯 Quickstart: Make Commands Reference
+
+SLAPENIR provides a comprehensive `Makefile` for easy management. All commands are documented below.
+
+### 📋 View All Commands
+
+```bash
+make help
+# Displays all available commands with descriptions
+```
+
+### 🚀 Setup & Control
+
+**Start all services:**
+```bash
+make start
+# Equivalent to: ./slapenir start
+# Starts: CA, proxy, agent, Prometheus, Grafana
+# Takes ~2-3 minutes on first run (builds images)
+```
+
+**Stop all services:**
+```bash
+make stop
+# Gracefully stops all containers
+# Preserves data in Docker volumes
+```
+
+**Restart all services:**
+```bash
+make restart
+# Useful after: configuration changes, .env updates
+# Performs: make stop && make start
+```
+
+**Check service status:**
+```bash
+make status
+# Shows: container name, status, health check results
+# Verifies all services are running correctly
+```
+
+**Rebuild containers:**
+```bash
+make build
+# Use after: Dockerfile changes, dependency updates
+# Rebuilds Docker images without starting services
+```
+
+**Clean everything:**
+```bash
+make clean
+# ⚠️ WARNING: Removes all containers, volumes, and data
+# Use when: starting completely fresh, troubleshooting issues
+```
+
+### 🔍 Container Access
+
+**Open shell in agent (default):**
+```bash
+make shell
+# or
+make shell-agent
+
+# Opens /bin/sh in agent container
+# Useful for: testing scripts, Git operations, debugging Python code
+```
+
+**Open shell in proxy:**
+```bash
+make shell-proxy
+
+# Opens /bin/sh in Rust proxy container
+# Useful for: checking logs, debugging, inspecting configuration
+```
+
+**Example shell session:**
+```bash
+$ make shell
+Opening shell in agent container...
+/home/agent/workspace $ python3 --version
+Python 3.11.x
+/home/agent/workspace $ git config --list
+user.name=SLAPENIR Agent
+credential.helper=/home/agent/scripts/git-credential-helper.sh
+```
+
+### 📊 Logs & Debugging
+
+**View all service logs:**
+```bash
+make logs
+# Follows logs from all containers in real-time
+# Press Ctrl+C to exit
+# Shows: proxy, agent, CA, Prometheus, Grafana logs
+```
+
+**View proxy logs:**
+```bash
+make logs-proxy
+# Shows: HTTP requests, secret operations, mTLS activity, errors
+# Useful for: debugging request flow, monitoring sanitization
+```
+
+**View agent logs:**
+```bash
+make logs-agent
+# Shows: process supervision, Git setup, health checks, Python output
+# Useful for: debugging scripts, verifying Git configuration
+```
+
+**Log patterns to watch for:**
+```bash
+# Success patterns
+✅ Git credentials configured successfully
+✅ GitHub token valid (authenticated as: username)
+✅ mTLS enabled
+✅ Health check passed
+
+# Warning patterns  
+⚠️ GITHUB_TOKEN not set
+⚠️ Token validation failed
+⚠️ Certificate expires soon
+
+# Error patterns
+❌ Failed to connect to proxy
+❌ Certificate not found
+❌ Authentication failed
+```
+
+### 🧪 Testing
+
+**Run all tests:**
+```bash
+make test
+# Runs: proxy tests (Rust) + agent tests (Python) + integration tests
+# 105 total tests (57 proxy, 32 agent, 16 mTLS)
+# Takes ~30 seconds
+```
+
+**Run proxy tests only:**
+```bash
+make test-proxy
+# Runs Rust test suite with cargo test
+# 57 tests covering: sanitization, injection, mTLS, metrics
+```
+
+**Run agent tests only:**
+```bash
+make test-agent
+# Runs Python test suite
+# 32 tests covering: supervision, health checks, process management
+```
+
+---
+
+## 🔐 Git Operations in Agent (Optional Feature)
+
+The SLAPENIR agent supports **secure Git operations** (clone, pull, push, commit) using **GitHub Personal Access Tokens (PATs)** instead of SSH keys for enhanced security.
+
+### Why PATs Instead of SSH Keys?
+
+**Security & Operational Advantages:**
+
+| Feature | PATs (HTTPS) ✅ | SSH Keys ⚠️ |
+|---------|----------------|-------------|
+| **Security scope** | Repository-specific permissions | Full account access |
+| **Revocation** | Instant via GitHub UI | Manual key removal from systems |
+| **Rotation** | Update `.env`, restart container | Rebuild containers, update file mounts |
+| **Storage** | Environment variable (ephemeral) | File mounting (persistent risk) |
+| **Audit trail** | Full GitHub activity logging | Limited visibility |
+| **Leakage risk** | Low (not in image layers) | High (persistent files, image history) |
+| **Complexity** | Simple HTTPS URLs | SSH config, key permissions, known_hosts |
+| **Multi-repo** | One token for multiple repos | One key per repo or shared risk |
+
+### Git Setup Instructions
+
+#### Step 1: Generate GitHub Personal Access Token
+
+1. Visit [GitHub Settings → Tokens (Fine-grained)](https://github.com/settings/tokens?type=beta)
+2. Click **"Generate new token"**
+3. Configure token settings:
+   - **Token name**: `slapenir-agent-token`
+   - **Expiration**: 90 days (recommended for security)
+   - **Repository access**: Select specific repositories the agent needs access to
+   - **Permissions** (Repository permissions):
+     - ✅ **Contents**: Read and Write (required for clone/pull/push)
+     - ✅ **Metadata**: Read (required by GitHub)
+     - ✅ **Pull requests**: Read and Write (optional, if managing PRs)
+     - ✅ **Workflows**: Read and Write (optional, if managing GitHub Actions)
+4. Click **"Generate token"** and **copy it immediately** (shown only once!)
+
+**Token format:** `ghp_xxxxxxxxxxxxxxxxxxxx` (starts with `ghp_`)
+
+#### Step 2: Add to Environment Configuration
+
+Edit your `.env` file and add:
+
+```bash
+# Git Configuration (Optional - for agent Git operations)
+GITHUB_TOKEN=ghp_your_actual_token_here
+GIT_USER_NAME=SLAPENIR Agent
+GIT_USER_EMAIL=agent@slapenir.local
+
+# Optional: Additional Git settings
+GIT_CONVERT_SSH_TO_HTTPS=true    # Auto-convert SSH URLs to HTTPS
+VALIDATE_GITHUB_TOKEN=true        # Validate token at container startup
+```
+
+**Security Note:** The `.env` file is already in `.gitignore` - never commit it!
+
+#### Step 3: Restart Agent Container
+
+```bash
+# Option 1: Restart just the agent
+docker-compose restart agent
+
+# Option 2: Restart everything with make
+make restart
+
+# Option 3: Restart everything with slapenir script
+./slapenir restart
+```
+
+**No rebuild required!** Tokens are injected at runtime via environment variables.
+
+#### Step 4: Verify Git Configuration
+
+```bash
+# Check agent logs for Git setup confirmation
+make logs-agent | grep -A 5 "Git credentials"
+
+# Expected output:
+# 🔧 Configuring Git credentials for SLAPENIR Agent...
+# 📝 Setting up credential helper...
+# ✅ Git identity configured: SLAPENIR Agent <agent@slapenir.local>
+# ✅ SSH to HTTPS conversion enabled
+# 🔍 Validating GitHub token...
+# ✅ GitHub token valid (authenticated as: your-username)
+# 🚀 Ready for Git operations (clone, pull, push, etc.)
+```
+
+### Using Git in Agent Container
+
+Once configured, all Git operations work transparently with the PAT:
+
+```bash
+# Open shell in agent
+make shell
+
+# Clone repository (HTTPS)
+git clone https://github.com/user/repo.git
+
+# Clone with SSH URL (automatically converted to HTTPS)
+git clone git@github.com:user/repo.git
+
+# Navigate and make changes
+cd repo
+echo "update from agent" > file.txt
+git add file.txt
+git commit -m "Update from SLAPENIR agent"
+
+# Push changes (uses PAT automatically - no password prompt!)
+git push origin main
+
+# Pull latest changes
+git pull origin main
+
+# Check status
+git status
+
+# All Git operations use the PAT transparently!
+```
+
+### Security Best Practices for Git Tokens
+
+1. **Use Fine-Grained PATs** - Never use classic tokens (they have broader permissions)
+2. **Minimum Permissions** - Only grant repository-specific access needed for the task
+3. **Set Expiration** - Maximum 90 days, rotate tokens regularly (quarterly recommended)
+4. **Monitor Usage** - Regularly check token activity at [GitHub Settings → Tokens](https://github.com/settings/tokens)
+5. **Revoke if Compromised** - Instant revocation via GitHub UI, then generate new token
+6. **Never Commit Tokens** - Always use `.env` file (already in `.gitignore`)
+7. **Audit Access** - Review "Recent Activity" for each token on GitHub
+
+### Token Rotation Procedure
+
+When your token expires or needs rotation:
+
+```bash
+# 1. Generate new token on GitHub (follow Step 1 above)
+
+# 2. Update .env file with new token
+GITHUB_TOKEN=ghp_new_token_here
+
+# 3. Restart agent container (no rebuild needed!)
+docker-compose restart agent
+
+# 4. Verify new token works
+make logs-agent | grep "GitHub token valid"
+# Expected: ✅ GitHub token valid (authenticated as: username)
+```
+
+**Pro tip:** Set a calendar reminder 1 week before token expiration!
+
+### Troubleshooting Git Operations
+
+**Problem: Token not working / Authentication failed**
+```bash
+# Symptoms: 
+# - "remote: Support for password authentication was removed"
+# - "fatal: Authentication failed for 'https://github.com/...'"
+
+# Solutions:
+# 1. Verify token is set in environment
+make shell
+env | grep GITHUB_TOKEN
+
+# 2. Check token hasn't expired on GitHub
+# Visit: https://github.com/settings/tokens
+
+# 3. Ensure token has correct permissions
+# Required: Contents (Read & Write), Metadata (Read)
+
+# 4. Check token format
+# Should start with: ghp_, gho_, ghu_, ghs_, or ghr_
+```
+
+**Problem: Token validation fails at startup**
+```bash
+# Symptoms:
+# - "❌ GitHub token validation failed (HTTP 401)"
+# - Agent starts but Git operations fail
+
+# Solutions:
+# 1. Verify token format is correct (starts with ghp_)
+# 2. Check token not expired: https://github.com/settings/tokens
+# 3. Regenerate token if necessary
+# 4. Temporarily disable validation (troubleshooting only):
+#    VALIDATE_GITHUB_TOKEN=false in .env
+```
+
+**Problem: Wrong git user appears in commits**
+```bash
+# Symptoms:
+# - Commits showing "root <root@localhost>"
+# - Commits not attributed to correct user
+
+# Solution: Set Git identity in .env
+GIT_USER_NAME=Your Name
+GIT_USER_EMAIL=your.email@example.com
+
+# Then restart agent:
+docker-compose restart agent
+```
+
+**Problem: SSH URLs not converting to HTTPS**
+```bash
+# Symptoms:
+# - "git@github.com: Permission denied (publickey)"
+# - SSH clone attempts fail
+
+# Solution: Ensure SSH to HTTPS conversion is enabled
+# In .env:
+GIT_CONVERT_SSH_TO_HTTPS=true
+
+# Verify in container:
+make shell
+git config --get url."https://github.com/".insteadOf
+# Expected output: git@github.com:
+```
+
+---
 ## 📦 Components
 
 ### Proxy (Rust)

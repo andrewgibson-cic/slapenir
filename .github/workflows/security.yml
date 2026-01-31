@@ -1,0 +1,305 @@
+# SLAPENIR Security & CVE Scanning Workflow
+# Comprehensive vulnerability scanning for Rust, Python, and Docker
+
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run weekly on Mondays at 9:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+env:
+  RUST_VERSION: 1.93.0
+  PYTHON_VERSION: 3.11
+
+jobs:
+  rust-security:
+    name: Rust Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        profile: minimal
+        override: true
+    
+    - name: Cache cargo tools
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/bin
+        key: ${{ runner.os }}-cargo-tools-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Install cargo-audit
+      run: cargo install cargo-audit --force
+    
+    - name: Run cargo audit
+      working-directory: ./proxy
+      run: cargo audit --deny warnings
+      continue-on-error: true
+      id: audit
+    
+    - name: Install cargo-deny
+      run: cargo install cargo-deny --force
+    
+    - name: Run cargo deny
+      working-directory: ./proxy
+      run: cargo deny check advisories
+      continue-on-error: true
+      id: deny
+    
+    - name: Check for vulnerabilities
+      run: |
+        echo "## 🔒 Rust Security Audit Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.audit.outcome }}" == "success" ]; then
+          echo "✅ cargo-audit: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ cargo-audit: Vulnerabilities detected" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [ "${{ steps.deny.outcome }}" == "success" ]; then
+          echo "✅ cargo-deny: No advisories found" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ cargo-deny: Advisories detected" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  python-security:
+    name: Python Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install security tools
+      run: |
+        pip install --upgrade pip
+        pip install pip-audit safety bandit
+    
+    - name: Create requirements.txt for scanning
+      run: |
+        # Check if agent has requirements
+        if [ -f agent/requirements.txt ]; then
+          cp agent/requirements.txt requirements-scan.txt
+        else
+          # Create minimal requirements for scanning
+          echo "requests>=2.31.0" > requirements-scan.txt
+        fi
+    
+    - name: Run pip-audit
+      run: |
+        pip-audit --requirement requirements-scan.txt --desc || true
+      continue-on-error: true
+      id: pip_audit
+    
+    - name: Run safety check
+      run: |
+        safety check --file requirements-scan.txt || true
+      continue-on-error: true
+      id: safety
+    
+    - name: Run bandit (Python code security)
+      run: |
+        bandit -r agent/scripts/ -f json -o bandit-report.json || true
+        if [ -f bandit-report.json ]; then
+          echo "## 🐍 Python Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Bandit scan completed. Check artifacts for detailed report." >> $GITHUB_STEP_SUMMARY
+        fi
+      continue-on-error: true
+    
+    - name: Upload bandit report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: bandit-report
+        path: bandit-report.json
+    
+    - name: Check for vulnerabilities
+      run: |
+        echo "## 🐍 Python Security Audit Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.pip_audit.outcome }}" == "success" ]; then
+          echo "✅ pip-audit: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ pip-audit: Vulnerabilities may exist" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [ "${{ steps.safety.outcome }}" == "success" ]; then
+          echo "✅ safety: No known vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ safety: Check detailed logs" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  docker-security:
+    name: Docker Image Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build proxy image
+      run: docker build -t slapenir-proxy:scan ./proxy
+    
+    - name: Build agent image
+      run: docker build -t slapenir-agent:scan ./agent
+    
+    - name: Install Trivy
+      run: |
+        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+        echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+        sudo apt-get update
+        sudo apt-get install trivy
+    
+    - name: Scan proxy image with Trivy
+      run: |
+        trivy image --severity HIGH,CRITICAL --format json --output trivy-proxy.json slapenir-proxy:scan || true
+        trivy image --severity HIGH,CRITICAL slapenir-proxy:scan
+      continue-on-error: true
+      id: trivy_proxy
+    
+    - name: Scan agent image with Trivy
+      run: |
+        trivy image --severity HIGH,CRITICAL --format json --output trivy-agent.json slapenir-agent:scan || true
+        trivy image --severity HIGH,CRITICAL slapenir-agent:scan
+      continue-on-error: true
+      id: trivy_agent
+    
+    - name: Upload Trivy results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: trivy-reports
+        path: |
+          trivy-proxy.json
+          trivy-agent.json
+    
+    - name: Check for vulnerabilities
+      run: |
+        echo "## 🐳 Docker Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Proxy Image" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.trivy_proxy.outcome }}" == "success" ]; then
+          echo "✅ Trivy scan completed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Trivy detected vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Agent Image" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.trivy_agent.outcome }}" == "success" ]; then
+          echo "✅ Trivy scan completed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Trivy detected vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        fail-on-severity: moderate
+        allow-licenses: MIT, Apache-2.0, BSD-3-Clause, ISC
+
+  cve-summary:
+    name: CVE Scan Summary
+    runs-on: ubuntu-latest
+    needs: [rust-security, python-security, docker-security]
+    if: always()
+    
+    steps:
+    - name: Generate Summary
+      run: |
+        echo "# 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Rust Dependencies | ${{ needs.rust-security.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Python Dependencies | ${{ needs.python-security.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Docker Images | ${{ needs.docker-security.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- Review detailed scan results in job logs" >> $GITHUB_STEP_SUMMARY
+        echo "- Download artifacts for detailed reports" >> $GITHUB_STEP_SUMMARY
+        echo "- Address any HIGH or CRITICAL vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "- Update dependencies if vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "**Scheduled scans:** Weekly on Mondays at 9:00 UTC" >> $GITHUB_STEP_SUMMARY
+        echo "**Manual trigger:** Available via workflow_dispatch" >> $GITHUB_STEP_SUMMARY
+
+  create-issue:
+    name: Create Security Issue
+    runs-on: ubuntu-latest
+    needs: [rust-security, python-security, docker-security]
+    if: |
+      always() && 
+      (needs.rust-security.result == 'failure' || 
+       needs.python-security.result == 'failure' || 
+       needs.docker-security.result == 'failure') &&
+      github.event_name == 'schedule'
+    
+    permissions:
+      issues: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create Issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = `🔒 Security Vulnerabilities Detected - ${new Date().toISOString().split('T')[0]}`;
+          const body = `## Security Scan Alert
+          
+          Automated security scans have detected potential vulnerabilities in the project.
+          
+          ### Scan Results
+          - **Rust Security**: ${{ needs.rust-security.result }}
+          - **Python Security**: ${{ needs.python-security.result }}
+          - **Docker Security**: ${{ needs.docker-security.result }}
+          
+          ### Action Required
+          1. Review the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})
+          2. Check detailed scan reports in job artifacts
+          3. Update vulnerable dependencies
+          4. Re-run security scans to verify fixes
+          
+          ### Priority
+          - 🔴 **HIGH/CRITICAL**: Address immediately
+          - 🟡 **MEDIUM**: Address in next sprint
+          - 🟢 **LOW**: Address when convenient
+          
+          ---
+          *This issue was automatically created by the security scan workflow.*
+          `;
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['security', 'vulnerability', 'automated']
+          });

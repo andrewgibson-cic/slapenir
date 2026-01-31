@@ -16,7 +16,9 @@ RUN apk add --no-cache \
     git \
     curl \
     ca-certificates \
-    xz
+    xz \
+    openssh-client \
+    bash
 
 # Install s6-overlay from GitHub releases (Wolfi doesn't have s6-overlay package)
 ARG S6_OVERLAY_VERSION=3.1.6.2

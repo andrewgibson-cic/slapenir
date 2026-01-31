@@ -53,3 +53,4 @@ temp/
 # === Documentation (keep READMEs, ignore all other docs) ===
 docs/*
 !docs/README*.md
+*.md

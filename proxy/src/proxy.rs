@@ -158,12 +158,9 @@ pub async fn proxy_handler(
             // Record metrics before returning
             let duration = start_time.elapsed().as_secs_f64();
             let status = parts.status.as_u16();
-            let response = Response::from_parts(parts, Body::from(response_bytes));
             metrics::record_http_request(method.as_str(), status, endpoint, duration);
-            
-            // Record metrics before returning
-            let duration = start_time.elapsed().as_secs_f64();
             metrics::dec_active_connections();
+            let response = Response::from_parts(parts, Body::from(response_bytes));
             return Ok(response);
         }
     };

@@ -75,8 +75,8 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("🔓 mTLS disabled - running in development mode");
     }
 
-    // Bind to address
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    // Bind to address - 0.0.0.0 to accept connections from all interfaces
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::info!("🚀 Proxy listening on {}", addr);
     tracing::info!("📡 Ready to proxy LLM API requests");
     tracing::info!("💡 Send requests to http://localhost:3000/v1/*");

@@ -1,6 +1,7 @@
 // SLAPENIR Sanitizer - Zero-Knowledge Credential Sanitization
 // Uses Aho-Corasick for efficient streaming pattern matching
 
+use crate::metrics;
 use aho_corasick::{AhoCorasick, AhoCorasickBuilder};
 use std::collections::HashMap;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -56,6 +57,14 @@ impl SecretMap {
             .map(|_| "[REDACTED]".to_string())
             .collect();
 
+        // Count secrets being sanitized
+        let matches = real_patterns.find_iter(data).count();
+        if matches > 0 {
+            for _ in 0..matches {
+                metrics::record_secret_sanitized("sanitization");
+            }
+        }
+        
         real_patterns.replace_all(data, &redacted)
     }
 

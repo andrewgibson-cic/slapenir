@@ -5,6 +5,7 @@ pub mod sanitizer;
 pub mod middleware;
 pub mod proxy;
 pub mod mtls;
+pub mod metrics;
 
 // Re-export commonly used types
 pub use sanitizer::SecretMap;

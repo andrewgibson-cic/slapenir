@@ -113,6 +113,100 @@ services:
       - "slapenir.service=agent"
       - "slapenir.phase=3"
 
+  # ============================================================================
+  # Pumba: Chaos Testing Engine
+  # ============================================================================
+  pumba:
+    image: gaiaadm/pumba:latest
+    container_name: slapenir-pumba
+    hostname: pumba
+    networks:
+      - slape-net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["--log-level", "info", "--interval", "30s", "--random", "pause", "--duration", "10s", "re2:slapenir-(proxy|agent)"]
+    profiles:
+      - chaos  # Only run when explicitly enabled
+    depends_on:
+      - proxy
+      - agent
+    labels:
+      - "slapenir.service=pumba"
+      - "slapenir.phase=5"
+      - "slapenir.chaos=enabled"
+    restart: "no"  # Manual control for chaos testing
+
+  # ============================================================================
+  # Prometheus: Metrics Collection
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: slapenir-prometheus
+    hostname: prometheus
+    networks:
+      - slape-net
+    ports:
+      - "9090:9090"  # Prometheus UI
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    depends_on:
+      - proxy
+      - agent
+    labels:
+      - "slapenir.service=prometheus"
+      - "slapenir.phase=6"
+      - "slapenir.monitoring=enabled"
+
+  # ============================================================================
+  # Grafana: Metrics Visualization
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: slapenir-grafana
+    hostname: grafana
+    networks:
+      - slape-net
+    ports:
+      - "3001:3000"  # Grafana UI (avoid conflict with proxy)
+    volumes:
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=slapenir-dev-password
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+      - GF_INSTALL_PLUGINS=
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    labels:
+      - "slapenir.service=grafana"
+      - "slapenir.phase=6"
+      - "slapenir.monitoring=enabled"
+
 # ============================================================================
 # Networks
 # ============================================================================
@@ -157,3 +251,15 @@ volumes:
     name: slapenir-agent-workspace
     labels:
       - "slapenir.volume=agent-workspace"
+  
+  prometheus-data:
+    name: slapenir-prometheus-data
+    labels:
+      - "slapenir.volume=prometheus-data"
+      - "slapenir.monitoring=enabled"
+  
+  grafana-data:
+    name: slapenir-grafana-data
+    labels:
+      - "slapenir.volume=grafana-data"
+      - "slapenir.monitoring=enabled"

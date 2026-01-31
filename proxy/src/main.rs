@@ -11,12 +11,14 @@ use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod metrics;
 mod middleware;
 mod mtls;
 mod proxy;
 mod sanitizer;
 
 use middleware::AppState;
+use metrics::{init_metrics, gather_metrics};
 use mtls::MtlsConfig;
 use sanitizer::SecretMap;
 
@@ -32,6 +34,13 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     tracing::info!("🔐 SLAPENIR Proxy starting...");
+
+    // Initialize metrics
+    if let Err(e) = init_metrics() {
+        tracing::warn!("⚠️  Failed to initialize metrics: {}", e);
+    } else {
+        tracing::info!("📊 Metrics initialized successfully");
+    }
 
     // Initialize mTLS if enabled
     let mtls_config = load_mtls_config()?;
@@ -60,6 +69,7 @@ async fn main() -> anyhow::Result<()> {
         // Health and info endpoints
         .route("/", get(root))
         .route("/health", get(health))
+        .route("/metrics", get(metrics_handler))
         // Proxy routes - handle all HTTP methods
         .route("/v1/*path", any(proxy::proxy_handler))
         .with_state(app_state)
@@ -81,6 +91,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("🚀 Proxy listening on {}", addr);
     tracing::info!("📡 Ready to proxy LLM API requests");
     tracing::info!("💡 Send requests to http://localhost:3000/v1/*");
+    tracing::info!("📊 Metrics available at http://localhost:3000/metrics");
 
     // Run server
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -194,12 +205,14 @@ async fn root() -> Html<&'static str> {
                 <li>Mutual TLS (mTLS) authentication</li>
                 <li>Aho-Corasick streaming pattern matching</li>
                 <li>Secure memory handling with zeroize</li>
+                <li>Prometheus metrics collection</li>
             </ul>
             
             <h2>Endpoints:</h2>
             <ul>
                 <li><code>GET /</code> - This page</li>
                 <li><code>GET /health</code> - Health check</li>
+                <li><code>GET /metrics</code> - Prometheus metrics</li>
                 <li><code>POST /v1/*</code> - Proxy to LLM APIs</li>
             </ul>
             
@@ -207,7 +220,7 @@ async fn root() -> Html<&'static str> {
             <p>Set environment variables for your API keys (e.g., <code>OPENAI_API_KEY</code>).</p>
             <p>Send requests with dummy tokens (e.g., <code>DUMMY_OPENAI</code>) in your request body.</p>
             
-            <p><em>Phase 2: Rust Proxy Core - Active Development</em></p>
+            <p><em>Phase 6: Monitoring & Observability - Complete</em></p>
         </body>
         </html>
         "#,
@@ -217,6 +230,20 @@ async fn root() -> Html<&'static str> {
 /// Health check endpoint
 async fn health() -> &'static str {
     "OK"
+}
+
+/// Metrics endpoint for Prometheus
+async fn metrics_handler() -> (axum::http::StatusCode, String) {
+    match gather_metrics() {
+        Ok(metrics) => (axum::http::StatusCode::OK, metrics),
+        Err(e) => {
+            tracing::error!("Failed to gather metrics: {}", e);
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Error gathering metrics: {}", e),
+            )
+        }
+    }
 }
 
 #[cfg(test)]

@@ -54,53 +54,79 @@ This enables AI agents to make API calls without ever seeing real credentials, d
 
 ### Prerequisites
 
-- Docker Desktop (v27+)
-- Docker Compose (v2.24+)
-- Rust 1.93+ (for local development)
-- Git
+- **Docker Desktop** (v27+) - [Download](https://www.docker.com/products/docker-desktop)
+- **Docker Compose** (v2.24+) - Included with Docker Desktop
+- **Git** - For cloning the repository
 
-### 1. Validate System
-
-```bash
-./test-system.sh
-```
-
-### 2. Start Services
+### One-Command Setup ⚡
 
 ```bash
-# Build and start all services
-docker compose up --build
-
-# Or run in background
-docker compose up --build -d
+# Clone and start SLAPENIR in one go
+git clone https://github.com/andrewgibson-cic/slapenir.git
+cd slapenir
+./quickstart.sh
 ```
 
-### 3. Verify Health
+**That's it!** The script automatically:
+1. ✅ Checks prerequisites (Docker, Docker Compose)
+2. 🔐 Generates mTLS certificates via Step CA
+3. 🚀 Builds and starts all services
+4. 🏥 Verifies health of all components
+5. 📊 Displays access URLs
+
+> 💡 **Tip**: The entire setup takes ~2-3 minutes on first run (includes building Docker images)
+
+### Manual Setup (If Preferred)
+
+```bash
+# 1. Generate certificates
+./scripts/init-step-ca.sh
+
+# 2. Start all services
+docker-compose up -d --build
+
+# 3. Verify services (wait 10 seconds for startup)
+sleep 10
+curl http://localhost:3000/health
+```
+
+### Access Your Instance
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **Proxy** | http://localhost:3000 | N/A |
+| **Health** | http://localhost:3000/health | N/A |
+| **Metrics** | http://localhost:3000/metrics | N/A |
+| **Prometheus** | http://localhost:9090 | N/A |
+| **Grafana** | http://localhost:3001 | admin/admin |
+
+### Verify It's Working
 
 ```bash
 # Check proxy health
 curl http://localhost:3000/health
 
-# Check metrics endpoint
+# View live metrics
 curl http://localhost:3000/metrics
 
-# Access monitoring
-open http://localhost:9090  # Prometheus
-open http://localhost:3001  # Grafana (admin/admin)
+# Watch logs
+docker-compose logs -f proxy
 
-# View logs
-docker compose logs -f proxy
-docker compose logs -f agent
+# Run tests
+./test-system.sh
 ```
 
-### 4. Stop Services
+### Stop Services
 
 ```bash
-docker compose down
+# Stop (keeps data)
+docker-compose down
 
-# Remove volumes too
-docker compose down -v
+# Stop and remove volumes
+docker-compose down -v
 ```
+
+See [docs/QUICKSTART.md](docs/QUICKSTART.md) for detailed guide and troubleshooting.
 
 ## 📦 Components
 

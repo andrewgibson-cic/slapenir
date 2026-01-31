@@ -1,73 +1,44 @@
-# Universal API Credential Injector - Configuration File
-#
-# This file defines the strategies and rules for credential injection.
-# Copy this to config.yaml and fill in your real credentials.
+# SLAPENIR Proxy Configuration
+# Simplified configuration with only credentials that have environment variables set
 
 # Strategy Definitions
-# Each strategy defines how to authenticate with a specific service or protocol
 strategies:
-  # AWS SigV4 Strategy for Production
-  - name: aws-prod
-    type: aws_sigv4
-    config:
-      # Credentials can be direct values or environment variable names
-      access_key_id: AWS_ACCESS_KEY_ID        # Read from env var
-      secret_access_key: AWS_SECRET_ACCESS_KEY # Read from env var
-      session_token: AWS_SESSION_TOKEN         # Optional, for temporary creds
-      region: us-east-1                        # Default region
-      allowed_hosts:
-        - "*.amazonaws.com"
-        - "*.amazonaws.com.cn"
-  
-  # AWS SigV4 Strategy for Development (different credentials)
-  - name: aws-dev
-    type: aws_sigv4
-    config:
-      access_key_id: AWS_DEV_ACCESS_KEY_ID
-      secret_access_key: AWS_DEV_SECRET_ACCESS_KEY
-      region: us-west-2
-      allowed_hosts:
-        - "*.amazonaws.com"
-  
-  # Stripe API Strategy
-  - name: stripe-live
-    type: stripe  # Specialized Bearer strategy
-    config:
-      token: STRIPE_SECRET_KEY  # Read from env var
-  
   # GitHub API Strategy
-  - name: github-personal
-    type: github  # Specialized Bearer strategy
+  - name: github
+    type: bearer
     config:
-      token: GITHUB_TOKEN  # Read from env var
-  
-  # OpenAI API Strategy
-  - name: openai
-    type: openai  # Specialized Bearer strategy
-    config:
-      token: OPENAI_API_KEY  # Read from env var
+      env_var: GITHUB_TOKEN
+      dummy_pattern: "DUMMY_GITHUB"
+      allowed_hosts:
+        - "api.github.com"
+        - "github.com"
+        - "*.github.com"
   
   # Google Gemini API Strategy
   - name: gemini
-    type: gemini  # Specialized strategy for Google Gemini
-    config:
-      api_key: GEMINI_API_KEY  # Read from env var
-  
-  # Generic Bearer Token Strategy Example
-  - name: custom-api
     type: bearer
     config:
-      token: CUSTOM_API_TOKEN
-      dummy_pattern: "DUMMY_CUSTOM_TOKEN"
+      env_var: GEMINI_API_KEY
+      dummy_pattern: "DUMMY_GEMINI"
       allowed_hosts:
-        - "api.example.com"
-        - "*.example.com"
+        - "generativelanguage.googleapis.com"
+        - "*.googleapis.com"
+  
+  # Mistral AI API Strategy
+  - name: mistral
+    type: bearer
+    config:
+      env_var: MISTRAL_API_KEY
+      dummy_pattern: "DUMMY_MISTRAL"
+      allowed_hosts:
+        - "api.mistral.ai"
+        - "*.mistral.ai"
   
   # Slack Bot Token API Strategy
   - name: slack-bot
     type: bearer
     config:
-      token: SLACK_BOT_TOKEN  # Note: .env uses SLACK_BOT_TOKEN (no REAL_ prefix)
+      env_var: SLACK_BOT_TOKEN
       dummy_pattern: "xoxb-DUMMY"
       allowed_hosts:
         - "slack.com"
@@ -77,39 +48,28 @@ strategies:
   - name: slack-app
     type: bearer
     config:
-      token: SLACK_APP_TOKEN  # Note: .env uses SLACK_APP_TOKEN (no REAL_ prefix)
+      env_var: SLACK_APP_TOKEN
       dummy_pattern: "xapp-DUMMY"
       allowed_hosts:
         - "slack.com"
         - "*.slack.com"
   
-  # IBM OpenAI-Compatible API Strategy (for Aider bot)
-  - name: ibm-openai
-    type: ibm_openai
+  # IBM ICA API Strategy
+  - name: ibm-ica
+    type: bearer
     config:
-      api_key: IBM_API_KEY
-      base_url: IBM_BASE_URL
-      dummy_pattern: "DUMMY_IBM_KEY"
+      env_var: ICA_API_KEY
+      dummy_pattern: "DUMMY_ICA"
       allowed_hosts:
         - "servicesessentials.ibm.com"
         - "*.ibm.com"
-  
-  # Cline IBM ICA API Strategy
-  - name: ica-cline
-    type: bearer
-    config:
-      token: ICA_API_KEY  # Note: .env uses ICA_API_KEY (no REAL_ prefix)
-      dummy_pattern: "DUMMY_ICA_KEY"
-      allowed_hosts:
-        - "servicesessentials.ibm.com"
-        - "*.ica.ibm.com"
   
   # Semantic Scholar API Strategy
   - name: semantic-scholar
     type: bearer
     config:
-      token: S2_API_KEY  # Read from env var
-      dummy_pattern: "DUMMY_S2_API_KEY"
+      env_var: S2_API_KEY
+      dummy_pattern: "DUMMY_S2"
       allowed_hosts:
         - "api.semanticscholar.org"
         - "*.semanticscholar.org"
@@ -117,49 +77,25 @@ strategies:
 # Injection Rules
 # Rules define when to apply each strategy based on request characteristics
 rules:
-  # AWS Production Rule
-  - name: aws-prod-injection
-    # Match requests to AWS endpoints
-    domain_regex: ".*\\.amazonaws\\.com$"
-    # With dummy AWS credentials in headers
-    trigger_header_regex: "AKIA[0-9A-Z]{16}DUMMY"
-    # Apply the aws-prod strategy
-    strategy: aws-prod
-    priority: 100
-  
-  # AWS Development Rule (higher priority for specific dev pattern)
-  - name: aws-dev-injection
-    domain_regex: ".*\\.amazonaws\\.com$"
-    trigger_header_regex: "AKIA00000000DEVKEY"
-    strategy: aws-dev
-    priority: 110  # Higher priority = evaluated first
-  
-  # Stripe Rule
-  - name: stripe-injection
-    domain_regex: "^(api\\.)?stripe\\.com$"
-    trigger_header_regex: "sk_(test|live)_00000000"
-    strategy: stripe-live
-    priority: 100
-  
   # GitHub Rule
   - name: github-injection
-    domain_regex: "^(api\\.)?github\\.com$"
-    trigger_header_regex: "(ghp_[a-zA-Z0-9]{36}DUMMY|DUMMY_GITHUB_TOKEN)"
-    strategy: github-personal
-    priority: 100
-  
-  # OpenAI Rule
-  - name: openai-injection
-    domain_regex: "^api\\.openai\\.com$"
-    trigger_header_regex: "(sk-proj-[a-zA-Z0-9]{32}DUMMY|DUMMY_OPENAI_KEY)"
-    strategy: openai
+    domain_regex: "^(.*\\.)?github\\.com$"
+    trigger_header_regex: "DUMMY_GITHUB"
+    strategy: github
     priority: 100
   
   # Google Gemini Rule
   - name: gemini-injection
     domain_regex: "^(.*\\.)?googleapis\\.com$"
-    trigger_header_regex: "(AIza[a-zA-Z0-9_-]{35}DUMMY|DUMMY_GEMINI_KEY)"
+    trigger_header_regex: "DUMMY_GEMINI"
     strategy: gemini
+    priority: 100
+  
+  # Mistral AI Rule
+  - name: mistral-injection
+    domain_regex: "^(.*\\.)?mistral\\.ai$"
+    trigger_header_regex: "DUMMY_MISTRAL"
+    strategy: mistral
     priority: 100
   
   # Slack Bot Token Rule
@@ -174,26 +110,19 @@ rules:
     domain_regex: "^(.*\\.)?slack\\.com$"
     trigger_header_regex: "xapp-DUMMY"
     strategy: slack-app
-    priority: 100
+    priority: 110
   
-  # IBM OpenAI-Compatible API Rule (for Aider bot)
-  - name: ibm-openai-injection
-    domain_regex: "^(.*\\.)?ibm\\.com$"
-    trigger_header_regex: "DUMMY_IBM_KEY"
-    strategy: ibm-openai
-    priority: 110  # Higher priority than generic ICA rule
-  
-  # Cline IBM ICA Rule
-  - name: cline-ica-injection
-    domain_regex: "^(.*servicesessentials\\.ibm\\.com|.*\\.ica\\.ibm\\.com)$"
-    trigger_header_regex: "DUMMY_ICA_KEY"
-    strategy: ica-cline
+  # IBM ICA Rule
+  - name: ibm-ica-injection
+    domain_regex: "^(.*servicesessentials\\.ibm\\.com|.*\\.ibm\\.com)$"
+    trigger_header_regex: "DUMMY_ICA"
+    strategy: ibm-ica
     priority: 100
   
   # Semantic Scholar Rule
   - name: semantic-scholar-injection
     domain_regex: "^(.*\\.)?semanticscholar\\.org$"
-    trigger_header_regex: "DUMMY_S2_API_KEY"
+    trigger_header_regex: "DUMMY_S2"
     strategy: semantic-scholar
     priority: 100
 

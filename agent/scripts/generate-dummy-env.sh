@@ -1,20 +1,30 @@
+#!/bin/bash
+# Auto-generate dummy credentials for agent container
+# This ensures agent NEVER has real credentials
+
+# Colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}🔒 Generating dummy credentials for agent...${NC}"
+
+# Create .env with dummy credentials
+cat > /home/agent/.env << 'EOF'
 # ============================================================================
 # SLAPENIR Agent Environment - DUMMY CREDENTIALS ONLY
 # ============================================================================
 # 
-# ⚠️  This file is AUTO-GENERATED on agent container startup
-# ⚠️  You do NOT need to create this file manually
-# ⚠️  NEVER put real credentials here!
+# ⚠️  WARNING: These are DUMMY credentials that get replaced by the proxy
+# ⚠️  NEVER put real credentials in this file!
+# 
+# The proxy intercepts requests and injects real credentials automatically.
+# The agent should NEVER see or have access to real API keys.
 #
-# This file shows what dummy credentials look like.
-# The agent container will automatically generate this file with these values.
-#
-# How the zero-knowledge architecture works:
-#   1. Agent uses: DUMMY_OPENAI
-#   2. Proxy intercepts and injects: sk-proj-real-key-123...
-#   3. Agent receives sanitized response: [REDACTED]
-#
-# The agent NEVER sees real credentials!
+# How it works:
+#   Agent uses:  DUMMY_OPENAI
+#   Proxy injects: sk-proj-real-key-123...
+#   Agent receives: [REDACTED]
 # ============================================================================
 
 # LLM API Keys (DUMMY - Replaced by Proxy)
@@ -58,9 +68,9 @@ IBM_MODEL_ID=global/anthropic.claude-sonnet-4-5-20250929-v1:0
 S2_API_KEY=DUMMY_S2
 
 # ============================================================================
-# Proxy Configuration (REQUIRED)
+# Proxy Configuration (REQUIRED - DO NOT CHANGE)
 # ============================================================================
-# All agent traffic MUST go through the proxy for credential injection
+# All outbound traffic MUST go through the proxy
 HTTP_PROXY=http://proxy:3000
 HTTPS_PROXY=http://proxy:3000
 NO_PROXY=localhost,127.0.0.1,proxy
@@ -69,6 +79,12 @@ NO_PROXY=localhost,127.0.0.1,proxy
 PYTHONUNBUFFERED=1
 
 # ============================================================================
-# NOTE: This file is for reference only
-# The actual .env.agent file is auto-generated on container startup
+# Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 # ============================================================================
+EOF
+
+chmod 600 /home/agent/.env
+chown agent:agent /home/agent/.env
+
+echo -e "${GREEN}✅ Dummy credentials generated at /home/agent/.env${NC}"
+echo -e "${BLUE}   These credentials are safe and contain NO real secrets${NC}"

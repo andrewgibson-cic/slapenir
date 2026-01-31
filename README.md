@@ -71,12 +71,31 @@ cp .env.example .env
 ```
 
 **Required variables** (at minimum):
-- `OPENAI_API_KEY` - For OpenAI API access
-- `ANTHROPIC_API_KEY` - For Claude API access
+- `GITHUB_TOKEN` - Your GitHub Personal Access Token (for Git operations)
+- `GIT_USER_NAME` - Your name for Git commits
+- `GIT_USER_EMAIL` - Your email for Git commits
 
-See `.env.example` for all available configuration options.
+**Important for Agent Container:**
+The agent container needs **REAL credentials** in environment variables (not dummy values). The SLAPENIR proxy will intercept API calls from the agent and inject credentials automatically, but for Git operations and direct environment variable access, the agent needs the actual values.
+
+Example `.env` configuration:
+```bash
+# Real credentials (used by proxy for injection)
+GITHUB_TOKEN=ghp_your_real_github_token_here
+GEMINI_API_KEY=AIzaSyYour_Real_Gemini_Key_Here
+MISTRAL_API_KEY=your_real_mistral_key_here
+
+# Git configuration (used by agent)
+GIT_USER_NAME=Your Name
+GIT_USER_EMAIL=your.email@example.com
+```
 
 **⚠️ Security Note:** Never commit your `.env` file to version control! It's already in `.gitignore`.
+
+**How It Works:**
+- **Proxy**: Reads real credentials from environment, replaces `DUMMY_*` patterns in requests
+- **Agent**: Uses real credentials from environment for Git and direct operations
+- **Your Code**: Can use `DUMMY_*` patterns which get replaced by the proxy
 
 ### 2. Start SLAPENIR 🚀
 
@@ -379,6 +398,27 @@ The SLAPENIR agent supports **secure Git operations** (clone, pull, push, commit
 | **Leakage risk** | Low (not in image layers) | High (persistent files, image history) |
 | **Complexity** | Simple HTTPS URLs | SSH config, key permissions, known_hosts |
 | **Multi-repo** | One token for multiple repos | One key per repo or shared risk |
+
+### Optional: SSH Key Setup
+
+If you prefer using SSH keys instead of PATs (not recommended for security reasons), you can copy your SSH keys during startup:
+
+```bash
+# When starting SLAPENIR for the first time
+./slapenir start
+
+# You'll be prompted:
+# "Do you want to copy your SSH keys to the agent container? (y/n)"
+# Answer 'y' and provide the path to your private key
+
+# Or manually copy SSH keys:
+docker cp ~/.ssh/id_rsa slapenir-agent:/home/agent/.ssh/id_rsa
+docker cp ~/.ssh/id_rsa.pub slapenir-agent:/home/agent/.ssh/id_rsa.pub
+docker compose exec agent chmod 600 /home/agent/.ssh/id_rsa
+docker compose exec agent chmod 644 /home/agent/.ssh/id_rsa.pub
+```
+
+**⚠️ Security Warning:** SSH keys provide full account access and persist in the container. Use PATs for better security and audit trails.
 
 ### Git Setup Instructions
 

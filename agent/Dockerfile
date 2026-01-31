@@ -8,7 +8,7 @@ LABEL maintainer="andrew.gibson-cic@ibm.com"
 LABEL description="SLAPENIR Agent: Secure Python execution environment with process supervision"
 LABEL version="0.1.0"
 
-# Install build tools and Python
+# Install build tools, Python, and bash
 RUN apk add --no-cache \
     python-3.11 \
     py3-pip \
@@ -29,9 +29,9 @@ RUN curl -L "https://github.com/just-containers/s6-overlay/releases/download/v${
 # Install step-cli for certificate management (copy from step-ca image)
 COPY --from=smallstep/step-ca:latest /usr/local/bin/step /usr/local/bin/step
 
-# Create agent user (non-root for security)
+# Create agent user (non-root for security) with bash as default shell
 RUN addgroup -g 1000 agent && \
-    adduser -D -u 1000 -G agent agent
+    adduser -D -u 1000 -G agent -s /bin/bash agent
 
 # Set up directories
 RUN mkdir -p /home/agent/certs \

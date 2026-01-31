@@ -34,6 +34,9 @@ COPY --from=builder /app/target/release/slapenir-proxy /usr/local/bin/proxy
 # Set ownership
 RUN chown proxy:proxy /usr/local/bin/proxy
 
+# Create app directory and set as working directory
+WORKDIR /app
+
 # Switch to non-root user
 USER proxy
 

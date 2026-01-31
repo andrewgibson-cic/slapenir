@@ -48,7 +48,7 @@ services:
     ports:
       - "3000:3000"  # Proxy API (expose for testing)
     env_file:
-      - .env  # Load environment variables from .env file
+      - .env.proxy  # Load REAL credentials (proxy only)
     environment:
       - RUST_LOG=info
       # mTLS Configuration
@@ -58,6 +58,7 @@ services:
       - MTLS_SERVER_CERT=/certs/proxy.crt
       - MTLS_SERVER_KEY=/certs/proxy.key
     volumes:
+      - ./proxy/config.yaml:/app/config.yaml:ro  # Mount config file
       - proxy-certs:/certs:ro  # Read-only certificate access
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
@@ -84,13 +85,10 @@ services:
     hostname: agent
     networks:
       - slape-net
-    env_file:
-      - .env  # Load environment variables from .env file
+    # NO env_file - agent auto-generates dummy credentials on startup
     environment:
-      - HTTP_PROXY=http://proxy:3000
-      - HTTPS_PROXY=http://proxy:3000
-      - PROXY_HOST=proxy
-      - PROXY_PORT=3000
+      # Agent will auto-generate dummy credentials
+      # Proxy settings are included in generated .env.agent
       - PYTHONUNBUFFERED=1
       # mTLS Configuration
       - MTLS_ENABLED=${MTLS_ENABLED:-false}
@@ -101,6 +99,8 @@ services:
     volumes:
       - agent-workspace:/home/agent/workspace
       - agent-certs:/certs:ro  # Read-only certificate access
+      - agent-ssh:/home/agent/.ssh  # Persist SSH keys
+      - ./.env.proxy:/tmp/.env.proxy:ro  # Read-only access to proxy env for dummy generation
     healthcheck:
       test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
       interval: 30s
@@ -267,6 +267,12 @@ volumes:
     name: slapenir-agent-workspace
     labels:
       - "slapenir.volume=agent-workspace"
+  
+  agent-ssh:
+    name: slapenir-agent-ssh
+    labels:
+      - "slapenir.volume=agent-ssh"
+      - "slapenir.persistence=ssh-keys"
   
   prometheus-data:
     name: slapenir-prometheus-data

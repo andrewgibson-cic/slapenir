@@ -1,0 +1,5 @@
+#!/command/execlineb -P
+# Run agent environment initialization script on container startup
+# This sets up dummy credentials and validates security
+
+foreground { /home/agent/scripts/init-agent-env.sh }

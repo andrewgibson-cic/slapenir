@@ -1,0 +1,7 @@
+#!/command/execlineb -P
+# S6 oneshot service to initialize Git credentials
+# Runs once at container startup before agent service
+
+foreground { 
+  /home/agent/scripts/setup-git-credentials.sh
+}

@@ -185,6 +185,10 @@ services:
       - slape-net
     ports:
       - "3001:3000"  # Grafana UI (avoid conflict with proxy)
+    # Conditional DNS configuration based on environment
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     volumes:
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
@@ -195,6 +199,14 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3001
       - GF_INSTALL_PLUGINS=
+      # Authentication configuration
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_AUTH_BASIC_ENABLED=true
+      - GF_AUTH_LDAP_ENABLED=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      # Disable external calls in production, allow in development
+      - GF_ANALYTICS_REPORTING_ENABLED=${ENVIRONMENT:-development}
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=${ENVIRONMENT:-development}
     healthcheck:
       test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -216,7 +228,9 @@ networks:
   slape-net:
     name: slape-net
     driver: bridge
-    internal: true  # No direct internet access
+    # Environment-aware: internal in production, external in development
+    # In development mode, allows DNS resolution for monitoring tools
+    internal: ${NETWORK_INTERNAL:-true}
     ipam:
       config:
         - subnet: 172.21.0.0/24

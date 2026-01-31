@@ -1,6 +1,7 @@
 // SLAPENIR Proxy Handler - HTTP Forwarding with Sanitization
 // Forwards requests to LLM APIs with secret injection/sanitization
 
+use crate::metrics;
 use crate::middleware::AppState;
 use axum::{
     body::Body,
@@ -12,6 +13,7 @@ use hyper_util::{
     client::legacy::{connect::HttpConnector, Client},
     rt::TokioExecutor,
 };
+use std::time::Instant;
 use thiserror::Error;
 
 /// HTTP client for forwarding requests
@@ -78,7 +80,13 @@ pub async fn proxy_handler(
     headers: HeaderMap,
     request: Request,
 ) -> Result<Response, ProxyError> {
+    let start_time = Instant::now();
+    metrics::inc_active_connections();
+    
     tracing::debug!("Proxying request: {} {}", method, uri);
+    
+    // Extract endpoint for metrics (first part of path)
+    let endpoint = uri.path().split('/').nth(1).unwrap_or("unknown");
     
     // Extract the request body
     let body_bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
@@ -88,6 +96,9 @@ pub async fn proxy_handler(
     // Convert to UTF-8 string for sanitization
     let body_str = std::str::from_utf8(&body_bytes)
         .map_err(|e| ProxyError::InvalidUtf8(e.to_string()))?;
+    
+    // Record request size
+    metrics::HTTP_REQUEST_SIZE_BYTES.observe(body_bytes.len() as f64);
     
     // Step 1: Inject real secrets into the request
     let injected_body = state.secret_map.inject(body_str);
@@ -135,12 +146,20 @@ pub async fn proxy_handler(
         .await
         .map_err(|e| ProxyError::ResponseBodyRead(e.to_string()))?;
     
+    // Record response size
+    metrics::HTTP_RESPONSE_SIZE_BYTES.observe(response_bytes.len() as f64);
+    
     // Convert to UTF-8 (if not valid UTF-8, return as-is)
     let response_str = match std::str::from_utf8(&response_bytes) {
         Ok(s) => s,
         Err(_) => {
             tracing::warn!("Response body is not valid UTF-8, returning as-is");
             let response = Response::from_parts(parts, Body::from(response_bytes));
+            
+            // Record metrics before returning
+            let duration = start_time.elapsed().as_secs_f64();
+            metrics::record_http_request(method.as_str(), parts.status.as_u16(), endpoint, duration);
+            metrics::dec_active_connections();
             return Ok(response);
         }
     };
@@ -160,6 +179,11 @@ pub async fn proxy_handler(
     
     // Build the response
     let response = Response::from_parts(parts, Body::from(sanitized_body));
+    
+    // Record metrics
+    let duration = start_time.elapsed().as_secs_f64();
+    metrics::record_http_request(method.as_str(), parts.status.as_u16(), endpoint, duration);
+    metrics::dec_active_connections();
     
     tracing::info!("Proxy request completed successfully");
     Ok(response)

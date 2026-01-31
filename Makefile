@@ -14,8 +14,8 @@ help:
 	@echo "  make status         - Show service status"
 	@echo ""
 	@echo "Access Containers:"
-	@echo "  make shell          - Open shell in agent container (default)"
-	@echo "  make shell-agent    - Open shell in agent container"
+	@echo "  make shell          - Open bash shell in agent"
+	@echo "  make shell-agent    - Open bash shell in agent container"
 	@echo "  make shell-proxy    - Open shell in proxy container"
 	@echo ""
 	@echo "Logs & Debugging:"
@@ -31,6 +31,11 @@ help:
 	@echo "Maintenance:"
 	@echo "  make build          - Rebuild all containers"
 	@echo "  make clean          - Remove all containers and volumes"
+	@echo ""
+	@echo "📖 Documentation:"
+	@echo "  Quick Start:  docs/QUICK_START_AGENT.md"
+	@echo "  Full Guide:   docs/AGENT_WORKFLOW.md"
+	@echo "  Git Clone:    make shell, then: git clone <url>"
 	@echo ""
 
 # Start all services
@@ -67,7 +72,7 @@ shell: shell-agent
 # Open shell in agent container
 shell-agent:
 	@echo "Opening shell in agent container..."
-	@docker-compose exec agent /bin/sh
+	@docker-compose exec agent /bin/bash
 
 # Open shell in proxy container
 shell-proxy:
@@ -86,6 +91,23 @@ test-proxy:
 test-agent:
 	@python3 agent/tests/test_agent.py
 	@python3 agent/tests/test_agent_advanced.py
+
+# Run security tests (verify no real credentials in agent)
+test-security:
+	@echo "Running security tests in agent container..."
+	@docker-compose exec agent /home/agent/tests/run_security_tests.sh
+
+# Verify security configuration
+verify-security:
+	@echo "Verifying security configuration..."
+	@echo ""
+	@echo "Checking proxy credentials..."
+	@docker-compose exec proxy sh -c 'env | grep -E "(OPENAI|GITHUB|ANTHROPIC)" | head -3' || echo "  ⚠️  No credentials found in proxy"
+	@echo ""
+	@echo "Checking agent credentials..."
+	@docker-compose exec agent sh -c 'env | grep -E "(OPENAI|GITHUB|ANTHROPIC)" | head -3' || echo "  ⚠️  No credentials found in agent"
+	@echo ""
+	@echo "Run 'make test-security' for comprehensive security testing"
 
 # Rebuild containers
 build:

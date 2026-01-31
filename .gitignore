@@ -5,8 +5,14 @@
 !tests/fixtures/certs/*.crt  # Test certs are OK
 *.env
 .env.local
+.env.proxy
+.env.*.local
 secrets.json
 !tests/fixtures/tokens.json  # Dummy tokens only
+
+# Keep example environment files
+!.env.proxy.example
+!.env.example
 
 # === Rust ===
 target/

@@ -1,11 +1,11 @@
 #!/bin/bash
 # Git credential helper for SLAPENIR Agent
-# Provides GitHub authentication via Personal Access Token from environment
+# Provides GitHub PAT token directly for HTTPS authentication
 # Usage: git config credential.helper /path/to/this/script
 
 case "$1" in
   get)
-    # Provide credentials when Git requests them
+    # Provide real GitHub token from environment (bypasses proxy)
     if [ -n "$GITHUB_TOKEN" ]; then
       echo "protocol=https"
       echo "host=github.com"

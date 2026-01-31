@@ -1,0 +1,5 @@
+#!/command/execlineb -P
+# Setup bash configuration on container startup
+# This configures .bashrc to auto-source environment variables
+
+foreground { /home/agent/scripts/setup-bashrc.sh }

@@ -40,8 +40,7 @@ check_env() {
 
 check_certs() {
     if ! docker volume ls | grep -q "slapenir-proxy-certs"; then
-        info "Certificates not found. Generating..."
-        ./scripts/init-step-ca.sh
+        info "Certificates not found. Will be generated on first docker-compose up"
     fi
 }
 

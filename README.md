@@ -203,7 +203,6 @@ docker-compose down
 docker-compose down -v
 ```
 
-See [docs/QUICKSTART.md](docs/QUICKSTART.md) for detailed guide and troubleshooting.
 
 ## 📦 Components
 

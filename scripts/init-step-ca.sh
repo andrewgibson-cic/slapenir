@@ -17,20 +17,22 @@ PASSWORD="slapenir-dev-password-change-in-prod"
 mkdir -p ./ca-data
 
 echo "📦 Starting Step-CA container for initialization..."
+
+# Create a temporary password file (process substitution doesn't work in docker)
+TEMP_PASS_FILE="$(pwd)/ca-data/.temp_password"
+echo "${PASSWORD}" > "${TEMP_PASS_FILE}"
+
 docker run --rm \
-  -v "$(pwd)/ca-data:/home/step" \
+  -v "$(pwd)/ca-/home/step" \
   -e "DOCKER_STEPCA_INIT_NAME=${CA_NAME}" \
   -e "DOCKER_STEPCA_INIT_DNS_NAMES=${CA_DNS}" \
   -e "DOCKER_STEPCA_INIT_ADDRESS=${CA_ADDRESS}" \
   -e "DOCKER_STEPCA_INIT_PROVISIONER_NAME=${PROVISIONER}" \
   -e "DOCKER_STEPCA_INIT_PASSWORD=${PASSWORD}" \
-  smallstep/step-ca:latest \
-  step ca init \
-    --name="${CA_NAME}" \
-    --dns="${CA_DNS}" \
-    --address="${CA_ADDRESS}" \
-    --provisioner="${PROVISIONER}" \
-    --password-file=<(echo "${PASSWORD}")
+  smallstep/step-ca:latest
+
+# Clean up password file
+rm -f "${TEMP_PASS_FILE}"
 
 echo ""
 echo "✅ Step-CA initialized successfully!"

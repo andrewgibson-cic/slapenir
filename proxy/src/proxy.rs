@@ -154,11 +154,15 @@ pub async fn proxy_handler(
         Ok(s) => s,
         Err(_) => {
             tracing::warn!("Response body is not valid UTF-8, returning as-is");
-            let response = Response::from_parts(parts, Body::from(response_bytes));
             
             // Record metrics before returning
             let duration = start_time.elapsed().as_secs_f64();
-            metrics::record_http_request(method.as_str(), parts.status.as_u16(), endpoint, duration);
+            let status = parts.status.as_u16();
+            let response = Response::from_parts(parts, Body::from(response_bytes));
+            metrics::record_http_request(method.as_str(), status, endpoint, duration);
+            
+            // Record metrics before returning
+            let duration = start_time.elapsed().as_secs_f64();
             metrics::dec_active_connections();
             return Ok(response);
         }
@@ -178,11 +182,15 @@ pub async fn proxy_handler(
     }
     
     // Build the response
-    let response = Response::from_parts(parts, Body::from(sanitized_body));
     
     // Record metrics
     let duration = start_time.elapsed().as_secs_f64();
-    metrics::record_http_request(method.as_str(), parts.status.as_u16(), endpoint, duration);
+    let status = parts.status.as_u16();
+    
+    // Build the response
+    let response = Response::from_parts(parts, Body::from(sanitized_body));
+    metrics::record_http_request(method.as_str(), status, endpoint, duration);
+    
     metrics::dec_active_connections();
     
     tracing::info!("Proxy request completed successfully");

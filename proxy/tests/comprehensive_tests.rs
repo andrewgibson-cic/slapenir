@@ -26,7 +26,7 @@ mod proxy_tests {
 
     // Note: test_hop_by_hop_headers_comprehensive removed - uses private function
     // The function is tested via unit tests in proxy.rs
-    
+
     /*
     #[test]
     fn test_hop_by_hop_headers_comprehensive() {
@@ -93,7 +93,7 @@ mod proxy_tests {
 }
 
 // ============================================================================
-// SANITIZER MODULE TESTS  
+// SANITIZER MODULE TESTS
 // ============================================================================
 
 #[cfg(test)]
@@ -106,9 +106,9 @@ mod sanitizer_tests {
         secrets.insert("TOKEN_A".to_string(), "secret_a_12345".to_string());
         secrets.insert("TOKEN_B".to_string(), "secret_b_67890".to_string());
         secrets.insert("KEY_C".to_string(), "sk-proj-verylongkey".to_string());
-        
+
         let map = SecretMap::new(secrets).unwrap();
-        
+
         // Test injection with multiple patterns
         let input = "Use TOKEN_A and TOKEN_B with KEY_C";
         let output = map.inject(input);
@@ -116,7 +116,7 @@ mod sanitizer_tests {
         assert!(output.contains("secret_b_67890"));
         assert!(output.contains("sk-proj-verylongkey"));
         assert!(!output.contains("TOKEN_A"));
-        
+
         // Test sanitization
         let response = "Your keys are: secret_a_12345, secret_b_67890, sk-proj-verylongkey";
         let sanitized = map.sanitize(response);
@@ -130,13 +130,13 @@ mod sanitizer_tests {
     fn test_secret_map_with_special_characters() {
         let mut secrets = HashMap::new();
         secrets.insert("DUMMY".to_string(), "real$ecret!@#".to_string());
-        
+
         let map = SecretMap::new(secrets).unwrap();
-        
+
         let input = "Token: DUMMY";
         let output = map.inject(input);
         assert_eq!(output, "Token: real$ecret!@#");
-        
+
         let response = "Token: real$ecret!@#";
         let sanitized = map.sanitize(response);
         assert_eq!(sanitized, "Token: [REDACTED]");
@@ -147,9 +147,9 @@ mod sanitizer_tests {
         let mut secrets = HashMap::new();
         secrets.insert("AAA".to_string(), "111".to_string());
         secrets.insert("BBB".to_string(), "222".to_string());
-        
+
         let map = SecretMap::new(secrets).unwrap();
-        
+
         let input = "AAABBB";
         let output = map.inject(input);
         assert_eq!(output, "111222");
@@ -159,13 +159,13 @@ mod sanitizer_tests {
     fn test_secret_map_repeated_patterns() {
         let mut secrets = HashMap::new();
         secrets.insert("TOKEN".to_string(), "secret".to_string());
-        
+
         let map = SecretMap::new(secrets).unwrap();
-        
+
         let input = "TOKEN TOKEN TOKEN";
         let output = map.inject(input);
         assert_eq!(output, "secret secret secret");
-        
+
         let response = "secret secret secret";
         let sanitized = map.sanitize(response);
         assert_eq!(sanitized, "[REDACTED] [REDACTED] [REDACTED]");
@@ -175,13 +175,13 @@ mod sanitizer_tests {
     fn test_secret_map_no_match() {
         let mut secrets = HashMap::new();
         secrets.insert("TOKEN".to_string(), "my_real_secret_key".to_string());
-        
+
         let map = SecretMap::new(secrets).unwrap();
-        
+
         let input = "No tokens here";
         let output = map.inject(input);
         assert_eq!(output, input);
-        
+
         let response = "No matching patterns here";
         let sanitized = map.sanitize(response);
         assert_eq!(sanitized, response);
@@ -191,9 +191,9 @@ mod sanitizer_tests {
     fn test_secret_map_case_sensitive() {
         let mut secrets = HashMap::new();
         secrets.insert("token".to_string(), "secret".to_string());
-        
+
         let map = SecretMap::new(secrets).unwrap();
-        
+
         let input = "TOKEN token ToKeN";
         let output = map.inject(input);
         // Only exact match should be replaced
@@ -205,9 +205,9 @@ mod sanitizer_tests {
         let mut secrets = HashMap::new();
         let long_secret = "a".repeat(1000);
         secrets.insert("LONG".to_string(), long_secret.clone());
-        
+
         let map = SecretMap::new(secrets).unwrap();
-        
+
         let input = "Start LONG End";
         let output = map.inject(input);
         assert!(output.contains(&long_secret));
@@ -219,9 +219,9 @@ mod sanitizer_tests {
     fn test_secret_map_unicode() {
         let mut secrets = HashMap::new();
         secrets.insert("EMOJI".to_string(), "🔒🔑".to_string());
-        
+
         let map = SecretMap::new(secrets).unwrap();
-        
+
         let input = "Key: EMOJI";
         let output = map.inject(input);
         assert_eq!(output, "Key: 🔒🔑");
@@ -231,9 +231,9 @@ mod sanitizer_tests {
     fn test_secret_map_newlines_and_whitespace() {
         let mut secrets = HashMap::new();
         secrets.insert("TOKEN".to_string(), "secret".to_string());
-        
+
         let map = SecretMap::new(secrets).unwrap();
-        
+
         let input = "Line1\nTOKEN\nLine2\tTOKEN\r\nLine3";
         let output = map.inject(input);
         assert!(output.contains("secret"));
@@ -246,7 +246,7 @@ mod sanitizer_tests {
         secrets.insert("A".to_string(), "1".to_string());
         secrets.insert("B".to_string(), "2".to_string());
         secrets.insert("C".to_string(), "3".to_string());
-        
+
         let map = SecretMap::new(secrets).unwrap();
         assert_eq!(map.len(), 3);
         assert!(!map.is_empty());
@@ -265,7 +265,7 @@ mod middleware_tests {
         let mut secrets = HashMap::new();
         secrets.insert("DUMMY".to_string(), "real_secret".to_string());
         let secret_map = SecretMap::new(secrets).unwrap();
-        
+
         AppState {
             secret_map: Arc::new(secret_map),
             http_client: create_http_client(),
@@ -297,7 +297,7 @@ mod middleware_tests {
         let state1 = create_test_state();
         let state2 = state1.clone();
         let state3 = state2.clone();
-        
+
         // All should work
         assert_eq!(state1.secret_map.len(), 1);
         assert_eq!(state2.secret_map.len(), 1);
@@ -381,8 +381,8 @@ mod metrics_tests {
     #[test]
     fn test_metrics_with_extreme_durations() {
         metrics::record_http_request("GET", 200, "api", 0.000001); // Very fast
-        metrics::record_http_request("GET", 200, "api", 10.0);     // Very slow
-        metrics::record_http_request("GET", 200, "api", 0.0);      // Zero duration
+        metrics::record_http_request("GET", 200, "api", 10.0); // Very slow
+        metrics::record_http_request("GET", 200, "api", 0.0); // Zero duration
     }
 
     #[test]

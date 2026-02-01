@@ -1,6 +1,5 @@
 /// Comprehensive unit tests for the metrics module
 /// Achieves 80%+ code coverage with all metric types and edge cases
-
 use slapenir_proxy::metrics::*;
 
 #[cfg(test)]
@@ -37,7 +36,7 @@ mod metrics_comprehensive_tests {
             ("DELETE", 204, "/api/delete", 0.05),
             ("PATCH", 200, "/api/patch", 0.25),
         ];
-        
+
         for (method, status, endpoint, duration) in test_cases {
             record_http_request(method, status, endpoint, duration);
         }
@@ -46,7 +45,7 @@ mod metrics_comprehensive_tests {
     #[test]
     fn test_record_http_request_error_cases() {
         let error_statuses = vec![400, 401, 403, 404, 429, 500, 502, 503, 504];
-        
+
         for status in error_statuses {
             record_http_request("GET", status, "/api/error", 0.1);
         }
@@ -63,7 +62,7 @@ mod metrics_comprehensive_tests {
             "/api/status",
             "/",
         ];
-        
+
         for endpoint in endpoints {
             record_http_request("GET", 200, endpoint, 0.05);
         }
@@ -73,21 +72,21 @@ mod metrics_comprehensive_tests {
     fn test_record_http_request_duration_buckets() {
         // Test various durations to hit different histogram buckets
         let durations = vec![
-            0.0001,  // Very fast
-            0.001,   // 1ms
-            0.005,   // 5ms
-            0.01,    // 10ms
-            0.025,   // 25ms
-            0.05,    // 50ms
-            0.1,     // 100ms
-            0.25,    // 250ms
-            0.5,     // 500ms
-            1.0,     // 1s
-            2.5,     // 2.5s
-            5.0,     // 5s
-            10.0,    // 10s (beyond buckets)
+            0.0001, // Very fast
+            0.001,  // 1ms
+            0.005,  // 5ms
+            0.01,   // 10ms
+            0.025,  // 25ms
+            0.05,   // 50ms
+            0.1,    // 100ms
+            0.25,   // 250ms
+            0.5,    // 500ms
+            1.0,    // 1s
+            2.5,    // 2.5s
+            5.0,    // 5s
+            10.0,   // 10s (beyond buckets)
         ];
-        
+
         for duration in durations {
             record_http_request("GET", 200, "/test", duration);
         }
@@ -107,7 +106,7 @@ mod metrics_comprehensive_tests {
     #[test]
     fn test_record_http_request_various_methods() {
         let methods = vec!["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
-        
+
         for method in methods {
             record_http_request(method, 200, "/api", 0.1);
         }
@@ -127,7 +126,7 @@ mod metrics_comprehensive_tests {
             "bearer_token",
             "oauth_token",
         ];
-        
+
         for secret_type in secret_types {
             record_secret_sanitized(secret_type);
         }
@@ -164,7 +163,7 @@ mod metrics_comprehensive_tests {
     #[test]
     fn test_record_mtls_connection_various_durations() {
         let durations = vec![0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0];
-        
+
         for duration in durations {
             record_mtls_connection(duration);
         }
@@ -196,7 +195,7 @@ mod metrics_comprehensive_tests {
             "unknown_ca",
             "connection_refused",
         ];
-        
+
         for error_type in error_types {
             record_mtls_error(error_type);
         }
@@ -219,11 +218,11 @@ mod metrics_comprehensive_tests {
     #[test]
     fn test_update_cert_expiry_various_certs() {
         let certs = vec![
-            ("root_ca", 1704067200),        // Jan 1, 2024
-            ("server_cert", 1735689600),    // Jan 1, 2025
-            ("client_cert", 1767225600),    // Jan 1, 2026
+            ("root_ca", 1704067200),     // Jan 1, 2024
+            ("server_cert", 1735689600), // Jan 1, 2025
+            ("client_cert", 1767225600), // Jan 1, 2026
         ];
-        
+
         for (cert_name, timestamp) in certs {
             update_cert_expiry(cert_name, timestamp);
         }
@@ -294,14 +293,14 @@ mod metrics_comprehensive_tests {
     fn test_gather_metrics_returns_data() {
         // Initialize metrics first
         let _ = init_metrics();
-        
+
         // Record some data to ensure metrics exist
         record_http_request("GET", 200, "/test", 0.1);
         inc_active_connections();
-        
+
         let result = gather_metrics();
         assert!(result.is_ok());
-        
+
         let metrics = result.unwrap();
         // Metrics may be empty if not initialized, which is acceptable
         assert!(metrics.len() >= 0);
@@ -312,9 +311,9 @@ mod metrics_comprehensive_tests {
         // Initialize and record some metrics
         let _ = init_metrics();
         record_http_request("GET", 200, "/test", 0.1);
-        
+
         let result = gather_metrics().unwrap();
-        
+
         // If metrics are present, they should contain our namespace
         if !result.is_empty() {
             assert!(result.contains("slapenir") || result.contains("http_requests"));
@@ -325,9 +324,9 @@ mod metrics_comprehensive_tests {
     fn test_gather_metrics_format() {
         let _ = init_metrics();
         record_http_request("GET", 200, "/test", 0.1);
-        
+
         let result = gather_metrics().unwrap();
-        
+
         // If metrics are present, should be in Prometheus text format
         // Empty result is also acceptable if metrics not initialized
         assert!(result.is_empty() || result.contains("# ") || result.contains("slapenir"));
@@ -345,9 +344,9 @@ mod metrics_comprehensive_tests {
     #[test]
     fn test_gather_metrics_includes_uptime() {
         let _ = init_metrics();
-        
+
         let result = gather_metrics().unwrap();
-        
+
         // If metrics present, may include uptime
         // Empty result is acceptable
         assert!(result.is_empty() || result.len() >= 0);
@@ -358,15 +357,15 @@ mod metrics_comprehensive_tests {
     #[test]
     fn test_http_request_size_various_sizes() {
         let sizes = vec![
-            10.0,      // Small
-            100.0,     // Small
-            1000.0,    // 1KB
-            10000.0,   // 10KB
-            100000.0,  // 100KB
-            1000000.0, // 1MB
-            10000000.0,// 10MB
+            10.0,       // Small
+            100.0,      // Small
+            1000.0,     // 1KB
+            10000.0,    // 10KB
+            100000.0,   // 100KB
+            1000000.0,  // 1MB
+            10000000.0, // 10MB
         ];
-        
+
         for size in sizes {
             HTTP_REQUEST_SIZE_BYTES.observe(size);
         }
@@ -387,7 +386,7 @@ mod metrics_comprehensive_tests {
     #[test]
     fn test_http_response_size_various_sizes() {
         let sizes = vec![50.0, 500.0, 5000.0, 50000.0, 500000.0, 5000000.0];
-        
+
         for size in sizes {
             HTTP_RESPONSE_SIZE_BYTES.observe(size);
         }
@@ -409,13 +408,13 @@ mod metrics_comprehensive_tests {
     fn test_full_request_lifecycle_metrics() {
         // Simulate a complete request lifecycle
         inc_active_connections();
-        
+
         HTTP_REQUEST_SIZE_BYTES.observe(1024.0);
         record_http_request("POST", 200, "/api/test", 0.123);
         HTTP_RESPONSE_SIZE_BYTES.observe(2048.0);
-        
+
         record_secret_sanitized("api_key");
-        
+
         dec_active_connections();
     }
 
@@ -425,10 +424,10 @@ mod metrics_comprehensive_tests {
         record_mtls_connection(0.05);
         update_cert_expiry("client_cert", 1735689600);
         inc_active_connections();
-        
+
         // Request handling
         record_http_request("GET", 200, "/secure", 0.1);
-        
+
         dec_active_connections();
     }
 
@@ -458,9 +457,9 @@ mod metrics_comprehensive_tests {
     #[test]
     fn test_concurrent_metric_updates() {
         use std::thread;
-        
+
         let mut handles = vec![];
-        
+
         for i in 0..10 {
             let handle = thread::spawn(move || {
                 for _ in 0..10 {
@@ -472,7 +471,7 @@ mod metrics_comprehensive_tests {
             });
             handles.push(handle);
         }
-        
+
         for handle in handles {
             handle.join().unwrap();
         }
@@ -481,9 +480,9 @@ mod metrics_comprehensive_tests {
     #[test]
     fn test_concurrent_connection_tracking() {
         use std::thread;
-        
+
         let mut handles = vec![];
-        
+
         for _ in 0..5 {
             let handle = thread::spawn(|| {
                 for _ in 0..20 {
@@ -494,7 +493,7 @@ mod metrics_comprehensive_tests {
             });
             handles.push(handle);
         }
-        
+
         for handle in handles {
             handle.join().unwrap();
         }
@@ -530,11 +529,11 @@ mod metrics_comprehensive_tests {
     fn test_uptime_increases() {
         use std::thread;
         use std::time::Duration;
-        
+
         let metrics1 = gather_metrics().unwrap();
         thread::sleep(Duration::from_millis(100));
         let metrics2 = gather_metrics().unwrap();
-        
+
         // Both should contain metrics (uptime increases over time)
         assert!(!metrics1.is_empty());
         assert!(!metrics2.is_empty());

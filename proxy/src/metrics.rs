@@ -2,8 +2,8 @@
 // Phase 6: Monitoring & Observability
 
 use prometheus::{
-    Encoder, GaugeVec, Histogram, HistogramOpts, HistogramVec, IntCounter,
-    IntCounterVec, IntGauge, Opts, Registry, TextEncoder,
+    Encoder, GaugeVec, Histogram, HistogramOpts, HistogramVec, IntCounter, IntCounterVec, IntGauge,
+    Opts, Registry, TextEncoder,
 };
 use std::time::SystemTime;
 
@@ -120,23 +120,23 @@ pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
     REGISTRY.register(Box::new(HTTP_REQUEST_DURATION_SECONDS.clone()))?;
     REGISTRY.register(Box::new(HTTP_REQUEST_SIZE_BYTES.clone()))?;
     REGISTRY.register(Box::new(HTTP_RESPONSE_SIZE_BYTES.clone()))?;
-    
+
     REGISTRY.register(Box::new(SECRETS_SANITIZED_TOTAL.clone()))?;
     REGISTRY.register(Box::new(SECRETS_BY_TYPE.clone()))?;
-    
+
     REGISTRY.register(Box::new(MTLS_CONNECTIONS_TOTAL.clone()))?;
     REGISTRY.register(Box::new(MTLS_HANDSHAKE_DURATION_SECONDS.clone()))?;
     REGISTRY.register(Box::new(MTLS_ERRORS_TOTAL.clone()))?;
-    
+
     REGISTRY.register(Box::new(CERT_EXPIRY_TIMESTAMP.clone()))?;
-    
+
     REGISTRY.register(Box::new(PROXY_INFO.clone()))?;
     REGISTRY.register(Box::new(PROXY_UPTIME_SECONDS.clone()))?;
     REGISTRY.register(Box::new(ACTIVE_CONNECTIONS.clone()))?;
-    
+
     // Set proxy info to 1
     PROXY_INFO.set(1);
-    
+
     Ok(())
 }
 
@@ -144,12 +144,12 @@ pub fn init_metrics() -> Result<(), Box<dyn std::error::Error>> {
 pub fn gather_metrics() -> Result<String, Box<dyn std::error::Error>> {
     // Update uptime before gathering
     update_uptime();
-    
+
     let encoder = TextEncoder::new();
     let metric_families = REGISTRY.gather();
     let mut buffer = Vec::new();
     encoder.encode(&metric_families, &mut buffer)?;
-    
+
     Ok(String::from_utf8(buffer)?)
 }
 
@@ -158,7 +158,7 @@ pub fn record_http_request(method: &str, status: u16, endpoint: &str, duration_s
     HTTP_REQUESTS_TOTAL
         .with_label_values(&[method, &status.to_string(), endpoint])
         .inc();
-    
+
     HTTP_REQUEST_DURATION_SECONDS
         .with_label_values(&[method, endpoint])
         .observe(duration_secs);
@@ -238,14 +238,17 @@ mod tests {
     fn test_gather_metrics() {
         // Initialize metrics first (may already be initialized, that's ok)
         let _ = init_metrics();
-        
+
         let result = gather_metrics();
         assert!(result.is_ok(), "Metrics gathering should succeed");
-        
+
         // Verify we got some output
         if let Ok(metrics) = result {
             // Even an empty registry should produce some output
-            assert!(!metrics.is_empty() || metrics.is_empty(), "Metrics output received");
+            assert!(
+                !metrics.is_empty() || metrics.is_empty(),
+                "Metrics output received"
+            );
         }
     }
 }

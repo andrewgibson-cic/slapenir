@@ -30,7 +30,7 @@ pub async fn inject_secrets_middleware(
 ) -> impl IntoResponse {
     // Extract request body
     let (parts, body) = request.into_parts();
-    
+
     // Read body bytes
     let bytes = match axum::body::to_bytes(body, usize::MAX).await {
         Ok(bytes) => bytes,
@@ -59,7 +59,10 @@ pub async fn inject_secrets_middleware(
 
     // Inject real secrets
     let injected = state.secret_map.inject(body_str);
-    tracing::debug!("Injected secrets into request body ({} bytes)", injected.len());
+    tracing::debug!(
+        "Injected secrets into request body ({} bytes)",
+        injected.len()
+    );
 
     // Reconstruct request with modified body
     let new_body = Body::from(injected);
@@ -183,7 +186,7 @@ mod tests {
     fn test_sanitization_verification() {
         let state = create_test_state();
         let sanitized = "Response: [REDACTED]";
-        
+
         // Sanitizing again should return the same thing
         let verification = state.secret_map.sanitize(sanitized);
         assert_eq!(verification, sanitized);

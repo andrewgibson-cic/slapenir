@@ -4,7 +4,7 @@
 use axum::{
     response::Html,
     routing::{any, get},
-    Router, Extension,
+    Extension, Router,
 };
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -15,7 +15,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use slapenir_proxy::{
     build_strategies_from_config,
     config::Config,
-    metrics::{init_metrics, gather_metrics},
+    metrics::{gather_metrics, init_metrics},
     middleware::AppState,
     mtls::MtlsConfig,
     proxy,
@@ -47,12 +47,12 @@ async fn main() -> anyhow::Result<()> {
 
     // Load secrets using strategy pattern (Phase 9)
     let secret_map = load_secrets_with_strategies()?;
-    
+
     let app_state = AppState {
         secret_map: std::sync::Arc::new(secret_map),
         http_client: proxy::create_http_client(),
     };
-    
+
     // Build our application with routes
     let mut app = Router::new()
         // Health and info endpoints
@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/*path", any(proxy::proxy_handler))
         .with_state(app_state)
         .layer(TraceLayer::new_for_http());
-    
+
     // Add mTLS layer if configured
     if let Some(mtls) = mtls_config {
         tracing::info!("🔒 mTLS enabled - mutual authentication active");
@@ -94,33 +94,38 @@ fn load_mtls_config() -> anyhow::Result<Option<MtlsConfig>> {
     // Check if mTLS is enabled
     let mtls_enabled = std::env::var("MTLS_ENABLED")
         .unwrap_or_else(|_| "false".to_string())
-        .to_lowercase() == "true";
-    
+        .to_lowercase()
+        == "true";
+
     if !mtls_enabled {
         return Ok(None);
     }
-    
+
     tracing::info!("🔐 Initializing mTLS configuration...");
-    
+
     // Get certificate paths from environment
-    let ca_cert = std::env::var("MTLS_CA_CERT")
-        .unwrap_or_else(|_| "/certs/root_ca.crt".to_string());
-    let server_cert = std::env::var("MTLS_SERVER_CERT")
-        .unwrap_or_else(|_| "/certs/proxy.crt".to_string());
-    let server_key = std::env::var("MTLS_SERVER_KEY")
-        .unwrap_or_else(|_| "/certs/proxy.key".to_string());
-    
+    let ca_cert =
+        std::env::var("MTLS_CA_CERT").unwrap_or_else(|_| "/certs/root_ca.crt".to_string());
+    let server_cert =
+        std::env::var("MTLS_SERVER_CERT").unwrap_or_else(|_| "/certs/proxy.crt".to_string());
+    let server_key =
+        std::env::var("MTLS_SERVER_KEY").unwrap_or_else(|_| "/certs/proxy.key".to_string());
+
     // Check if enforcement is enabled
     let enforce = std::env::var("MTLS_ENFORCE")
         .unwrap_or_else(|_| "false".to_string())
-        .to_lowercase() == "true";
-    
+        .to_lowercase()
+        == "true";
+
     tracing::info!("📁 Certificate paths:");
     tracing::info!("   CA: {}", ca_cert);
     tracing::info!("   Server cert: {}", server_cert);
     tracing::info!("   Server key: {}", server_key);
-    tracing::info!("   Enforcement: {}", if enforce { "ENABLED" } else { "disabled" });
-    
+    tracing::info!(
+        "   Enforcement: {}",
+        if enforce { "ENABLED" } else { "disabled" }
+    );
+
     // Try to load mTLS configuration
     match MtlsConfig::from_files(&ca_cert, &server_cert, &server_key, enforce) {
         Ok(config) => {
@@ -137,30 +142,29 @@ fn load_mtls_config() -> anyhow::Result<Option<MtlsConfig>> {
 }
 
 /// Load secrets using strategy pattern (Phase 9 integration)
-/// 
+///
 /// This function attempts to load config.yaml and build strategies.
 /// Falls back to environment variables if config doesn't exist.
 fn load_secrets_with_strategies() -> anyhow::Result<SecretMap> {
     // Try to load config.yaml
-    let config_path = std::env::var("CONFIG_PATH")
-        .unwrap_or_else(|_| "config.yaml".to_string());
-    
+    let config_path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| "config.yaml".to_string());
+
     match Config::from_file(&config_path) {
         Ok(config) => {
             tracing::info!("✅ Loaded configuration from {}", config_path);
             tracing::info!("📋 Found {} strategies in config", config.strategies.len());
-            
+
             // Build strategies from config
             let strategies = build_strategies_from_config(&config)
                 .map_err(|e| anyhow::anyhow!("Failed to build strategies: {}", e))?;
-            
+
             if strategies.is_empty() {
                 tracing::warn!("⚠️  No strategies built from config, falling back to env vars");
                 return load_secrets_fallback();
             }
-            
+
             tracing::info!("✅ Built {} strategies successfully", strategies.len());
-            
+
             // Create SecretMap from strategies
             SecretMap::from_strategies(&strategies)
                 .map_err(|e| anyhow::anyhow!("Failed to create SecretMap from strategies: {}", e))
@@ -176,38 +180,41 @@ fn load_secrets_with_strategies() -> anyhow::Result<SecretMap> {
 /// Fallback: Load secrets from environment variables (old method)
 fn load_secrets_fallback() -> anyhow::Result<SecretMap> {
     let mut secrets = HashMap::new();
-    
+
     // Load OpenAI API key
     if let Ok(key) = std::env::var("OPENAI_API_KEY") {
         secrets.insert("DUMMY_OPENAI".to_string(), key);
         tracing::debug!("Loaded OPENAI_API_KEY from environment");
     }
-    
+
     // Load Anthropic API key
     if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
         secrets.insert("DUMMY_ANTHROPIC".to_string(), key);
         tracing::debug!("Loaded ANTHROPIC_API_KEY from environment");
     }
-    
+
     // Load GitHub token
     if let Ok(token) = std::env::var("GITHUB_TOKEN") {
         secrets.insert("DUMMY_GITHUB".to_string(), token);
         tracing::debug!("Loaded GITHUB_TOKEN from environment");
     }
-    
+
     // Load generic API_KEY (for testing)
     if let Ok(key) = std::env::var("API_KEY") {
         secrets.insert("DUMMY_API_KEY".to_string(), key);
         tracing::debug!("Loaded API_KEY from environment");
     }
-    
+
     if secrets.is_empty() {
         tracing::warn!("⚠️  No secrets configured. Using test secret for demonstration.");
         secrets.insert("DUMMY_TOKEN".to_string(), "test_real_token_123".to_string());
     } else {
-        tracing::info!("✅ Loaded {} secrets from environment variables", secrets.len());
+        tracing::info!(
+            "✅ Loaded {} secrets from environment variables",
+            secrets.len()
+        );
     }
-    
+
     SecretMap::new(secrets).map_err(|e| anyhow::anyhow!(e))
 }
 

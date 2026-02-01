@@ -10,11 +10,11 @@ use std::path::Path;
 pub struct Config {
     /// Authentication strategies
     pub strategies: Vec<StrategyConfig>,
-    
+
     /// Security settings
     #[serde(default)]
     pub security: SecurityConfig,
-    
+
     /// Logging configuration
     #[serde(default)]
     pub logging: LoggingConfig,
@@ -25,11 +25,11 @@ pub struct Config {
 pub struct StrategyConfig {
     /// Strategy name for identification
     pub name: String,
-    
+
     /// Strategy type (bearer, aws_sigv4, hmac, etc.)
     #[serde(rename = "type")]
     pub strategy_type: String,
-    
+
     /// Strategy-specific configuration
     pub config: StrategyParams,
 }
@@ -40,23 +40,23 @@ pub struct StrategyParams {
     /// Environment variable name for the credential
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env_var: Option<String>,
-    
+
     /// Dummy pattern to detect in requests
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dummy_pattern: Option<String>,
-    
+
     /// Allowed destination hosts for this credential
     #[serde(default)]
     pub allowed_hosts: Vec<String>,
-    
+
     /// AWS-specific: access key environment variable
     #[serde(skip_serializing_if = "Option::is_none")]
     pub access_key_env: Option<String>,
-    
+
     /// AWS-specific: secret key environment variable
     #[serde(skip_serializing_if = "Option::is_none")]
     pub secret_key_env: Option<String>,
-    
+
     /// AWS-specific: region
     #[serde(skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
@@ -68,11 +68,11 @@ pub struct SecurityConfig {
     /// Fail mode: "closed" (block on error) or "open" (allow on error)
     #[serde(default = "default_fail_mode")]
     pub fail_mode: String,
-    
+
     /// Enable telemetry blocking
     #[serde(default = "default_true")]
     pub block_telemetry: bool,
-    
+
     /// List of telemetry domains to block
     #[serde(default)]
     pub telemetry_domains: Vec<String>,
@@ -102,7 +102,7 @@ pub struct LoggingConfig {
     /// Log level: debug, info, warn, error
     #[serde(default = "default_log_level")]
     pub level: String,
-    
+
     /// Log format: json or text
     #[serde(default = "default_log_format")]
     pub format: String,
@@ -139,28 +139,27 @@ impl Config {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let content = fs::read_to_string(path.as_ref())
             .map_err(|e| format!("Failed to read config file: {}", e))?;
-        
+
         Self::from_yaml(&content)
     }
-    
+
     /// Parse configuration from YAML string
     pub fn from_yaml(yaml: &str) -> Result<Self, String> {
-        serde_yaml::from_str(yaml)
-            .map_err(|e| format!("Failed to parse config YAML: {}", e))
+        serde_yaml::from_str(yaml).map_err(|e| format!("Failed to parse config YAML: {}", e))
     }
-    
+
     /// Validate configuration
     pub fn validate(&self) -> Result<(), String> {
         if self.strategies.is_empty() {
             return Err("No strategies configured".to_string());
         }
-        
+
         for strategy in &self.strategies {
             // Validate strategy name is not empty
             if strategy.name.is_empty() {
                 return Err("Strategy name cannot be empty".to_string());
             }
-            
+
             // Validate strategy type
             match strategy.strategy_type.as_str() {
                 "bearer" | "aws_sigv4" | "hmac" => {}
@@ -171,7 +170,7 @@ impl Config {
                     ));
                 }
             }
-            
+
             // Validate bearer strategy has required fields
             if strategy.strategy_type == "bearer" {
                 if strategy.config.env_var.is_none() {
@@ -187,7 +186,7 @@ impl Config {
                     ));
                 }
             }
-            
+
             // Validate AWS SigV4 strategy has required fields
             if strategy.strategy_type == "aws_sigv4" {
                 if strategy.config.access_key_env.is_none()
@@ -200,7 +199,7 @@ impl Config {
                 }
             }
         }
-        
+
         // Validate fail mode
         match self.security.fail_mode.as_str() {
             "closed" | "open" => {}
@@ -211,19 +210,15 @@ impl Config {
                 ));
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Load configuration with fallback to default
     pub fn load_or_default() -> Self {
         // Try to load from default location
-        let config_paths = vec![
-            "config.yaml",
-            "proxy/config.yaml",
-            "/app/config.yaml",
-        ];
-        
+        let config_paths = vec!["config.yaml", "proxy/config.yaml", "/app/config.yaml"];
+
         for path in config_paths {
             if Path::new(path).exists() {
                 match Self::from_file(path) {
@@ -241,12 +236,12 @@ impl Config {
                 }
             }
         }
-        
+
         // Fall back to default configuration
         tracing::warn!("⚠ Using default configuration (no config.yaml found)");
         Self::default_config()
     }
-    
+
     /// Default configuration for backward compatibility
     fn default_config() -> Self {
         Self {
@@ -306,7 +301,7 @@ logging:
   level: info
   format: json
 "#;
-        
+
         let config = Config::from_yaml(yaml).unwrap();
         assert_eq!(config.strategies.len(), 1);
         assert_eq!(config.strategies[0].name, "openai");
@@ -320,7 +315,7 @@ logging:
             security: SecurityConfig::default(),
             logging: LoggingConfig::default(),
         };
-        
+
         assert!(config.validate().is_err());
     }
 
@@ -328,7 +323,7 @@ logging:
     fn test_validate_invalid_fail_mode() {
         let mut config = Config::default_config();
         config.security.fail_mode = "invalid".to_string();
-        
+
         assert!(config.validate().is_err());
     }
 

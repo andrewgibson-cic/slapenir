@@ -54,7 +54,9 @@ impl SecretMap {
             .build(&self.real_secrets)
             .expect("Failed to build reverse pattern matcher");
 
-        let redacted: Vec<String> = self.real_secrets.iter()
+        let redacted: Vec<String> = self
+            .real_secrets
+            .iter()
             .map(|_| "[REDACTED]".to_string())
             .collect();
 
@@ -65,7 +67,7 @@ impl SecretMap {
                 metrics::record_secret_sanitized("sanitization");
             }
         }
-        
+
         real_patterns.replace_all(data, &redacted)
     }
 
@@ -76,23 +78,23 @@ impl SecretMap {
     pub fn is_empty(&self) -> bool {
         self.real_secrets.is_empty()
     }
-    
+
     /// Create a new SecretMap from authentication strategies
-    /// 
+    ///
     /// This is the preferred method when using the strategy pattern
     pub fn from_strategies(strategies: &[Box<dyn AuthStrategy>]) -> Result<Self, String> {
         if strategies.is_empty() {
             return Err("No strategies provided".to_string());
         }
-        
+
         let mut dummy_secrets = Vec::new();
         let mut real_secrets = Vec::new();
-        
+
         for strategy in strategies {
             // Get dummy patterns from strategy
             let dummies = strategy.dummy_patterns();
             dummy_secrets.extend(dummies);
-            
+
             // Get real credential from strategy (if available)
             if let Some(real_cred) = strategy.real_credential() {
                 real_secrets.push(real_cred);
@@ -103,11 +105,11 @@ impl SecretMap {
                 );
             }
         }
-        
+
         if dummy_secrets.is_empty() || real_secrets.is_empty() {
             return Err("No valid credentials found in strategies".to_string());
         }
-        
+
         if dummy_secrets.len() != real_secrets.len() {
             return Err(format!(
                 "Mismatch: {} dummy patterns but {} real credentials",
@@ -115,19 +117,19 @@ impl SecretMap {
                 real_secrets.len()
             ));
         }
-        
+
         // Build Aho-Corasick automaton for efficient pattern matching
         let patterns = AhoCorasickBuilder::new()
             .ascii_case_insensitive(false)
             .build(&dummy_secrets)
             .map_err(|e| format!("Failed to build pattern matcher: {}", e))?;
-        
+
         tracing::info!(
             "✓ Built SecretMap from {} strategies ({} patterns)",
             strategies.len(),
             dummy_secrets.len()
         );
-        
+
         Ok(Self {
             patterns,
             real_secrets,
@@ -203,15 +205,15 @@ mod tests {
         assert_eq!(map.inject(""), "");
         assert_eq!(map.sanitize(""), "");
     }
-    
+
     #[test]
     fn test_from_strategies() {
         use crate::strategy::BearerStrategy;
-        
+
         // Set up test environment variables
         std::env::set_var("TEST_STRATEGY_TOKEN_1", "real_token_123");
         std::env::set_var("TEST_STRATEGY_TOKEN_2", "real_token_456");
-        
+
         let strategies: Vec<Box<dyn AuthStrategy>> = vec![
             Box::new(
                 BearerStrategy::new(
@@ -232,23 +234,23 @@ mod tests {
                 .unwrap(),
             ),
         ];
-        
+
         let map = SecretMap::from_strategies(&strategies).unwrap();
         assert_eq!(map.len(), 2);
-        
+
         // Test injection
         let input = "Token1: DUMMY_TEST_1, Token2: DUMMY_TEST_2";
         let injected = map.inject(input);
         assert!(injected.contains("real_token_123"));
         assert!(injected.contains("real_token_456"));
-        
+
         // Test sanitization
         let response = "Response with real_token_123 and real_token_456";
         let sanitized = map.sanitize(response);
         assert!(sanitized.contains("[REDACTED]"));
         assert!(!sanitized.contains("real_token"));
     }
-    
+
     #[test]
     fn test_from_strategies_empty() {
         let strategies: Vec<Box<dyn AuthStrategy>> = vec![];

@@ -11,9 +11,8 @@ use axum::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio_rustls::rustls::{
-    pki_types::CertificateDer,
-    server::WebPkiClientVerifier,
-    ClientConfig, RootCertStore, ServerConfig,
+    pki_types::CertificateDer, server::WebPkiClientVerifier, ClientConfig, RootCertStore,
+    ServerConfig,
 };
 use tokio_rustls::TlsAcceptor;
 use tracing::{debug, info, warn};
@@ -51,8 +50,8 @@ impl MtlsConfig {
 
         // Load CA certificate for client verification
         let ca_cert_pem = std::fs::read(ca_cert_path)?;
-        let ca_certs = rustls_pemfile::certs(&mut &ca_cert_pem[..])
-            .collect::<Result<Vec<_>, _>>()?;
+        let ca_certs =
+            rustls_pemfile::certs(&mut &ca_cert_pem[..]).collect::<Result<Vec<_>, _>>()?;
         let ca_cert = ca_certs
             .into_iter()
             .next()
@@ -68,8 +67,8 @@ impl MtlsConfig {
             rustls_pemfile::certs(&mut &server_cert_pem[..]).collect::<Result<Vec<_>, _>>()?;
 
         let server_key_pem = std::fs::read(server_key_path)?;
-        let server_key = rustls_pemfile::private_key(&mut &server_key_pem[..])?
-            .ok_or("No private key found")?;
+        let server_key =
+            rustls_pemfile::private_key(&mut &server_key_pem[..])?.ok_or("No private key found")?;
 
         // Configure client verification
         let client_verifier = if enforce {
@@ -156,12 +155,8 @@ mod tests {
     fn test_mtls_config_creation() {
         // Test that MtlsConfig can be created (will fail without actual cert files)
         // In a real scenario, we'd use test fixtures
-        let result = MtlsConfig::from_files(
-            "test_ca.crt",
-            "test_server.crt",
-            "test_server.key",
-            false,
-        );
+        let result =
+            MtlsConfig::from_files("test_ca.crt", "test_server.crt", "test_server.key", false);
 
         // This will fail without actual files, which is expected in unit tests
         assert!(result.is_err());

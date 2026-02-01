@@ -1,15 +1,13 @@
 // SLAPENIR Strategy Builder - Builds strategy instances from configuration
 
 use crate::config::{Config, StrategyConfig};
-use crate::strategy::{AuthStrategy, BearerStrategy, StrategyError};
 use crate::strategies::AWSSigV4Strategy;
+use crate::strategy::{AuthStrategy, BearerStrategy, StrategyError};
 
 /// Build strategy instances from configuration
-pub fn build_strategies_from_config(
-    config: &Config,
-) -> Result<Vec<Box<dyn AuthStrategy>>, String> {
+pub fn build_strategies_from_config(config: &Config) -> Result<Vec<Box<dyn AuthStrategy>>, String> {
     let mut strategies: Vec<Box<dyn AuthStrategy>> = Vec::new();
-    
+
     for strategy_config in &config.strategies {
         match build_strategy(strategy_config) {
             Ok(strategy) => {
@@ -33,11 +31,11 @@ pub fn build_strategies_from_config(
             }
         }
     }
-    
+
     if strategies.is_empty() {
         return Err("No strategies were successfully built".to_string());
     }
-    
+
     tracing::info!("✓ Built {} strategies total", strategies.len());
     Ok(strategies)
 }
@@ -46,42 +44,43 @@ pub fn build_strategies_from_config(
 fn build_strategy(config: &StrategyConfig) -> Result<Box<dyn AuthStrategy>, StrategyError> {
     match config.strategy_type.as_str() {
         "bearer" => {
-            let env_var = config.config.env_var.as_ref()
-                .ok_or_else(|| StrategyError::InvalidCredential(
-                    "Bearer strategy missing env_var".to_string()
-                ))?;
-            
-            let dummy_pattern = config.config.dummy_pattern.as_ref()
-                .ok_or_else(|| StrategyError::InvalidCredential(
-                    "Bearer strategy missing dummy_pattern".to_string()
-                ))?;
-            
+            let env_var = config.config.env_var.as_ref().ok_or_else(|| {
+                StrategyError::InvalidCredential("Bearer strategy missing env_var".to_string())
+            })?;
+
+            let dummy_pattern = config.config.dummy_pattern.as_ref().ok_or_else(|| {
+                StrategyError::InvalidCredential(
+                    "Bearer strategy missing dummy_pattern".to_string(),
+                )
+            })?;
+
             let strategy = BearerStrategy::new(
                 config.name.clone(),
                 env_var.clone(),
                 dummy_pattern.clone(),
                 config.config.allowed_hosts.clone(),
             )?;
-            
+
             Ok(Box::new(strategy))
         }
-        
+
         "aws_sigv4" => {
-            let access_key_env = config.config.access_key_env.as_ref()
-                .ok_or_else(|| StrategyError::InvalidCredential(
-                    "AWS SigV4 strategy missing access_key_env".to_string()
-                ))?;
-            
-            let secret_key_env = config.config.secret_key_env.as_ref()
-                .ok_or_else(|| StrategyError::InvalidCredential(
-                    "AWS SigV4 strategy missing secret_key_env".to_string()
-                ))?;
-            
-            let region = config.config.region.as_ref()
-                .ok_or_else(|| StrategyError::InvalidCredential(
-                    "AWS SigV4 strategy missing region".to_string()
-                ))?;
-            
+            let access_key_env = config.config.access_key_env.as_ref().ok_or_else(|| {
+                StrategyError::InvalidCredential(
+                    "AWS SigV4 strategy missing access_key_env".to_string(),
+                )
+            })?;
+
+            let secret_key_env = config.config.secret_key_env.as_ref().ok_or_else(|| {
+                StrategyError::InvalidCredential(
+                    "AWS SigV4 strategy missing secret_key_env".to_string(),
+                )
+            })?;
+
+            let region = config.config.region.as_ref().ok_or_else(|| {
+                StrategyError::InvalidCredential("AWS SigV4 strategy missing region".to_string())
+            })?;
+
             let strategy = AWSSigV4Strategy::new(
                 config.name.clone(),
                 access_key_env.clone(),
@@ -90,32 +89,31 @@ fn build_strategy(config: &StrategyConfig) -> Result<Box<dyn AuthStrategy>, Stra
                 None, // service is auto-detected from host
                 config.config.allowed_hosts.clone(),
             )?;
-            
+
             Ok(Box::new(strategy))
         }
-        
+
         "hmac" => {
             // TODO: Implement HMAC strategy in future phase
             Err(StrategyError::InvalidCredential(
-                "HMAC strategy not yet implemented".to_string()
+                "HMAC strategy not yet implemented".to_string(),
             ))
         }
-        
-        _ => {
-            Err(StrategyError::InvalidCredential(
-                format!("Unknown strategy type: {}", config.strategy_type)
-            ))
-        }
+
+        _ => Err(StrategyError::InvalidCredential(format!(
+            "Unknown strategy type: {}",
+            config.strategy_type
+        ))),
     }
 }
 
 /// Check if host matches any telemetry domains
 pub fn is_telemetry_domain(host: &str, telemetry_domains: &[String]) -> bool {
     let host_lower = host.to_lowercase();
-    
+
     for domain in telemetry_domains {
         let domain_lower = domain.to_lowercase();
-        
+
         // Wildcard match (*.example.com)
         if domain_lower.starts_with("*.") {
             let base = &domain_lower[2..];
@@ -132,7 +130,7 @@ pub fn is_telemetry_domain(host: &str, telemetry_domains: &[String]) -> bool {
             return true;
         }
     }
-    
+
     false
 }
 
@@ -166,9 +164,9 @@ mod tests {
     #[test]
     fn test_build_bearer_strategy() {
         use crate::config::StrategyParams;
-        
+
         std::env::set_var("TEST_BUILD_TOKEN", "test_token_123");
-        
+
         let config = StrategyConfig {
             name: "test".to_string(),
             strategy_type: "bearer".to_string(),
@@ -181,7 +179,7 @@ mod tests {
                 region: None,
             },
         };
-        
+
         let strategy = build_strategy(&config).unwrap();
         assert_eq!(strategy.name(), "test");
         assert_eq!(strategy.strategy_type(), "bearer");
@@ -190,7 +188,7 @@ mod tests {
     #[test]
     fn test_build_strategy_missing_env_var() {
         use crate::config::StrategyParams;
-        
+
         let config = StrategyConfig {
             name: "test".to_string(),
             strategy_type: "bearer".to_string(),
@@ -203,7 +201,7 @@ mod tests {
                 region: None,
             },
         };
-        
+
         let result = build_strategy(&config);
         assert!(result.is_ok()); // Strategy builds but warns about missing env var
     }
@@ -211,7 +209,7 @@ mod tests {
     #[test]
     fn test_build_strategy_unknown_type() {
         use crate::config::StrategyParams;
-        
+
         let config = StrategyConfig {
             name: "test".to_string(),
             strategy_type: "unknown".to_string(),
@@ -224,7 +222,7 @@ mod tests {
                 region: None,
             },
         };
-        
+
         let result = build_strategy(&config);
         assert!(result.is_err());
     }

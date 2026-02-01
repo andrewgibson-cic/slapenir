@@ -164,7 +164,7 @@ jobs:
             [
               "@semantic-release/exec",
               {
-                "prepareCmd": "echo ${nextRelease.version} > VERSION"
+                "prepareCmd": "bash scripts/update-version.sh ${nextRelease.version}"
               }
             ],
             [
@@ -181,7 +181,7 @@ jobs:
             [
               "@semantic-release/git",
               {
-                "assets": ["CHANGELOG.md", "VERSION"],
+                "assets": ["CHANGELOG.md", "VERSION", "proxy/Cargo.toml"],
                 "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
               }
             ]

@@ -1,3 +1,62 @@
+## 1.0.0 (2026-02-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ops:** Environment variables now loaded from .env file instead of shell export
+
+### Features
+
+* add mTLS module for mutual TLS authentication ([382760e](https://github.com/andrewgibson-cic/slapenir/commit/382760e7129327a97e9f8b5d6cac0258d1e61f05))
+* add mTLS support to docker-compose and testing scripts ([b37d852](https://github.com/andrewgibson-cic/slapenir/commit/b37d85233901d7b7b6db18d3c52a46d459a2492b))
+* add Python mTLS client for agent ([a27c3a7](https://github.com/andrewgibson-cic/slapenir/commit/a27c3a74a761deefddbbfeefe1c3a729bff449a8))
+* **agent:** add secure Git credentials via PATs ([8b4904e](https://github.com/andrewgibson-cic/slapenir/commit/8b4904e9b5b713d5f0437dc56e084b372f71a891))
+* integrate mTLS support into proxy main ([82a6533](https://github.com/andrewgibson-cic/slapenir/commit/82a6533372d6c0b19e52bf61465948cf832587bf))
+* **metrics:** instrument proxy and sanitizer with Prometheus metrics ([0b2b763](https://github.com/andrewgibson-cic/slapenir/commit/0b2b763c58f7195312c338787eacdb9fa82d9de4))
+* **middleware:** implement request/response sanitization middleware ([ba70db3](https://github.com/andrewgibson-cic/slapenir/commit/ba70db39daa0ea08e3bf4d3b99bbf42a3084e4c3))
+* **ops:** add environment management and unified control interface ([43f3e55](https://github.com/andrewgibson-cic/slapenir/commit/43f3e55bd312e69513d0563344e59508fa64a29a))
+* **orchestration:** complete docker compose integration with all services ([a4f527e](https://github.com/andrewgibson-cic/slapenir/commit/a4f527efcf408304de5041d356dee08835afb364))
+* **phase1:** begin Phase 1 - Identity & Foundation ([648a95e](https://github.com/andrewgibson-cic/slapenir/commit/648a95eeb31cde244399621c546663a83febd928))
+* **phase2:** initialize Rust proxy with Axum server ([060a6d0](https://github.com/andrewgibson-cic/slapenir/commit/060a6d0ab3fbddeb61aa1f4f71ecca5c3461192c))
+* **phase9:** complete strategy pattern integration and update docs ([220a96d](https://github.com/andrewgibson-cic/slapenir/commit/220a96d432d557c9911e1e440837103a41a43e67))
+* **proxy,agent:** implement HTTP proxy handler and agent environment ([0d220e9](https://github.com/andrewgibson-cic/slapenir/commit/0d220e91eff5233f156605fd93b3e146bea464d5))
+* **release:** automatically update version in Cargo.toml ([7b929c5](https://github.com/andrewgibson-cic/slapenir/commit/7b929c5617ad53061ac676442c5274a00b796364))
+* **sanitizer:** implement Aho-Corasick credential sanitization engine ([8ca2cd8](https://github.com/andrewgibson-cic/slapenir/commit/8ca2cd8b03fa662797b0d7af0608c825c499f07f))
+
+
+### Bug Fixes
+
+* **agent:** install s6-overlay from GitHub releases for Wolfi compatibility ([ea61bcc](https://github.com/andrewgibson-cic/slapenir/commit/ea61bccefd3fae2761b788181b99cbd198350883))
+* correct volume mount path in Step-CA init script ([652f752](https://github.com/andrewgibson-cic/slapenir/commit/652f75219d283b4cb0376c28ad169359ba58a010))
+* **mtls:** update to rustls 0.22 API and fix compilation errors ([4cdb447](https://github.com/andrewgibson-cic/slapenir/commit/4cdb447ad56c3323ef0ef9d97488fa48ab16e28d))
+* **ops:** add execute permissions to all shell scripts ([37e056e](https://github.com/andrewgibson-cic/slapenir/commit/37e056eee3933b928fe96c98f07a1581789e162b))
+* **ops:** remove process substitution from init-step-ca script ([59956e1](https://github.com/andrewgibson-cic/slapenir/commit/59956e1f4fdb2e48b25e5e32ed98c0e58d80e07e))
+* **proxy:** bind to 0.0.0.0 instead of 127.0.0.1 for container networking ([462f4b9](https://github.com/andrewgibson-cic/slapenir/commit/462f4b9cad1046072760ba3e7cfdfca1bef71c25))
+* update actions/upload-artifact from v3 to v4 ([45f43a5](https://github.com/andrewgibson-cic/slapenir/commit/45f43a5403b164491047f89456d2f4e2bd266727))
+* update test-system.sh to reference docs/PROGRESS.md ([aecb772](https://github.com/andrewgibson-cic/slapenir/commit/aecb7725b55da15a7b53242d8a4cf87035fdb8c4))
+
+
+### Code Refactoring
+
+* migrate agent from zsh to bash with auto-loaded environment ([dab0daf](https://github.com/andrewgibson-cic/slapenir/commit/dab0daf1473ff5ff7d296fc12cf7bc77991ba416))
+
+
+### Documentation
+
+* add CI/CD workflow and update README with test coverage ([86af578](https://github.com/andrewgibson-cic/slapenir/commit/86af578a5ddfec5af9421d2868acd4ad07e05349))
+* add comprehensive mTLS setup guide ([fc5bd27](https://github.com/andrewgibson-cic/slapenir/commit/fc5bd27a7fe347b4044cdb6b8c121d7b4691ef70))
+* add comprehensive README and system validation script ([53388f8](https://github.com/andrewgibson-cic/slapenir/commit/53388f80f3fca3aaa59a51b70e3d8fc2d4fbbb06))
+* add comprehensive test coverage report and update progress ([a4b2ff5](https://github.com/andrewgibson-cic/slapenir/commit/a4b2ff5df46557b857a1520e9e1af5d01f86ec23))
+* add next steps guide and finalize all documentation ([26deec9](https://github.com/andrewgibson-cic/slapenir/commit/26deec95ac217953cc1e42a759385020be4330ca))
+* organize documentation and update gitignore ([fc66aa5](https://github.com/andrewgibson-cic/slapenir/commit/fc66aa529efd5be4b180e26da9778c8417e24e87))
+* **readme:** add comprehensive Git credentials and make commands sections ([2fe7956](https://github.com/andrewgibson-cic/slapenir/commit/2fe7956facb588a6b81ff3de11fcb1d639749106))
+* **readme:** add comprehensive Make commands and Git credentials sections ([3e12ae5](https://github.com/andrewgibson-cic/slapenir/commit/3e12ae50154cff8b8abe45f40c0ea7df3177ce06))
+* **readme:** remove reference to non-existent QUICKSTART.md ([b7a8a7f](https://github.com/andrewgibson-cic/slapenir/commit/b7a8a7f15d3842dedb651757d1f4cb6d0178a6aa))
+* update documentation to reflect Phase 2 progress ([6d0e0e7](https://github.com/andrewgibson-cic/slapenir/commit/6d0e0e7d464368c0d21fac6c7c3a9794ac49e93a))
+* update PROGRESS.md with complete Phase 4 mTLS implementation ([0fd5225](https://github.com/andrewgibson-cic/slapenir/commit/0fd52252df7649603df0ed54a2a206b06d3be4cd))
+* update PROGRESS.md with metrics instrumentation completion ([8684b74](https://github.com/andrewgibson-cic/slapenir/commit/8684b74cb1bb916a991f9019d8ba564c272751d6))
+* update README.md to reflect 95% project completion ([70670eb](https://github.com/andrewgibson-cic/slapenir/commit/70670ebac10b9056f375fdfbd46a4d29e48a95f5))
+
 ## 1.0.0 (2026-02-01)
 
 

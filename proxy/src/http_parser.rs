@@ -10,7 +10,6 @@
 /// - Handle chunked transfer encoding
 /// - Preserve request/response integrity
 /// - Support streaming for large payloads
-
 use httparse::{Request, Response, Status, EMPTY_HEADER};
 use std::collections::HashMap;
 use tracing::debug;
@@ -302,7 +301,10 @@ mod tests {
 
         assert_eq!(req.method, "POST");
         assert_eq!(req.path, "/api/data");
-        assert_eq!(req.headers.get("content-type"), Some(&"application/json".to_string()));
+        assert_eq!(
+            req.headers.get("content-type"),
+            Some(&"application/json".to_string())
+        );
         assert_eq!(String::from_utf8_lossy(&req.body), "{\"key\":\"val\"}");
     }
 
@@ -317,14 +319,20 @@ mod tests {
         assert!(result.is_some());
         let req = result.unwrap();
 
-        assert_eq!(req.headers.get("authorization"), Some(&"Bearer DUMMY_TOKEN".to_string()));
+        assert_eq!(
+            req.headers.get("authorization"),
+            Some(&"Bearer DUMMY_TOKEN".to_string())
+        );
     }
 
     #[test]
     fn test_parse_incomplete_request() {
         let http = b"GET /api HTTP/1.1\r\nHost: example.com\r\n";
         let result = parse_request(http).unwrap();
-        assert!(result.is_none(), "Should return None for incomplete request");
+        assert!(
+            result.is_none(),
+            "Should return None for incomplete request"
+        );
     }
 
     #[test]
@@ -376,7 +384,10 @@ mod tests {
         let resp = result.unwrap();
 
         assert_eq!(resp.code, 200);
-        assert_eq!(resp.headers.get("content-type"), Some(&"application/json".to_string()));
+        assert_eq!(
+            resp.headers.get("content-type"),
+            Some(&"application/json".to_string())
+        );
         assert!(String::from_utf8_lossy(&resp.body).contains("ghp_secret123"));
     }
 
@@ -395,7 +406,10 @@ mod tests {
     fn test_parse_incomplete_response() {
         let http = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n";
         let result = parse_response(http).unwrap();
-        assert!(result.is_none(), "Should return None for incomplete response");
+        assert!(
+            result.is_none(),
+            "Should return None for incomplete response"
+        );
     }
 
     #[test]
@@ -529,7 +543,10 @@ mod tests {
                       \r\n";
 
         let result = parse_response(http).unwrap().unwrap();
-        assert_eq!(result.headers.get("set-cookie"), Some(&"session=abc123".to_string()));
+        assert_eq!(
+            result.headers.get("set-cookie"),
+            Some(&"session=abc123".to_string())
+        );
     }
 
     #[test]

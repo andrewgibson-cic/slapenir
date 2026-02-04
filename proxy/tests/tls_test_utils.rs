@@ -1,15 +1,15 @@
 // TLS MITM Test Utilities
 // Provides mock servers and helper functions for testing TLS MITM functionality
 
+use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use std::net::SocketAddr;
 
 /// Create a mock TCP server that echoes data back
 pub async fn create_echo_server() -> (SocketAddr, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    
+
     let handle = tokio::spawn(async move {
         while let Ok((mut stream, _)) = listener.accept().await {
             tokio::spawn(async move {
@@ -28,7 +28,7 @@ pub async fn create_echo_server() -> (SocketAddr, tokio::task::JoinHandle<()>) {
             });
         }
     });
-    
+
     (addr, handle)
 }
 
@@ -36,14 +36,14 @@ pub async fn create_echo_server() -> (SocketAddr, tokio::task::JoinHandle<()>) {
 pub async fn create_http_server() -> (SocketAddr, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    
+
     let handle = tokio::spawn(async move {
         while let Ok((mut stream, _)) = listener.accept().await {
             tokio::spawn(async move {
                 let mut buf = vec![0u8; 4096];
                 if let Ok(n) = stream.read(&mut buf).await {
                     let request = String::from_utf8_lossy(&buf[..n]);
-                    
+
                     // Echo back the request in response body
                     let response = format!(
                         "HTTP/1.1 200 OK\r\n\
@@ -54,13 +54,13 @@ pub async fn create_http_server() -> (SocketAddr, tokio::task::JoinHandle<()>) {
                         request.len(),
                         request
                     );
-                    
+
                     let _ = stream.write_all(response.as_bytes()).await;
                 }
             });
         }
     });
-    
+
     (addr, handle)
 }
 
@@ -102,27 +102,30 @@ mod tests {
     #[tokio::test]
     async fn test_echo_server_works() {
         let (addr, _handle) = create_echo_server().await;
-        
+
         let mut stream = TcpStream::connect(addr).await.unwrap();
         stream.write_all(b"hello").await.unwrap();
-        
+
         let mut buf = vec![0u8; 1024];
         let n = stream.read(&mut buf).await.unwrap();
-        
+
         assert_eq!(&buf[..n], b"hello");
     }
 
     #[tokio::test]
     async fn test_http_server_responds() {
         let (addr, _handle) = create_http_server().await;
-        
+
         let mut stream = TcpStream::connect(addr).await.unwrap();
-        stream.write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n").await.unwrap();
-        
+        stream
+            .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .unwrap();
+
         let mut buf = vec![0u8; 4096];
         let n = stream.read(&mut buf).await.unwrap();
         let response = String::from_utf8_lossy(&buf[..n]);
-        
+
         assert!(response.contains("200 OK"));
     }
 

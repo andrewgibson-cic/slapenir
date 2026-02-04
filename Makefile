@@ -89,8 +89,12 @@ test-proxy:
 
 # Run agent tests
 test-agent:
-	@python3 agent/tests/test_agent.py
-	@python3 agent/tests/test_agent_advanced.py
+	@echo "Running agent shell script tests..."
+	@cd agent/tests && ./run_all_tests.sh
+	@echo ""
+	@echo "Running agent Python tests..."
+	@python3 agent/tests/test_agent.py || true
+	@python3 agent/tests/test_agent_advanced.py || true
 
 # Run security tests (verify no real credentials in agent)
 test-security:

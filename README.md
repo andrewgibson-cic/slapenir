@@ -840,3 +840,13 @@ Andrew Gibson (andrew.gibson-cic@ibm.com)
 **Status**: ✅ Production Ready  
 **Last Updated**: 2026-01-31  
 **Version**: 1.0.0 (100% Complete - All Phases Delivered)
+
+## Version History
+
+### v1.0.0 (Current)
+- Initial release with core functionality
+- CI/CD integration test fixes
+- Security vulnerability patches (bytes crate CVE)
+- Docker compose modernization
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.

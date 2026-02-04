@@ -51,9 +51,15 @@ cat > /home/agent/.env << 'HEADER'
 # in the proxy's .env.proxy file.
 #
 # How it works:
-#   Agent uses:  DUMMY_OPENAI
-#   Proxy injects: sk-proj-real-key-123...
+#   Agent code:     export MISTRAL_API_KEY (or echo $MISTRAL_API_KEY)
+#   Value in agent: DUMMY_MISTRAL
+#   Proxy sees:     DUMMY_MISTRAL
+#   Proxy injects:  sk-proj-real-key-123...
+#   Server receives: sk-proj-real-key-123...
 #   Agent receives: [REDACTED]
+#
+# These variables are automatically loaded into your shell environment,
+# so you can use them like: $OPENAI_API_KEY, $MISTRAL_API_KEY, etc.
 # ============================================================================
 
 HEADER

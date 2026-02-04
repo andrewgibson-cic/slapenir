@@ -13,9 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tracing::{debug, error, info, warn};
 
-use crate::http_parser::{parse_request, parse_response, serialize_request, serialize_response};
 use crate::middleware::AppState;
-use crate::tls::{CertificateAuthority, MitmAcceptor};
 
 /// Handle HTTP CONNECT requests for HTTPS tunneling
 ///
@@ -256,10 +254,10 @@ async fn tunnel_passthrough(
 /// 5. Sanitize responses to remove real credentials
 /// 6. Re-encrypt proxy → client traffic
 async fn tunnel_with_tls_mitm(
-    client_stream: Upgraded,
-    server_stream: TcpStream,
+    _client_stream: Upgraded,
+    _server_stream: TcpStream,
     destination: &str,
-    state: AppState,
+    _state: AppState,
 ) -> Result<(), ConnectError> {
     // Extract hostname for certificate generation
     let hostname = extract_hostname(destination)?;

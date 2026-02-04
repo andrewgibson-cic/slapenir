@@ -76,7 +76,7 @@ fn build_server_config(cert: &HostCertificate) -> Result<ServerConfig, TlsError>
 
     // Parse private key PEM
     let key_pem = cert.key_pem().as_bytes();
-    let mut key_reader = &key_pem[..];
+    let mut key_reader = key_pem;
     
     let private_key = rustls_pemfile::private_key(&mut key_reader)
         .map_err(|e| TlsError::CertGeneration(format!("Failed to parse private key: {}", e)))?

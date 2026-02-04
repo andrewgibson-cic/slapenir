@@ -33,13 +33,28 @@ else
     echo ""
 fi
 
-# Step 3: Export dummy credentials to environment
+# Step 3: Export dummy credentials to environment and make them persistent
 if [ -f /home/agent/.env ]; then
     echo -e "${BLUE}Step 3: Loading dummy credentials into environment...${NC}"
+    
+    # Export to current session
     set -a
     source /home/agent/.env
     set +a
-    echo -e "${GREEN}✅ Dummy credentials loaded${NC}"
+    
+    # Make variables available to all future shells by adding to .bashrc
+    if [ ! -f /home/agent/.env_exported ]; then
+        echo "" >> /home/agent/.bashrc
+        echo "# Auto-generated: Load dummy credentials" >> /home/agent/.bashrc
+        echo "if [ -f /home/agent/.env ]; then" >> /home/agent/.bashrc
+        echo "    set -a" >> /home/agent/.bashrc
+        echo "    source /home/agent/.env" >> /home/agent/.bashrc
+        echo "    set +a" >> /home/agent/.bashrc
+        echo "fi" >> /home/agent/.bashrc
+        touch /home/agent/.env_exported
+    fi
+    
+    echo -e "${GREEN}✅ Dummy credentials loaded and made persistent${NC}"
     echo ""
 fi
 

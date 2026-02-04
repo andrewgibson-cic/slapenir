@@ -27,6 +27,8 @@ help:
 	@echo "  make test           - Run all tests"
 	@echo "  make test-proxy     - Run proxy tests"
 	@echo "  make test-agent     - Run agent tests"
+	@echo "  make test-integration - Run integration tests"
+	@echo "  make health-check   - Check container health"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make build          - Rebuild all containers"
@@ -116,6 +118,18 @@ verify-security:
 # Rebuild containers
 build:
 	@docker-compose build
+
+# Run integration tests
+test-integration:
+	@echo "Running integration tests..."
+	@chmod +x scripts/integration-test.sh
+	@./scripts/integration-test.sh
+
+# Check container health
+health-check:
+	@echo "Running health checks..."
+	@chmod +x scripts/health-check.sh
+	@./scripts/health-check.sh
 
 # Clean everything
 clean:

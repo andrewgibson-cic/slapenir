@@ -20,7 +20,7 @@ mod metrics_comprehensive_tests {
 
     #[test]
     fn test_metrics_registry_gather() {
-        let families = REGISTRY.gather();
+        let _families = REGISTRY.gather();
         // Registry should contain metrics (always returns vec, may be empty)
         assert!(true); // Registry exists if we get here
     }
@@ -522,7 +522,7 @@ mod metrics_comprehensive_tests {
     fn test_proxy_info_metric_set() {
         // Proxy info should be set to 1
         let metrics = gather_metrics().unwrap();
-        assert!(metrics.contains("proxy_info") || metrics.len() > 0);
+        assert!(metrics.contains("proxy_info") || !metrics.is_empty());
     }
 
     #[test]

@@ -115,8 +115,7 @@ pub fn is_telemetry_domain(host: &str, telemetry_domains: &[String]) -> bool {
         let domain_lower = domain.to_lowercase();
 
         // Wildcard match (*.example.com)
-        if domain_lower.starts_with("*.") {
-            let base = &domain_lower[2..];
+        if let Some(base) = domain_lower.strip_prefix("*.") {
             if host_lower.ends_with(base) || host_lower == base {
                 return true;
             }

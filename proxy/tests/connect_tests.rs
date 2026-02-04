@@ -21,10 +21,7 @@ use tokio::time::{timeout, Duration};
 fn create_test_state() -> AppState {
     let mut secrets = HashMap::new();
     secrets.insert("DUMMY_TOKEN".to_string(), "real_secret_123".to_string());
-    secrets.insert(
-        "DUMMY_GITHUB".to_string(),
-        "ghp_real_token_456".to_string(),
-    );
+    secrets.insert("DUMMY_GITHUB".to_string(), "ghp_real_token_456".to_string());
 
     let secret_map = SecretMap::new(secrets).expect("Failed to create SecretMap");
     AppState {
@@ -91,11 +88,7 @@ async fn test_connect_valid_hostname() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     assert!(result.is_ok(), "CONNECT should succeed for valid hostname");
     let response = result.unwrap();
@@ -113,11 +106,7 @@ async fn test_connect_ipv4_address() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     assert!(result.is_ok(), "CONNECT should work with IPv4 addresses");
 }
@@ -132,11 +121,7 @@ async fn test_connect_missing_port() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     assert!(result.is_err(), "CONNECT should fail without port");
     let err = result.unwrap_err();
@@ -153,13 +138,12 @@ async fn test_connect_invalid_destination() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
-    assert!(result.is_err(), "CONNECT should fail with invalid destination");
+    assert!(
+        result.is_err(),
+        "CONNECT should fail with invalid destination"
+    );
 }
 
 // ============================================================================
@@ -205,11 +189,7 @@ async fn test_connect_refused_connection() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     assert!(result.is_err(), "Should fail when connection is refused");
     let err = result.unwrap_err();
@@ -231,11 +211,7 @@ async fn test_tunnel_data_passthrough() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     assert!(result.is_ok(), "CONNECT should succeed");
     let response = result.unwrap();
@@ -258,17 +234,10 @@ async fn test_multiple_sequential_connects() {
             .body(Body::empty())
             .unwrap();
 
-        let result = slapenir_proxy::connect::handle_connect(
-            axum::extract::State(state.clone()),
-            req,
-        )
-        .await;
+        let result =
+            slapenir_proxy::connect::handle_connect(axum::extract::State(state.clone()), req).await;
 
-        assert!(
-            result.is_ok(),
-            "CONNECT #{} should succeed",
-            i + 1
-        );
+        assert!(result.is_ok(), "CONNECT #{} should succeed", i + 1);
     }
 }
 
@@ -294,11 +263,7 @@ async fn test_concurrent_connects() {
                 .body(Body::empty())
                 .unwrap();
 
-            slapenir_proxy::connect::handle_connect(
-                axum::extract::State(state_clone),
-                req,
-            )
-            .await
+            slapenir_proxy::connect::handle_connect(axum::extract::State(state_clone), req).await
         });
 
         handles.push(handle);
@@ -343,10 +308,7 @@ async fn test_concurrent_mixed_success_failure() {
 
             timeout(
                 Duration::from_secs(2),
-                slapenir_proxy::connect::handle_connect(
-                    axum::extract::State(state_clone),
-                    req,
-                ),
+                slapenir_proxy::connect::handle_connect(axum::extract::State(state_clone), req),
             )
             .await
         });
@@ -418,11 +380,7 @@ async fn test_connect_with_zero_port() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     // Port 0 is invalid for CONNECT
     assert!(result.is_err());
@@ -438,11 +396,7 @@ async fn test_connect_with_max_port() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     // Should attempt to connect (will fail, but parsing should succeed)
     // We just verify it doesn't panic or return invalid request
@@ -466,11 +420,7 @@ async fn test_connect_long_hostname() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     // Should parse successfully (connection will fail, but that's OK)
     assert!(result.is_err());
@@ -495,11 +445,7 @@ async fn test_github_connect_format() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     assert!(result.is_ok(), "Should handle git CONNECT format");
 }
@@ -518,11 +464,7 @@ async fn test_npm_connect_format() {
         .body(Body::empty())
         .unwrap();
 
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        req,
-    )
-    .await;
+    let result = slapenir_proxy::connect::handle_connect(axum::extract::State(state), req).await;
 
     assert!(result.is_ok(), "Should handle npm CONNECT format");
 }
@@ -543,11 +485,8 @@ async fn test_rapid_connect_disconnect() {
             .body(Body::empty())
             .unwrap();
 
-        let result = slapenir_proxy::connect::handle_connect(
-            axum::extract::State(state.clone()),
-            req,
-        )
-        .await;
+        let result =
+            slapenir_proxy::connect::handle_connect(axum::extract::State(state.clone()), req).await;
 
         assert!(result.is_ok());
     }
@@ -566,11 +505,8 @@ async fn test_memory_cleanup() {
             .body(Body::empty())
             .unwrap();
 
-        let _ = slapenir_proxy::connect::handle_connect(
-            axum::extract::State(state.clone()),
-            req,
-        )
-        .await;
+        let _ =
+            slapenir_proxy::connect::handle_connect(axum::extract::State(state.clone()), req).await;
 
         // Small delay to allow async cleanup
         tokio::time::sleep(Duration::from_millis(10)).await;
@@ -605,17 +541,9 @@ async fn test_state_cloning() {
         .body(Body::empty())
         .unwrap();
 
-    let result1 = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state1),
-        req1,
-    )
-    .await;
+    let result1 = slapenir_proxy::connect::handle_connect(axum::extract::State(state1), req1).await;
 
-    let result2 = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state2),
-        req2,
-    )
-    .await;
+    let result2 = slapenir_proxy::connect::handle_connect(axum::extract::State(state2), req2).await;
 
     assert!(result1.is_ok());
     assert!(result2.is_ok());
@@ -666,10 +594,7 @@ async fn test_concurrent_timeout_handling() {
 
             timeout(
                 Duration::from_secs(1),
-                slapenir_proxy::connect::handle_connect(
-                    axum::extract::State(state_clone),
-                    req,
-                ),
+                slapenir_proxy::connect::handle_connect(axum::extract::State(state_clone), req),
             )
             .await
         });
@@ -703,11 +628,8 @@ async fn test_production_example() {
         .unwrap();
 
     // Step 2: Handle CONNECT request
-    let response = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        request,
-    )
-    .await;
+    let response =
+        slapenir_proxy::connect::handle_connect(axum::extract::State(state), request).await;
 
     // Step 3: Verify success
     assert!(response.is_ok());
@@ -735,11 +657,8 @@ async fn test_connect_flow_documentation() {
         .unwrap();
 
     // 3. Proxy handles CONNECT
-    let result = slapenir_proxy::connect::handle_connect(
-        axum::extract::State(state),
-        request,
-    )
-    .await;
+    let result =
+        slapenir_proxy::connect::handle_connect(axum::extract::State(state), request).await;
 
     // 4. Proxy returns 200 Connection Established
     assert!(result.is_ok());
@@ -748,6 +667,6 @@ async fn test_connect_flow_documentation() {
 
     // 5. Tunnel is established asynchronously
     //    (Data flows between client and server)
-    
+
     // 6. Connection closes when either side disconnects
 }

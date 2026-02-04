@@ -36,7 +36,7 @@ pub async fn handle_connect(
     // Extract destination from URI
     let uri = req.uri().clone();
     let destination = parse_destination(&uri)?;
-    
+
     info!("📡 CONNECT to: {}", destination);
 
     // Establish connection to destination BEFORE responding
@@ -55,17 +55,17 @@ pub async fn handle_connect(
     // Clone destination and state for the async task
     let dest_clone = destination.clone();
     let state_clone = state.clone();
-    
+
     // IMPORTANT: Create the upgrade future BEFORE returning the response
     // The upgrade future needs to be created while we still own the request
     let upgrade_future = hyper::upgrade::on(req);
-    
+
     // Spawn task to handle tunnel - this will run AFTER the response is sent
     tokio::task::spawn(async move {
         match upgrade_future.await {
             Ok(upgraded) => {
                 info!("🔄 Connection upgraded, starting tunnel to {}", dest_clone);
-                
+
                 if let Err(e) = tunnel(upgraded, server_stream, &dest_clone, state_clone).await {
                     error!("❌ Tunnel error for {}: {}", dest_clone, e);
                 } else {
@@ -102,7 +102,7 @@ fn extract_hostname(destination: &str) -> Result<String, ConnectError> {
         let host = &destination[..colon_pos];
         // Remove IPv6 brackets if present
         if host.starts_with('[') && host.ends_with(']') {
-            Ok(host[1..host.len()-1].to_string())
+            Ok(host[1..host.len() - 1].to_string())
         } else {
             Ok(host.to_string())
         }
@@ -167,7 +167,7 @@ async fn tunnel_passthrough(
 ) -> Result<(), ConnectError> {
     // Wrap the upgraded connection with TokioIo for compatibility
     let client_stream = TokioIo::new(client_stream);
-    
+
     // Split streams into read/write halves
     let (mut client_read, mut client_write) = tokio::io::split(client_stream);
     let (mut server_read, mut server_write) = tokio::io::split(server_stream);
@@ -176,7 +176,7 @@ async fn tunnel_passthrough(
     let client_to_server = async {
         let mut buffer = vec![0u8; 8192];
         let mut total_bytes = 0u64;
-        
+
         loop {
             match client_read.read(&mut buffer).await {
                 Ok(0) => {
@@ -185,7 +185,7 @@ async fn tunnel_passthrough(
                 }
                 Ok(n) => {
                     total_bytes += n as u64;
-                    
+
                     if let Err(e) = server_write.write_all(&buffer[..n]).await {
                         error!("Error writing to server {}: {}", destination, e);
                         break Err(e);
@@ -202,7 +202,7 @@ async fn tunnel_passthrough(
     let server_to_client = async {
         let mut buffer = vec![0u8; 8192];
         let mut total_bytes = 0u64;
-        
+
         loop {
             match server_read.read(&mut buffer).await {
                 Ok(0) => {
@@ -211,7 +211,7 @@ async fn tunnel_passthrough(
                 }
                 Ok(n) => {
                     total_bytes += n as u64;
-                    
+
                     if let Err(e) = client_write.write_all(&buffer[..n]).await {
                         error!("Error writing to client: {}", e);
                         break Err(e);
@@ -332,7 +332,10 @@ impl IntoResponse for ConnectError {
                 format!("Failed to connect to {}: {}", dest, err),
             ),
             ConnectError::TunnelError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-            ConnectError::TlsError(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("TLS error: {}", e)),
+            ConnectError::TlsError(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("TLS error: {}", e),
+            ),
         };
 
         (status, message).into_response()
@@ -427,10 +430,8 @@ mod tests {
 
     #[test]
     fn test_connect_error_display_connection_failed() {
-        let error = ConnectError::ConnectionFailed(
-            "github.com:443".to_string(),
-            "timeout".to_string(),
-        );
+        let error =
+            ConnectError::ConnectionFailed("github.com:443".to_string(), "timeout".to_string());
         assert_eq!(
             error.to_string(),
             "Failed to connect to github.com:443: timeout"
@@ -452,10 +453,8 @@ mod tests {
 
     #[test]
     fn test_connect_error_into_response_connection_failed() {
-        let error = ConnectError::ConnectionFailed(
-            "example.com:443".to_string(),
-            "refused".to_string(),
-        );
+        let error =
+            ConnectError::ConnectionFailed("example.com:443".to_string(), "refused".to_string());
         let response = error.into_response();
         assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
     }
@@ -527,7 +526,7 @@ mod tests {
         assert!(can_parse_destination("api.github.com:443"));
         assert!(can_parse_destination("raw.githubusercontent.com:443"));
         assert!(can_parse_destination("objects.githubusercontent.com:443"));
-        
+
         // Should fail without port
         assert!(!can_parse_destination("github.com"));
         assert!(!can_parse_destination("example.com"));
@@ -600,7 +599,10 @@ mod tests {
     #[test]
     fn test_extract_hostname_simple() {
         assert_eq!(extract_hostname("github.com:443").unwrap(), "github.com");
-        assert_eq!(extract_hostname("api.example.com:8443").unwrap(), "api.example.com");
+        assert_eq!(
+            extract_hostname("api.example.com:8443").unwrap(),
+            "api.example.com"
+        );
         assert_eq!(extract_hostname("localhost:3000").unwrap(), "localhost");
     }
 
@@ -613,7 +615,10 @@ mod tests {
     #[test]
     fn test_extract_hostname_ipv6() {
         assert_eq!(extract_hostname("[::1]:443").unwrap(), "::1");
-        assert_eq!(extract_hostname("[2001:db8::1]:8443").unwrap(), "2001:db8::1");
+        assert_eq!(
+            extract_hostname("[2001:db8::1]:8443").unwrap(),
+            "2001:db8::1"
+        );
     }
 
     #[test]

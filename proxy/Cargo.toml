@@ -23,9 +23,15 @@ hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", 
 rustls = "0.22"
 tokio-rustls = "0.25"
 rustls-pemfile = "2.2"
+rcgen = "0.12"  # Certificate generation for MITM
+x509-parser = "0.16"  # Certificate parsing
+pem = "3.0"  # PEM file handling
 
 # Streaming pattern matching (Aho-Corasick)
 aho-corasick = "1.1"
+
+# HTTP parsing
+httparse = "1.8"
 
 # Secure memory handling
 zeroize = { version = "1.7", features = ["derive"] }
@@ -66,3 +72,6 @@ lazy_static = "1.4"
 proptest = "1.4"
 criterion = { version = "0.5", features = ["html_reports"] }
 mockito = "1.2"
+futures = "0.3"  # For concurrent test scenarios
+tempfile = "3.8"  # Temporary files for testing
+tokio-test = "0.4"  # Tokio testing utilities

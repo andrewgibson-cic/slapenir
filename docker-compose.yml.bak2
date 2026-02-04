@@ -100,6 +100,7 @@ services:
       - agent-workspace:/home/agent/workspace
       - agent-certs:/certs:ro  # Read-only certificate access
       - agent-ssh:/home/agent/.ssh  # Persist SSH keys
+      - ./.env.proxy:/tmp/.env.proxy:ro  # Read-only access to proxy env for dummy generation
     healthcheck:
       test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
       interval: 30s

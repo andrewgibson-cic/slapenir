@@ -199,12 +199,13 @@ jobs:
         echo "| Security Tests | ${{ steps.security_tests.outcome }} |" >> $GITHUB_STEP_SUMMARY
     
     - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: agent-test-results
-        path: test_results.txt
-    
+    - name: Create .env file for CI
+      run: |
+        # Create .env from .env.example for CI
+        cp .env.example .env
+        echo "# CI environment - dummy credentials only" >> .env
+        echo "ENVIRONMENT=ci" >> .env
+
     - name: Generate coverage report
       run: |
         pytest agent/tests/ --cov=agent/scripts --cov-report=xml || true
@@ -229,12 +230,13 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Create required env files
+    - name: Create .env file for CI
       run: |
-        # Create .env.proxy from example (CI doesnt need real secrets)
-        if [ ! -f .env.proxy ]; then
-          cp .env.proxy.example .env.proxy || echo "# CI dummy env" > .env.proxy
-        fi
+        # Create .env from .env.example for CI
+        cp .env.example .env
+        echo "# CI environment - dummy credentials only" >> .env
+        echo "ENVIRONMENT=ci" >> .env
+
     
     - name: Validate docker-compose
       run: docker compose config

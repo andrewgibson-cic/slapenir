@@ -72,4 +72,6 @@ temp/
 
 # Ignore docs directory contents
 docs/*
+# Explicitly exclude security audits
+*SECURITY_AUDIT*.md
 *.mdarxiv-cosci/

@@ -204,7 +204,7 @@ clean() {
     fi
     
     info "Stopping services..."
-    docker-compose down -v
+    docker-compose down -v 2>/dev/null || true
     
     info "Removing volumes..."
     docker volume rm -f slapenir-ca-config slapenir-ca-certs slapenir-proxy-certs slapenir-agent-certs slapenir-agent-workspace slapenir-prometheus-data slapenir-grafana-data 2>/dev/null || true

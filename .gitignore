@@ -60,7 +60,16 @@ coverage/
 *.bak
 temp/
 
-# === Documentation (keep READMEs, ignore all other docs) ===
-docs/*
-!README*.md
+# === Documentation (keep READMEs, ignore all other markdown) ===
+# Ignore all markdown files
 *.md
+# But keep all README files (case-insensitive pattern)
+!README*.md
+!readme*.md
+!Readme*.md
+# Keep CHANGELOG and similar important files
+!CHANGELOG*.md
+
+# Ignore docs directory contents
+docs/*
+*.mdarxiv-cosci/

@@ -102,8 +102,7 @@ impl AWSSigV4Strategy {
 
     /// Check if host matches wildcard pattern
     fn matches_wildcard(pattern: &str, host: &str) -> bool {
-        if pattern.starts_with("*.") {
-            let base = &pattern[2..];
+        if let Some(base) = pattern.strip_prefix("*.") {
             host.ends_with(base) || host == base
         } else {
             pattern == host

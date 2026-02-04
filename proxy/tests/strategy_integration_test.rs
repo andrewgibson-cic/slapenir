@@ -55,7 +55,7 @@ fn test_secret_map_from_strategies() {
         let secret_map = SecretMap::from_strategies(&strategies);
         // May fail if no env vars are set, which is expected
         if let Ok(map) = secret_map {
-            assert!(map.len() > 0, "SecretMap should have entries");
+            assert!(!map.is_empty(), "SecretMap should have entries");
         }
     }
 }

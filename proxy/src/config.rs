@@ -188,16 +188,15 @@ impl Config {
             }
 
             // Validate AWS SigV4 strategy has required fields
-            if strategy.strategy_type == "aws_sigv4" {
-                if strategy.config.access_key_env.is_none()
-                    || strategy.config.secret_key_env.is_none()
+            if strategy.strategy_type == "aws_sigv4"
+                && (strategy.config.access_key_env.is_none()
+                    || strategy.config.secret_key_env.is_none())
                 {
                     return Err(format!(
                         "AWS SigV4 strategy '{}' missing access_key_env or secret_key_env",
                         strategy.name
                     ));
                 }
-            }
         }
 
         // Validate fail mode

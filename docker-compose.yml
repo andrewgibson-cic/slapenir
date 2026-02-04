@@ -48,7 +48,7 @@ services:
     ports:
       - "3000:3000"  # Proxy API (expose for testing)
     env_file:
-      - .env.proxy  # Load REAL credentials (proxy only)
+      - .env  # Load REAL credentials (proxy only)
     environment:
       - RUST_LOG=info
       # mTLS Configuration
@@ -100,7 +100,6 @@ services:
       - agent-workspace:/home/agent/workspace
       - agent-certs:/certs:ro  # Read-only certificate access
       - agent-ssh:/home/agent/.ssh  # Persist SSH keys
-      - ./.env.proxy:/tmp/.env.proxy:ro  # Read-only access to proxy env for dummy generation
     healthcheck:
       test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
       interval: 30s

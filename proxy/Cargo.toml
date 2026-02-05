@@ -1,6 +1,6 @@
 [package]
 name = "slapenir-proxy"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["andrewgibson-cic <andrew.gibson-cic@ibm.com>"]
 description = "SLAPENIR Secure Proxy - Zero-Knowledge credential sanitization gateway"

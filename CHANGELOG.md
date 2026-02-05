@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.0.0...v1.0.1) (2026-02-05)
+
+
+### Bug Fixes
+
+* add troubleshooting section for semantic-release ([39d2e86](https://github.com/andrewgibson-cic/slapenir/commit/39d2e865a21c26bff8a640854639f6a2b855b8a8))
+
 ## 1.0.0 (2026-02-04)
 
 

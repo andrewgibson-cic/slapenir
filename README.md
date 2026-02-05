@@ -850,3 +850,11 @@ Andrew Gibson (andrew.gibson-cic@ibm.com)
 - Docker compose modernization
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
+
+## Troubleshooting
+
+### Semantic Release
+If you encounter semantic-release issues, ensure commits follow [Conventional Commits](https://www.conventionalcommits.org/):
+- `fix:` for bug fixes (patch release)
+- `feat:` for new features (minor release)
+- `BREAKING CHANGE:` for breaking changes (major release)

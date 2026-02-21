@@ -1,0 +1,3 @@
+#!/command/execlineb -P
+# Run startup validation tests
+foreground { /home/agent/scripts/startup-validation.sh }

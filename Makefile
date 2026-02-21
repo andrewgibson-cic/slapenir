@@ -1,7 +1,7 @@
 # SLAPENIR Makefile
 # Simple, universal commands for managing SLAPENIR
 
-.PHONY: help start stop restart status logs clean shell shell-proxy shell-agent test build
+.PHONY: help start stop restart status logs clean shell shell-proxy shell-agent test build rebuild rebuild-agent rebuild-proxy
 
 # Default target - show help
 help:
@@ -32,6 +32,9 @@ help:
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make build          - Rebuild all containers"
+	@echo "  make rebuild        - Rebuild agent + proxy from scratch"
+	@echo "  make rebuild-agent  - Rebuild only agent from scratch"
+	@echo "  make rebuild-proxy  - Rebuild only proxy from scratch"
 	@echo "  make clean          - Remove all containers and volumes"
 	@echo ""
 	@echo "📖 Documentation:"
@@ -134,3 +137,40 @@ health-check:
 # Clean everything
 clean:
 	@./slapenir clean
+
+# Rebuild agent from scratch (clears image, volumes, rebuilds)
+rebuild-agent:
+	@echo "🔄 Rebuilding agent container from scratch..."
+	@docker-compose stop agent 2>/dev/null || true
+	@docker-compose rm -f agent 2>/dev/null || true
+	@docker rmi slapenir-agent 2>/dev/null || echo "  (agent image not found)"
+	@docker volume rm slapenir-agent-workspace 2>/dev/null || echo "  (workspace volume not found)"
+	@docker-compose build --no-cache agent
+	@docker-compose up -d agent
+	@echo "✅ Agent rebuild complete! Check logs with: make logs-agent"
+
+# Rebuild proxy from scratch (clears image, rebuilds)
+rebuild-proxy:
+	@echo "🔄 Rebuilding proxy container from scratch..."
+	@docker-compose stop proxy 2>/dev/null || true
+	@docker-compose rm -f proxy 2>/dev/null || true
+	@docker rmi slapenir-proxy 2>/dev/null || echo "  (proxy image not found)"
+	@docker-compose build --no-cache proxy
+	@docker-compose up -d proxy
+	@echo "✅ Proxy rebuild complete! Check logs with: make logs-proxy"
+
+# Rebuild both agent and proxy from scratch
+rebuild:
+	@echo "🔄 Rebuilding agent and proxy from scratch..."
+	@docker-compose down
+	@docker rmi slapenir-agent slapenir-proxy 2>/dev/null || true
+	@docker volume rm slapenir-agent-workspace 2>/dev/null || true
+	@docker-compose build --no-cache agent proxy
+	@docker-compose up -d
+	@echo "✅ Rebuild complete!"
+	@echo ""
+	@echo "📋 View startup validation:"
+	@echo "   docker logs slapenir-agent | grep -A30 'Startup Validation'"
+	@echo ""
+	@echo "🔍 Verify credentials:"
+	@echo "   docker exec slapenir-agent env | grep -E '(OPENAI|GITHUB|HTTP_PROXY)'"

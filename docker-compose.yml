@@ -46,7 +46,7 @@ services:
     ports:
       - "3000:3000"  # Proxy API (expose for testing)
     env_file:
-      - .env  # Load REAL credentials (proxy only)
+      - .env  # ✅ Load REAL credentials from host .env
     environment:
       - RUST_LOG=info
       # mTLS Configuration
@@ -83,10 +83,8 @@ services:
     hostname: agent
     networks:
       - slape-net
-    # NO env_file - agent auto-generates dummy credentials on startup
+    # ✅ SECURITY FIX: Mount .env as read-only, generate dummy version on startup
     environment:
-      # Agent will auto-generate dummy credentials
-      # Proxy settings are included in generated .env.agent
       - PYTHONUNBUFFERED=1
       # mTLS Configuration
       - MTLS_ENABLED=${MTLS_ENABLED:-false}
@@ -95,6 +93,7 @@ services:
       - MTLS_CLIENT_KEY=/certs/agent.key
       - MTLS_VERIFY_HOSTNAME=${MTLS_VERIFY_HOSTNAME:-true}
     volumes:
+      - ./.env:/host-env/.env:ro  # Mount host .env read-only for processing
       - agent-workspace:/home/agent/workspace
       - agent-certs:/certs:ro  # Read-only certificate access
       - agent-ssh:/home/agent/.ssh  # Persist SSH keys

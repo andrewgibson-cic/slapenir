@@ -1,0 +1,25 @@
+#!/bin/bash
+# Generate dummy credentials and export to environment
+
+# Run the generator script
+/home/agent/scripts/generate-dummy-env.sh
+
+# Source the generated .env file to export variables
+if [ -f /home/agent/.env ]; then
+    set -a
+    source /home/agent/.env
+    set +a
+    
+    # Write variables to s6 environment directory
+    mkdir -p /var/run/s6/container_environment 2>/dev/null || true
+    
+    # Export each variable from .env to s6
+    while IFS='=' read -r key value; do
+        # Skip comments and empty lines
+        [[ "$key" =~ ^#.*$ ]] || [[ -z "$key" ]] && continue
+        # Write to s6 environment
+        echo -n "$value" > "/var/run/s6/container_environment/${key}" 2>/dev/null || true
+    done < /home/agent/.env
+    
+    echo "✅ Variables exported to s6 environment"
+fi

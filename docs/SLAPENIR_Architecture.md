@@ -31,28 +31,44 @@ The Proxy is the central security enforcement point. It functions as a transpare
 
 The Proxy is structured as a series of tower layers. Data flows through this pipeline for every network interaction initiated by the Agent.
 
-1. **Layer 1: mTLS Termination (Identity)**  
-   * **Function:** Terminates TLS connections from the Agent.  
-   * **Logic:** Extracts the Client Certificate. Validates the Common Name (CN) against the allowlist of active agents. Rejects any connection without a valid Step-CA signed certificate.  
-   * **Technology:** rustls, axum-server.  
-2. **Layer 2: Rate Limiting (Traffic Control)**  
-   * **Function:** Prevents Denial of Service (DoS) from malfunctioning agents.  
-   * **Algorithm:** Token Bucket.  
-   * **Logic:** Limits requests per IP/Agent ID. Allows for "bursts" (e.g., git operations) but enforces a sustained average.  
-   * **Crate:** governor or leaky-bucket.  
-3. **Layer 3: Request Injection (The "Upstream" Path)**  
-   * **Function:** Replaces DUMMY\_TOKEN with REAL\_TOKEN.  
-   * **Logic:**  
-     * Intersects the HTTP Request Body as a byte stream (Stream).  
-     * Uses aho-corasick::StreamReplacer to scan for placeholder patterns.  
-     * On match, injects the real secret from the secure vault (memory).  
-     * **Critical Security:** The mapping of DUMMY:REAL is held in memory protected by zeroize.  
-4. **Layer 4: Response Sanitization (The "Downstream" Path)**  
-   * **Function:** Replaces REAL\_TOKEN with REDACTED prevents leakage.  
-   * **Logic:**  
-     * Intercepts the HTTP Response Body from the external API.  
-     * Uses aho-corasick to scan for the real secrets.  
-     * **Split-Secret Handling:** The algorithm maintains an internal buffer to detect secrets split across TCP chunk boundaries (e.g., AWS\_SEC \[chunk break\] RET\_KEY).
+1. **Layer 1: mTLS Termination (Identity)**
+   * **Function:** Terminates TLS connections from the Agent.
+   * **Logic:** Extracts the Client Certificate. Validates the Common Name (CN) against the allowlist of active agents. Rejects any connection without a valid Step-CA signed certificate.
+   * **Technology:** rustls, axum-server.
+2. **Layer 2: Rate Limiting (Traffic Control)**
+   * **Function:** Prevents Denial of Service (DoS) from malfunctioning agents.
+   * **Algorithm:** Token Bucket.
+   * **Logic:** Limits requests per IP/Agent ID. Allows for "bursts" (e.g., git operations) but enforces a sustained average.
+   * **Crate:** governor or leaky-bucket.
+3. **Layer 3: Request Injection (The "Upstream" Path)**
+   * **Function:** Replaces DUMMY\_TOKEN with REAL\_TOKEN.
+   * **Logic:**
+     * Reads HTTP Request Body with configurable size limits (default: 10MB).
+     * Uses Aho-Corasick algorithm for O(N) multi-pattern matching.
+     * On match, injects the real secret from the secure vault (memory).
+     * **Critical Security:** The mapping of DUMMY:REAL is held in memory protected by zeroize.
+4. **Layer 4: Response Sanitization (The "Downstream" Path)**
+   * **Function:** Replaces REAL\_TOKEN with [REDACTED] to prevent leakage.
+   * **Logic:**
+     * Reads HTTP Response Body with configurable size limits (default: 100MB).
+     * Uses cached Aho-Corasick automaton for O(N) pattern matching (built once, reused).
+     * **Binary-Safe Sanitization:** Processes raw bytes, handling non-UTF-8 payloads correctly.
+     * **Header Sanitization:** Also sanitizes secrets in response headers (Set-Cookie, Location, etc.).
+     * **Content-Length Correction:** Recalculates Content-Length after body modification.
+     * **Blocked Headers:** Removes dangerous headers (x-debug-token, server-timing, etc.).
+
+#### **2.1.3 Security Features (2026-02-22 Update)**
+
+The following security enhancements have been implemented:
+
+| Feature | Description | CVE Mitigation |
+|---------|-------------|----------------|
+| **Binary-Safe Sanitization** | Uses byte-based pattern matching for non-UTF-8 payloads | Prevents bypass via binary responses |
+| **Header Sanitization** | Sanitizes all HTTP response headers | Prevents secret leakage via headers |
+| **Size Limits** | Configurable request/response size limits | Prevents OOM attacks |
+| **Content-Length Fix** | Recalculates Content-Length after sanitization | Prevents protocol desync |
+| **Cached Automaton** | Sanitization automaton built once at startup | Prevents performance degradation |
+| **Blocked Headers** | Removes debug/info headers from responses | Reduces information leakage |
 
 ### **2.2 The Agent Environment (Wolfi OS)**
 

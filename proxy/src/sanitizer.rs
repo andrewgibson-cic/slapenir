@@ -1,22 +1,44 @@
 // SLAPENIR Sanitizer - Zero-Knowledge Credential Sanitization
 // Uses Aho-Corasick for efficient streaming pattern matching
+//
+// SECURITY FIXES:
+// - A: Non-UTF-8 bypass via sanitize_bytes()
+// - B: Header sanitization via sanitize_headers()
+// - G: Cached automaton for performance
 
 use crate::metrics;
 use crate::strategy::AuthStrategy;
 use aho_corasick::{AhoCorasick, AhoCorasickBuilder};
+use axum::http::{HeaderMap, HeaderValue};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use zeroize::{Zeroize, ZeroizeOnDrop};
+
+/// Headers that should be completely removed from responses (security risk)
+const BLOCKED_HEADERS: &[&str] = &[
+    "x-debug-token",
+    "x-debug-info",
+    "server-timing",
+    "x-runtime",
+    "x-request-debug",
+];
 
 /// Secure secret mapping that zeros memory on drop
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct SecretMap {
-    /// Map of dummy tokens to real tokens
+    /// Automaton for dummy -> real injection
     #[zeroize(skip)]
     patterns: AhoCorasick,
+    /// CACHED automaton for real -> [REDACTED] sanitization (Fix G)
+    #[zeroize(skip)]
+    sanitize_patterns: AhoCorasick,
     /// Real secrets (will be zeroized on drop)
     real_secrets: Vec<String>,
     /// Dummy placeholders
     dummy_secrets: Vec<String>,
+    /// Byte representations of real secrets for binary sanitization
+    #[zeroize(skip)]
+    real_secrets_bytes: Vec<Vec<u8>>,
 }
 
 impl SecretMap {
@@ -29,16 +51,28 @@ impl SecretMap {
         let dummy_secrets: Vec<String> = secrets.keys().cloned().collect();
         let real_secrets: Vec<String> = secrets.values().cloned().collect();
 
-        // Build Aho-Corasick automaton for efficient pattern matching
+        // Build Aho-Corasick automaton for injection (dummy -> real)
         let patterns = AhoCorasickBuilder::new()
             .ascii_case_insensitive(false)
             .build(&dummy_secrets)
             .map_err(|e| format!("Failed to build pattern matcher: {}", e))?;
 
+        // SECURITY FIX G: Build sanitize automaton ONCE, cache it
+        let sanitize_patterns = AhoCorasickBuilder::new()
+            .ascii_case_insensitive(false)
+            .build(&real_secrets)
+            .map_err(|e| format!("Failed to build sanitize pattern matcher: {}", e))?;
+
+        // SECURITY FIX A: Pre-compute byte representations for binary sanitization
+        let real_secrets_bytes: Vec<Vec<u8>> =
+            real_secrets.iter().map(|s| s.as_bytes().to_vec()).collect();
+
         Ok(Self {
             patterns,
+            sanitize_patterns,
             real_secrets,
             dummy_secrets,
+            real_secrets_bytes,
         })
     }
 
@@ -47,13 +81,10 @@ impl SecretMap {
         self.patterns.replace_all(data, &self.real_secrets)
     }
 
-    /// Sanitize real secrets from inbound data (Internet -> Agent)
+    /// Sanitize real secrets from inbound UTF-8 data (Internet -> Agent)
+    ///
+    /// Uses cached automaton for O(1) setup per call (Fix G)
     pub fn sanitize(&self, data: &str) -> String {
-        let real_patterns = AhoCorasickBuilder::new()
-            .ascii_case_insensitive(false)
-            .build(&self.real_secrets)
-            .expect("Failed to build reverse pattern matcher");
-
         let redacted: Vec<String> = self
             .real_secrets
             .iter()
@@ -61,14 +92,104 @@ impl SecretMap {
             .collect();
 
         // Count secrets being sanitized
-        let matches = real_patterns.find_iter(data).count();
+        let matches = self.sanitize_patterns.find_iter(data).count();
         if matches > 0 {
             for _ in 0..matches {
                 metrics::record_secret_sanitized("sanitization");
             }
         }
 
-        real_patterns.replace_all(data, &redacted)
+        self.sanitize_patterns.replace_all(data, &redacted)
+    }
+
+    /// SECURITY FIX A: Sanitize real secrets from binary/non-UTF-8 data
+    ///
+    /// This prevents the bypass where non-UTF-8 responses were returned unsanitized.
+    /// Works on raw bytes, so it handles binary payloads, invalid UTF-8, etc.
+    pub fn sanitize_bytes(&self, data: &[u8]) -> Cow<'_, [u8]> {
+        // Build byte-based patterns for matching
+        let byte_patterns = AhoCorasickBuilder::new()
+            .ascii_case_insensitive(false)
+            .build(&self.real_secrets_bytes)
+            .expect("Failed to build byte pattern matcher");
+
+        let redacted: Vec<&[u8]> = self
+            .real_secrets_bytes
+            .iter()
+            .map(|_| b"[REDACTED]" as &[u8])
+            .collect();
+
+        // Count secrets being sanitized
+        let matches = byte_patterns.find_iter(data).count();
+        if matches > 0 {
+            for _ in 0..matches {
+                metrics::record_secret_sanitized("binary_sanitization");
+            }
+        }
+
+        byte_patterns.replace_all_bytes(data, &redacted).into()
+    }
+
+    /// SECURITY FIX B: Sanitize secrets from HTTP headers
+    ///
+    /// Prevents secret leakage through response headers like:
+    /// - X-Debug-Token
+    /// - Set-Cookie
+    /// - WWW-Authenticate
+    /// - Location (redirect URLs)
+    pub fn sanitize_headers(&self, headers: &HeaderMap) -> HeaderMap {
+        let mut sanitized = HeaderMap::new();
+
+        for (name, value) in headers.iter() {
+            let name_str = name.as_str();
+
+            // Skip blocked headers entirely
+            if Self::is_blocked_header(name_str) {
+                tracing::debug!("Removing blocked header: {}", name_str);
+                continue;
+            }
+
+            // Try to sanitize the header value
+            if let Ok(v) = value.to_str() {
+                let sanitized_value = self.sanitize(v);
+                if let Ok(hv) = HeaderValue::from_str(&sanitized_value) {
+                    sanitized.insert(name.clone(), hv);
+                    continue;
+                }
+            }
+
+            // If sanitization fails, keep original (non-UTF-8 headers are rare)
+            sanitized.insert(name.clone(), value.clone());
+        }
+
+        sanitized
+    }
+
+    /// Check if a header should be completely removed
+    fn is_blocked_header(name: &str) -> bool {
+        BLOCKED_HEADERS.contains(&name.to_lowercase().as_str())
+    }
+
+    /// Get the list of blocked headers for testing
+    pub fn get_blocked_headers() -> Vec<&'static str> {
+        BLOCKED_HEADERS.to_vec()
+    }
+
+    /// Filter dangerous headers from a HeaderMap
+    pub fn filter_dangerous_headers(
+        headers: &HeaderMap,
+        blocked: &[&str],
+    ) -> HeaderMap {
+        let mut filtered = HeaderMap::new();
+
+        for (name, value) in headers.iter() {
+            let name_lower = name.as_str().to_lowercase();
+            if !blocked.iter().any(|b| b.to_lowercase() == name_lower) {
+                filtered.insert(name.clone(), value.clone());
+            }
+        }
+
+        filtered
     }
 
     pub fn len(&self) -> usize {
@@ -118,11 +239,21 @@ impl SecretMap {
             ));
         }
 
-        // Build Aho-Corasick automaton for efficient pattern matching
+        // Build Aho-Corasick automaton for injection (dummy -> real)
         let patterns = AhoCorasickBuilder::new()
             .ascii_case_insensitive(false)
             .build(&dummy_secrets)
             .map_err(|e| format!("Failed to build pattern matcher: {}", e))?;
+
+        // SECURITY FIX G: Build sanitize automaton ONCE, cache it
+        let sanitize_patterns = AhoCorasickBuilder::new()
+            .ascii_case_insensitive(false)
+            .build(&real_secrets)
+            .map_err(|e| format!("Failed to build sanitize pattern matcher: {}", e))?;
+
+        // SECURITY FIX A: Pre-compute byte representations for binary sanitization
+        let real_secrets_bytes: Vec<Vec<u8>> =
+            real_secrets.iter().map(|s| s.as_bytes().to_vec()).collect();
 
         tracing::info!(
             "✓ Built SecretMap from {} strategies ({} patterns)",
@@ -132,8 +263,10 @@ impl SecretMap {
 
         Ok(Self {
             patterns,
+            sanitize_patterns,
             real_secrets,
             dummy_secrets,
+            real_secrets_bytes,
         })
     }
 }

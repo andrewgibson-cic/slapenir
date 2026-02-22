@@ -14,10 +14,7 @@ mod connect_full_unit_tests {
         secrets.insert("DUMMY_KEY".to_string(), "sk-proj-realkey123".to_string());
         let secret_map = SecretMap::new(secrets).unwrap();
 
-        AppState {
-            secret_map: Arc::new(secret_map),
-            http_client: create_http_client(),
-        }
+        AppState::new(Arc::new(secret_map), create_http_client())
     }
 
     #[test]
@@ -46,10 +43,7 @@ mod connect_full_unit_tests {
         secrets.insert("AWS_ACCESS_KEY".to_string(), "AKIA123456".to_string());
         let secret_map = SecretMap::new(secrets).unwrap();
 
-        let state = AppState {
-            secret_map: Arc::new(secret_map),
-            http_client: create_http_client(),
-        };
+        let state = AppState::new(Arc::new(secret_map), create_http_client());
 
         assert_eq!(state.secret_map.len(), 3);
 

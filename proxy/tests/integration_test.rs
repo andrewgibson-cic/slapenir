@@ -17,10 +17,10 @@ fn create_test_app() -> axum::Router {
     secrets.insert("DUMMY_TOKEN".to_string(), "real_secret_123".to_string());
 
     let secret_map = SecretMap::new(secrets).expect("Failed to create SecretMap");
-    let app_state = AppState {
-        secret_map: std::sync::Arc::new(secret_map),
-        http_client: create_http_client(),
-    };
+    let app_state = AppState::new(
+        std::sync::Arc::new(secret_map),
+        create_http_client(),
+    );
 
     axum::Router::new()
         .route("/health", axum::routing::get(health_handler))

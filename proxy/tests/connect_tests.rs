@@ -24,10 +24,10 @@ fn create_test_state() -> AppState {
     secrets.insert("DUMMY_GITHUB".to_string(), "ghp_real_token_456".to_string());
 
     let secret_map = SecretMap::new(secrets).expect("Failed to create SecretMap");
-    AppState {
-        secret_map: Arc::new(secret_map),
-        http_client: create_http_client(),
-    }
+    AppState::new(
+        Arc::new(secret_map),
+        create_http_client(),
+    )
 }
 
 /// Create a mock TCP echo server for testing

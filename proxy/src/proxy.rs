@@ -1,12 +1,18 @@
 // SLAPENIR Proxy Handler - HTTP Forwarding with Sanitization
 // Forwards requests to LLM APIs with secret injection/sanitization
+//
+// SECURITY FIXES:
+// - A: Non-UTF-8 bypass via sanitize_bytes()
+// - B: Header sanitization via sanitize_headers()
+// - D: Memory limits via ProxyConfig
+// - E: Content-Length recalculation
 
 use crate::metrics;
 use crate::middleware::AppState;
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::{HeaderMap, Method, StatusCode, Uri},
+    http::{HeaderMap, HeaderValue, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
 };
 use hyper_util::{
@@ -16,12 +22,35 @@ use hyper_util::{
 use std::time::Instant;
 use thiserror::Error;
 
+/// Default maximum request body size (10 MB)
+pub const DEFAULT_MAX_REQUEST_SIZE: usize = 10 * 1024 * 1024;
+/// Default maximum response body size (100 MB)
+pub const DEFAULT_MAX_RESPONSE_SIZE: usize = 100 * 1024 * 1024;
+
 /// HTTP client for forwarding requests
 pub type HttpClient = Client<HttpConnector, Body>;
 
 /// Create a configured HTTP client for proxying
 pub fn create_http_client() -> HttpClient {
     Client::builder(TokioExecutor::new()).build_http()
+}
+
+/// Proxy configuration with security limits
+#[derive(Debug, Clone)]
+pub struct ProxyConfig {
+    /// Maximum request body size in bytes (prevents OOM)
+    pub max_request_size: usize,
+    /// Maximum response body size in bytes (prevents OOM)
+    pub max_response_size: usize,
+}
+
+impl Default for ProxyConfig {
+    fn default() -> Self {
+        Self {
+            max_request_size: DEFAULT_MAX_REQUEST_SIZE,
+            max_response_size: DEFAULT_MAX_RESPONSE_SIZE,
+        }
+    }
 }
 
 /// Proxy error types
@@ -44,6 +73,12 @@ pub enum ProxyError {
 
     #[error("Missing required header: {0}")]
     MissingHeader(String),
+
+    #[error("Request body too large (max {0} bytes)")]
+    RequestBodyTooLarge(usize),
+
+    #[error("Response body too large (max {0} bytes)")]
+    ResponseBodyTooLarge(usize),
 }
 
 impl IntoResponse for ProxyError {
@@ -58,21 +93,69 @@ impl IntoResponse for ProxyError {
             ProxyError::InvalidTargetUrl(_) | ProxyError::MissingHeader(_) => {
                 (StatusCode::BAD_REQUEST, self.to_string())
             }
+            ProxyError::RequestBodyTooLarge(_) | ProxyError::ResponseBodyTooLarge(_) => {
+                (StatusCode::PAYLOAD_TOO_LARGE, self.to_string())
+            }
         };
 
         (status, message).into_response()
     }
 }
 
+/// Build sanitized response headers with correct Content-Length
+///
+/// SECURITY FIX E: Recalculates Content-Length after body modification
+/// Removes checksums (ETag, Content-MD5) since body was modified
+pub fn build_response_headers(original_headers: &HeaderMap, body_len: usize) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+
+    // Set correct Content-Length for sanitized body
+    headers.insert(
+        axum::http::header::CONTENT_LENGTH,
+        HeaderValue::from(body_len),
+    );
+
+    // Copy safe headers, excluding those that become invalid after body modification
+    for (name, value) in original_headers.iter() {
+        let name_str = name.as_str().to_lowercase();
+
+        match name_str.as_str() {
+            // Skip - we set these ourselves
+            "content-length" | "transfer-encoding" => continue,
+
+            // Skip - body was modified, these are now invalid
+            "etag" | "content-md5" | "content-crc32" => {
+                tracing::debug!("Removing checksum header after sanitization: {}", name_str);
+                continue;
+            }
+
+            // Skip blocked headers (security)
+            "x-debug-token" | "x-debug-info" | "server-timing" | "x-runtime" => {
+                tracing::debug!("Removing blocked header: {}", name_str);
+                continue;
+            }
+
+            // Copy everything else
+            _ => {
+                headers.insert(name.clone(), value.clone());
+            }
+        }
+    }
+
+    headers
+}
+
 /// Main proxy handler for LLM API requests
 ///
 /// This handler:
-/// 1. Reads the incoming request body
+/// 1. Reads the incoming request body (with size limit - FIX D)
 /// 2. Injects real secrets (dummy -> real)
 /// 3. Forwards to the target LLM API
-/// 4. Reads the response
-/// 5. Sanitizes secrets from the response (real -> [REDACTED])
-/// 6. Returns to the agent
+/// 4. Reads the response (with size limit - FIX D)
+/// 5. Sanitizes secrets from the response (binary-safe - FIX A)
+/// 6. Sanitizes response headers (FIX B)
+/// 7. Rebuilds headers with correct Content-Length (FIX E)
+/// 8. Returns to the agent
 pub async fn proxy_handler(
     State(state): State<AppState>,
     method: Method,
@@ -83,15 +166,27 @@ pub async fn proxy_handler(
     let start_time = Instant::now();
     metrics::inc_active_connections();
 
+    // Get config (use defaults if not configured)
+    let config = state.config.clone().unwrap_or_default();
+    let max_request_size = config.max_request_size;
+    let max_response_size = config.max_response_size;
+
     tracing::debug!("Proxying request: {} {}", method, uri);
 
     // Extract endpoint for metrics (first part of path)
     let endpoint = uri.path().split('/').nth(1).unwrap_or("unknown");
 
-    // Extract the request body
-    let body_bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
+    // SECURITY FIX D: Read request body with size limit
+    let body_bytes = axum::body::to_bytes(request.into_body(), max_request_size)
         .await
-        .map_err(|e| ProxyError::RequestBodyRead(e.to_string()))?;
+        .map_err(|e| {
+            let err_str = e.to_string();
+            if err_str.contains("length limit") {
+                ProxyError::RequestBodyTooLarge(max_request_size)
+            } else {
+                ProxyError::RequestBodyRead(err_str)
+            }
+        })?;
 
     // Convert to UTF-8 string for sanitization
     let body_str =
@@ -144,39 +239,33 @@ pub async fn proxy_handler(
     // Convert hyper Incoming body to axum Body
     let body = Body::new(body);
 
-    // Read response body
-    let response_bytes = axum::body::to_bytes(body, usize::MAX)
+    // SECURITY FIX D: Read response body with size limit
+    let response_bytes = axum::body::to_bytes(body, max_response_size)
         .await
-        .map_err(|e| ProxyError::ResponseBodyRead(e.to_string()))?;
+        .map_err(|e| {
+            let err_str = e.to_string();
+            if err_str.contains("length limit") {
+                ProxyError::ResponseBodyTooLarge(max_response_size)
+            } else {
+                ProxyError::ResponseBodyRead(err_str)
+            }
+        })?;
 
     // Record response size
     metrics::HTTP_RESPONSE_SIZE_BYTES.observe(response_bytes.len() as f64);
 
-    // Convert to UTF-8 (if not valid UTF-8, return as-is)
-    let response_str = match std::str::from_utf8(&response_bytes) {
-        Ok(s) => s,
-        Err(_) => {
-            tracing::warn!("Response body is not valid UTF-8, returning as-is");
+    // SECURITY FIX A: Use binary-safe sanitization for ALL responses
+    // This prevents bypass via non-UTF-8 payloads
+    let sanitized_bytes = state.secret_map.sanitize_bytes(&response_bytes);
+    let sanitized_body = sanitized_bytes.into_owned();
 
-            // Record metrics before returning
-            let duration = start_time.elapsed().as_secs_f64();
-            let status = parts.status.as_u16();
-            metrics::record_http_request(method.as_str(), status, endpoint, duration);
-            metrics::dec_active_connections();
-            let response = Response::from_parts(parts, Body::from(response_bytes));
-            return Ok(response);
-        }
-    };
-
-    // Step 2: Sanitize real secrets from the response
-    let sanitized_body = state.secret_map.sanitize(response_str);
     tracing::debug!(
         "Sanitized secrets from response ({} bytes)",
         sanitized_body.len()
     );
 
-    // Paranoid verification: ensure no secrets leaked through
-    let verification = state.secret_map.sanitize(&sanitized_body);
+    // SECURITY FIX A: Paranoid verification on sanitized bytes
+    let verification = state.secret_map.sanitize_bytes(&sanitized_body);
     if verification != sanitized_body {
         tracing::error!("Secret sanitization failed verification!");
         return Err(ProxyError::ResponseBodyRead(
@@ -184,16 +273,27 @@ pub async fn proxy_handler(
         ));
     }
 
-    // Build the response
+    // SECURITY FIX B: Sanitize response headers
+    let sanitized_headers = state.secret_map.sanitize_headers(&parts.headers);
+
+    // SECURITY FIX E: Build response with correct Content-Length
+    let final_headers = build_response_headers(&sanitized_headers, sanitized_body.len());
 
     // Record metrics
     let duration = start_time.elapsed().as_secs_f64();
     let status = parts.status.as_u16();
 
-    // Build the response
-    let response = Response::from_parts(parts, Body::from(sanitized_body));
-    metrics::record_http_request(method.as_str(), status, endpoint, duration);
+    // Build the final response
+    let mut response_builder = Response::builder().status(status);
+    for (name, value) in final_headers.iter() {
+        response_builder = response_builder.header(name, value);
+    }
 
+    let response = response_builder
+        .body(Body::from(sanitized_body))
+        .map_err(|e| ProxyError::ResponseBodyRead(format!("Failed to build response: {}", e)))?;
+
+    metrics::record_http_request(method.as_str(), status, endpoint, duration);
     metrics::dec_active_connections();
 
     tracing::info!("Proxy request completed successfully");

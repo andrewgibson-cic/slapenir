@@ -48,10 +48,10 @@ async fn main() -> anyhow::Result<()> {
     // Load secrets using strategy pattern (Phase 9)
     let secret_map = load_secrets_with_strategies()?;
 
-    let app_state = AppState {
-        secret_map: std::sync::Arc::new(secret_map),
-        http_client: proxy::create_http_client(),
-    };
+    let app_state = AppState::new(
+        std::sync::Arc::new(secret_map),
+        proxy::create_http_client(),
+    );
 
     // Build our application with routes
     let mut app = Router::new()

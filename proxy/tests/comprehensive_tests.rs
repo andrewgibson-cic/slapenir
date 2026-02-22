@@ -266,10 +266,10 @@ mod middleware_tests {
         secrets.insert("DUMMY".to_string(), "real_secret".to_string());
         let secret_map = SecretMap::new(secrets).unwrap();
 
-        AppState {
-            secret_map: Arc::new(secret_map),
-            http_client: create_http_client(),
-        }
+        AppState::new(
+            Arc::new(secret_map),
+            create_http_client(),
+        )
     }
 
     #[test]

@@ -212,23 +212,22 @@ impl SecretMap {
         let mut real_secrets = Vec::new();
 
         for strategy in strategies {
-            // Get dummy patterns from strategy
-            let dummies = strategy.dummy_patterns();
-            dummy_secrets.extend(dummies);
-
-            // Get real credential from strategy (if available)
+            // Get real credential from strategy first
             if let Some(real_cred) = strategy.real_credential() {
+                // Only include dummy patterns for strategies with real credentials
+                let dummies = strategy.dummy_patterns();
+                dummy_secrets.extend(dummies);
                 real_secrets.push(real_cred);
             } else {
-                tracing::warn!(
-                    "Strategy '{}' has no real credential loaded (env var may be missing)",
+                tracing::debug!(
+                    "Strategy '{}' has no real credential loaded (skipping)",
                     strategy.name()
                 );
             }
         }
 
         if dummy_secrets.is_empty() || real_secrets.is_empty() {
-            return Err("No valid credentials found in strategies".to_string());
+            return Err("No valid credentials found in strategies. Add API keys to your .env file.".to_string());
         }
 
         if dummy_secrets.len() != real_secrets.len() {

@@ -33,6 +33,33 @@ services:
       - "slapenir.phase=1"
 
   # ============================================================================
+  # PostgreSQL: Database for auto-detection API definitions
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: slapenir-postgres
+    hostname: postgres
+    networks:
+      - slape-net
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-slapenir}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-slapenir-dev-password}
+      - POSTGRES_DB=${POSTGRES_DB:-slapenir}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./proxy/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-slapenir}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    labels:
+      - "slapenir.service=postgres"
+
+  # ============================================================================
   # Proxy: Rust-based sanitizing gateway
   # ============================================================================
   proxy:
@@ -46,18 +73,19 @@ services:
     ports:
       - "3000:3000"  # Proxy API (expose for testing)
     env_file:
-      - .env  # ✅ Load REAL credentials from host .env
+      - .env  # Load REAL credentials from host .env
     environment:
       - RUST_LOG=info
-      # mTLS Configuration
+      - DATABASE_URL=postgres://${POSTGRES_USER:-slapenir}:${POSTGRES_PASSWORD:-slapenir-dev-password}@postgres:5432/${POSTGRES_DB:-slapenir}
+      - AUTO_DETECT_ENABLED=${AUTO_DETECT_ENABLED:-true}
       - MTLS_ENABLED=${MTLS_ENABLED:-false}
       - MTLS_ENFORCE=${MTLS_ENFORCE:-false}
       - MTLS_CA_CERT=/certs/root_ca.crt
       - MTLS_SERVER_CERT=/certs/proxy.crt
       - MTLS_SERVER_KEY=/certs/proxy.key
     volumes:
-      - ./proxy/config.yaml:/app/config.yaml:ro  # Mount config file
-      - proxy-certs:/certs:ro  # Read-only certificate access
+      - ./proxy/config.yaml:/app/config.yaml:ro
+      - proxy-certs:/certs:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -67,6 +95,8 @@ services:
     restart: unless-stopped
     depends_on:
       step-ca:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     labels:
       - "slapenir.service=proxy"
@@ -237,6 +267,11 @@ networks:
 # Volumes
 # ============================================================================
 volumes:
+  postgres-data:
+    name: slapenir-postgres-data
+    labels:
+      - "slapenir.volume=postgres-data"
+
   step-ca-config:
     name: slapenir-ca-config
     labels:

@@ -13,6 +13,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 // Use the library modules
 use slapenir_proxy::{
+    auto_detect::{AutoDetectConfig, AutoDetector},
     build_strategies_from_config,
     config::Config,
     metrics::{gather_metrics, init_metrics},
@@ -20,6 +21,7 @@ use slapenir_proxy::{
     mtls::MtlsConfig,
     proxy,
     sanitizer::SecretMap,
+    strategy::AuthStrategy,
 };
 
 #[tokio::main]
@@ -45,8 +47,8 @@ async fn main() -> anyhow::Result<()> {
     // Initialize mTLS if enabled
     let mtls_config = load_mtls_config()?;
 
-    // Load secrets using strategy pattern (Phase 9)
-    let secret_map = load_secrets_with_strategies()?;
+    // Load secrets using strategy pattern with auto-detection
+    let secret_map = load_secrets_with_strategies().await?;
 
     let app_state = AppState::new(
         std::sync::Arc::new(secret_map),
@@ -141,40 +143,101 @@ fn load_mtls_config() -> anyhow::Result<Option<MtlsConfig>> {
     }
 }
 
-/// Load secrets using strategy pattern (Phase 9 integration)
+/// Load secrets using strategy pattern with auto-detection integration
 ///
-/// This function attempts to load config.yaml and build strategies.
-/// Falls back to environment variables if config doesn't exist.
-fn load_secrets_with_strategies() -> anyhow::Result<SecretMap> {
-    // Try to load config.yaml
+/// This function attempts multiple sources in order:
+/// 1. Load strategies from config.yaml (manual config)
+/// 2. Auto-detect strategies from database (matches env vars to known APIs)
+/// 3. Merge both sources (manual takes precedence)
+/// 4. Fall back to hardcoded env vars if both fail
+/// 5. Log helpful error if no credentials found from any source
+async fn load_secrets_with_strategies() -> anyhow::Result<SecretMap> {
+    let mut all_strategies: Vec<Box<dyn AuthStrategy>> = Vec::new();
+    let mut has_manual_config = false;
+
+    // 1. Try to load config.yaml (manual configuration)
     let config_path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| "config.yaml".to_string());
 
-    match Config::from_file(&config_path) {
-        Ok(config) => {
-            tracing::info!("✅ Loaded configuration from {}", config_path);
-            tracing::info!("📋 Found {} strategies in config", config.strategies.len());
+    if let Ok(config) = Config::from_file(&config_path) {
+        tracing::info!("✅ Loaded configuration from {}", config_path);
+        tracing::info!("📋 Found {} strategies in config", config.strategies.len());
 
-            // Build strategies from config
-            let strategies = build_strategies_from_config(&config)
-                .map_err(|e| anyhow::anyhow!("Failed to build strategies: {}", e))?;
-
-            if strategies.is_empty() {
-                tracing::warn!("⚠️  No strategies built from config, falling back to env vars");
-                return load_secrets_fallback();
+        match build_strategies_from_config(&config) {
+            Ok(strategies) => {
+                if !strategies.is_empty() {
+                    tracing::info!("✅ Built {} strategies from config", strategies.len());
+                    all_strategies = strategies;
+                    has_manual_config = true;
+                }
             }
-
-            tracing::info!("✅ Built {} strategies successfully", strategies.len());
-
-            // Create SecretMap from strategies
-            SecretMap::from_strategies(&strategies)
-                .map_err(|e| anyhow::anyhow!("Failed to create SecretMap from strategies: {}", e))
+            Err(e) => {
+                tracing::warn!("⚠️  Failed to build strategies from config: {}", e);
+            }
         }
-        Err(e) => {
-            tracing::warn!("⚠️  Could not load config file '{}': {}", config_path, e);
-            tracing::info!("💡 Falling back to environment variable configuration");
-            load_secrets_fallback()
-        }
+    } else {
+        tracing::info!("📄 No config.yaml found, relying on auto-detection");
     }
+
+    // 2. Try auto-detection from database
+    let auto_detect_config = AutoDetectConfig::from_env();
+    if auto_detect_config.enabled && !auto_detect_config.database_url.is_empty() {
+        match AutoDetector::new(auto_detect_config.clone()).await {
+            Ok(detector) => {
+                match detector.scan().await {
+                    Ok(result) => {
+                        if !result.detected.is_empty() {
+                            tracing::info!("🔍 Auto-detected {} API(s) from database", result.detected.len());
+
+                            // Build strategies from auto-detected configs
+                            match AutoDetector::build_strategies(&result.detected) {
+                                Ok(auto_strategies) => {
+                                    if has_manual_config {
+                                        // Merge: auto-detected only adds strategies not in manual config
+                                        let manual_names: std::collections::HashSet<String> =
+                                            all_strategies.iter().map(|s| s.name().to_string()).collect();
+
+                                        for strategy in auto_strategies {
+                                            if !manual_names.contains(strategy.name()) {
+                                                tracing::info!("  ➕ Adding auto-detected strategy: {}", strategy.name());
+                                                all_strategies.push(strategy);
+                                            }
+                                        }
+                                    } else {
+                                        // No manual config, use all auto-detected
+                                        all_strategies = auto_strategies;
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::warn!("⚠️  Failed to build auto-detected strategies: {}", e);
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("⚠️  Auto-detection scan failed: {}", e);
+                    }
+                }
+                detector.close().await;
+            }
+            Err(e) => {
+                tracing::debug!("Auto-detection not available: {}", e);
+            }
+        }
+    } else {
+        tracing::debug!("Auto-detection disabled or no DATABASE_URL configured");
+    }
+
+    // 3. If we have strategies, build SecretMap
+    if !all_strategies.is_empty() {
+        tracing::info!("✅ Total {} strategies ready", all_strategies.len());
+
+        return SecretMap::from_strategies(&all_strategies)
+            .map_err(|e| anyhow::anyhow!("Failed to create SecretMap: {}", e));
+    }
+
+    // 4. Fall back to hardcoded env vars
+    tracing::info!("💡 No strategies from config or auto-detection, trying fallback env vars");
+    load_secrets_fallback()
 }
 
 /// Fallback: Load secrets from environment variables (old method)
@@ -206,8 +269,25 @@ fn load_secrets_fallback() -> anyhow::Result<SecretMap> {
     }
 
     if secrets.is_empty() {
-        tracing::warn!("⚠️  No secrets configured. Using test secret for demonstration.");
-        secrets.insert("DUMMY_TOKEN".to_string(), "test_real_token_123".to_string());
+        tracing::error!("╔════════════════════════════════════════════════════════════════╗");
+        tracing::error!("║  ❌ NO CREDENTIALS FOUND                                        ║");
+        tracing::error!("╠════════════════════════════════════════════════════════════════╣");
+        tracing::error!("║  The proxy could not find any API credentials.                  ║");
+        tracing::error!("║                                                                ║");
+        tracing::error!("║  To fix this, do ONE of the following:                         ║");
+        tracing::error!("║                                                                ║");
+        tracing::error!("║  1. Add credentials to your .env file, e.g.:                   ║");
+        tracing::error!("║     OPENAI_API_KEY=sk-xxx                                      ║");
+        tracing::error!("║     ANTHROPIC_API_KEY=sk-ant-xxx                               ║");
+        tracing::error!("║                                                                ║");
+        tracing::error!("║  2. Add strategies to config.yaml with your env vars           ║");
+        tracing::error!("║                                                                ║");
+        tracing::error!("║  3. Ensure DATABASE_URL is set for auto-detection              ║");
+        tracing::error!("║     (The database contains 70+ known API definitions)          ║");
+        tracing::error!("╚════════════════════════════════════════════════════════════════╝");
+        return Err(anyhow::anyhow!(
+            "No credentials configured. Add API keys to .env file or config.yaml"
+        ));
     } else {
         tracing::info!(
             "✅ Loaded {} secrets from environment variables",

@@ -11,6 +11,10 @@ pub struct Config {
     /// Authentication strategies
     pub strategies: Vec<StrategyConfig>,
 
+    /// Auto-detection configuration
+    #[serde(default)]
+    pub auto_detect: AutoDetectSection,
+
     /// Security settings
     #[serde(default)]
     pub security: SecurityConfig,
@@ -19,6 +23,25 @@ pub struct Config {
     #[serde(default)]
     pub logging: LoggingConfig,
 }
+
+/// Auto-detection configuration section
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoDetectSection {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub exclude: Vec<String>,
+    #[serde(default = "default_max_strategies")]
+    pub max_strategies: usize,
+}
+
+impl Default for AutoDetectSection {
+    fn default() -> Self {
+        Self { enabled: true, exclude: Vec::new(), max_strategies: 100 }
+    }
+}
+
+fn default_max_strategies() -> usize { 100 }
 
 /// Strategy configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -270,6 +293,7 @@ impl Config {
                     },
                 },
             ],
+            auto_detect: AutoDetectSection::default(),
             security: SecurityConfig::default(),
             logging: LoggingConfig::default(),
         }
@@ -311,6 +335,7 @@ logging:
     fn test_validate_missing_strategies() {
         let config = Config {
             strategies: vec![],
+            auto_detect: AutoDetectSection::default(),
             security: SecurityConfig::default(),
             logging: LoggingConfig::default(),
         };

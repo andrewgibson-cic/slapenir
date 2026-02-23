@@ -8,7 +8,7 @@ LABEL maintainer="andrew.gibson-cic@ibm.com"
 LABEL description="SLAPENIR Agent: Secure Python execution environment with process supervision"
 LABEL version="0.1.0"
 
-# Install build tools, Python, and bash
+# Install build tools, Python, bash, and iptables for traffic enforcement
 RUN apk add --no-cache \
     python-3.11 \
     py3-pip \
@@ -18,7 +18,9 @@ RUN apk add --no-cache \
     ca-certificates \
     xz \
     openssh-client \
-    bash
+    bash \
+    iptables \
+    iproute2
 
 # Install s6-overlay from GitHub releases (Wolfi doesn't have s6-overlay package)
 ARG S6_OVERLAY_VERSION=3.1.6.2

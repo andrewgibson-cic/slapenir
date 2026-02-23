@@ -1,0 +1,5 @@
+#!/command/execlineb -P
+# Initialize iptables traffic enforcement rules
+# Must run early in container startup before any user processes
+
+foreground { /home/agent/scripts/traffic-enforcement.sh }

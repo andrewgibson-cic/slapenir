@@ -65,7 +65,7 @@ iptables -A TRAFFIC_ENFORCE -d "$PROXY_IP" -p tcp --dport "$PROXY_PORT" -j ACCEP
 log "Proxy connections allowed"
 
 # Allow internal Docker network traffic (slapenir services)
-iptables -A TRAFFIC_ENFORCE -d 172.21.0.0/24 -j ACCEPT
+iptables -A TRAFFIC_ENFORCE -d 172.30.0.0/24 -j ACCEPT
 
 # =============================================================================
 # REDIRECT RULES

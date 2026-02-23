@@ -17,31 +17,31 @@ help:
 	@echo ""
 
 up:
-	docker compose up -d
+	docker-compose up -d
 
 down:
-	docker compose down
+	docker-compose down
 
 restart:
-	docker compose restart
+	docker-compose restart
 
 status:
-	docker compose ps
+	docker-compose ps
 
 logs:
-	docker compose logs -f $(SERVICE)
+	docker-compose logs -f $(SERVICE)
 
 shell:
-	docker compose exec $(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
-	docker compose exec $(or $(SERVICE),agent) /bin/sh
+	docker-compose exec $(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
+	docker-compose exec $(or $(SERVICE),agent) /bin/sh
 
 test:
 	cd proxy && cargo test --all
 
 rebuild:
-	docker compose down
-	docker compose build --no-cache
-	docker compose up -d
+	docker-compose down
+	docker-compose build --no-cache
+	docker-compose up -d
 
 clean:
-	docker compose down -v --rmi local
+	docker-compose down -v --rmi local

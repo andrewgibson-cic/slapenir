@@ -39,7 +39,7 @@ jobs:
         key: ${{ runner.os }}-cargo-tools-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Install cargo-audit
-      run: cargo install cargo-audit --locked
+      run: cargo install cargo-audit --locked --force
 
     - name: Run cargo audit
       working-directory: ./proxy

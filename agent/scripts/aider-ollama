@@ -1,0 +1,49 @@
+#!/bin/bash
+# Aider wrapper for Ollama via SLAPENIR proxy
+# This script configures Aider to use the local Ollama instance through the proxy
+#
+# Usage: aider-ollama [aider arguments]
+# Example: aider-ollama --message "Add error handling to this function"
+
+set -e
+
+# Configuration
+OLLAMA_HOST="${OLLAMA_HOST:-host.docker.internal:11434}"
+OLLAMA_MODEL="${OLLAMA_MODEL:-qwen2.5-coder:7b}"
+HELPER_PORT="${OLLAMA_PROXY_PORT:-8765}"
+
+echo "[aider-ollama] Starting Ollama Proxy Helper..."
+echo "[aider-ollama]   Ollama Host: $OLLAMA_HOST"
+echo "[aider-ollama]   Model: $OLLAMA_MODEL"
+echo "[aider-ollama]   Helper Port: $HELPER_PORT"
+
+# Start the proxy helper in the background if not already running
+if ! curl -s "http://localhost:$HELPER_PORT/api/tags" > /dev/null 2>&1; then
+    echo "[aider-ollama] Starting proxy helper on port $HELPER_PORT..."
+    python3 /home/agent/scripts/ollama-proxy-helper.py "$HELPER_PORT" &
+    HELPER_PID=$!
+    echo "[aider-ollama] Proxy helper started (PID: $HELPER_PID)"
+
+    # Wait for helper to be ready
+    for i in {1..10}; do
+        if curl -s "http://localhost:$HELPER_PORT/api/tags" > /dev/null 2>&1; then
+            echo "[aider-ollama] Proxy helper is ready"
+            break
+        fi
+        sleep 0.5
+    done
+else
+    echo "[aider-ollama] Proxy helper already running"
+fi
+
+# Configure Aider to use the proxy helper
+# The helper will add X-Target-URL and forward through SLAPENIR proxy
+export OLLAMA_API_BASE="http://localhost:$HELPER_PORT"
+
+echo "[aider-ollama] Starting Aider..."
+echo "[aider-ollama]   OLLAMA_API_BASE: $OLLAMA_API_BASE"
+echo "[aider-ollama]   Model: ollama_chat/$OLLAMA_MODEL"
+echo ""
+
+# Run aider with the configured model
+exec ~/.local/bin/aider --model "ollama_chat/${OLLAMA_MODEL}" "$@"

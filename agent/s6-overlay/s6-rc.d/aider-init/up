@@ -1,0 +1,31 @@
+#!/command/execlineb -P
+# Install Aider AI pair programming tool for local LLM usage via proxy
+
+foreground { echo "[aider-init] Installing Aider AI pair programming tool..." }
+
+# Install aider via pip (user install to avoid needing root)
+foreground {
+  pip install --user aider-install
+}
+
+# Verify installation
+foreground {
+  if { ~/.local/bin/aider --help }
+  echo "[aider-init] Aider installed successfully"
+}
+
+# Log configuration
+importas OLLAMA_HOST OLLAMA_HOST
+importas OLLAMA_MODEL OLLAMA_MODEL
+importas HTTP_PROXY HTTP_PROXY
+
+foreground { echo "[aider-init] Configuration:" }
+foreground { echo "[aider-init]   HTTP_PROXY: ${HTTP_PROXY}" }
+foreground { echo "[aider-init]   OLLAMA_HOST: ${OLLAMA_HOST}" }
+foreground { echo "[aider-init]   OLLAMA_MODEL: ${OLLAMA_MODEL}" }
+foreground { echo "[aider-init] " }
+foreground { echo "[aider-init] To use Aider with Ollama through the proxy:" }
+foreground { echo "[aider-init]   aider-ollama" }
+foreground { echo "[aider-init] " }
+foreground { echo "[aider-init] Or manually:" }
+foreground { echo "[aider-init]   OLLAMA_API_BASE=http://proxy:3000 aider --model ollama_chat/${OLLAMA_MODEL}" }

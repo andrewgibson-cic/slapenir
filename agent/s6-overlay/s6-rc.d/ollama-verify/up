@@ -1,0 +1,42 @@
+#!/command/execlineb -P
+# Verify Ollama connectivity through the proxy at container startup
+
+importas OLLAMA_HOST OLLAMA_HOST
+importas OLLAMA_MODEL OLLAMA_MODEL
+importas HTTP_PROXY HTTP_PROXY
+
+foreground { echo "[ollama-verify] Checking Ollama connectivity through proxy..." }
+foreground { echo "[ollama-verify]   Ollama Target: ${OLLAMA_HOST}" }
+foreground { echo "[ollama-verify]   Proxy: ${HTTP_PROXY}" }
+foreground { echo "[ollama-verify]   Model: ${OLLAMA_MODEL}" }
+
+# Test 1: Direct proxy connectivity (verify proxy is running)
+foreground { echo "[ollama-verify] Testing proxy connectivity..." }
+if {
+  curl -s -f -m 5 "http://proxy:3000/health"
+}
+foreground { echo "[ollama-verify] Proxy is healthy" }
+
+# Test 2: Ollama through proxy using X-Target-URL header
+foreground { echo "[ollama-verify] Testing Ollama through proxy..." }
+if {
+  loopwhilex -x 2 -n 10
+  foreground { echo "[ollama-verify] Attempting to reach Ollama via proxy..." }
+  curl -s -f -m 5 -H "X-Target-URL: http://${OLLAMA_HOST}" "http://proxy:3000/api/tags"
+}
+
+foreground { echo "[ollama-verify] Ollama is reachable through proxy!" }
+
+# Check if the configured model is available
+foreground {
+  if {
+    curl -s -H "X-Target-URL: http://${OLLAMA_HOST}" "http://proxy:3000/api/tags" | grep -q "\"name\":\"${OLLAMA_MODEL}\""
+  }
+  echo "[ollama-verify] Model ${OLLAMA_MODEL} is available"
+}
+
+foreground { echo "[ollama-verify] " }
+foreground { echo "[ollama-verify] To use Aider with Ollama through proxy:" }
+foreground { echo "[ollama-verify]   aider-ollama" }
+
+# Non-fatal if unreachable - just warn

@@ -68,7 +68,7 @@ prometheus = "0.14"
 lazy_static = "1.4"
 
 # Database (PostgreSQL for auto-detection)
-sqlx = { version = "0.7", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid", "migrate"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid", "migrate"] }
 
 [dev-dependencies]
 # Testing

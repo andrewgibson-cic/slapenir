@@ -1,0 +1,11 @@
+# Cargo audit configuration
+# https://github.com/rustsec/rustsec/tree/main/cargo-audit
+
+[advisories]
+# Ignore advisories that don't apply to our use case
+
+# RUSTSEC-2023-0071: Marvin Attack on rsa crate
+# This vulnerability affects MySQL connections via sqlx-mysql.
+# We only use PostgreSQL, so this vulnerability does not affect us.
+# Status: No fix available from rsa maintainers
+ignore = ["RUSTSEC-2023-0071"]

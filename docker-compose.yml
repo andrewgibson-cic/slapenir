@@ -70,6 +70,9 @@ services:
     hostname: proxy
     networks:
       - slape-net
+    # Enable host.docker.internal resolution for Ollama forwarding
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3000:3000"  # Proxy API (expose for testing)
     env_file:
@@ -83,6 +86,8 @@ services:
       - MTLS_CA_CERT=/certs/root_ca.crt
       - MTLS_SERVER_CERT=/certs/proxy.crt
       - MTLS_SERVER_KEY=/certs/proxy.key
+      # Ollama endpoint for proxy forwarding
+      - OLLAMA_HOST=${OLLAMA_HOST:-host.docker.internal:11434}
     volumes:
       - ./proxy/config.yaml:/app/config.yaml:ro
       - proxy-certs:/certs:ro
@@ -120,7 +125,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - TRAFFIC_ENFORCEMENT_ENABLED=${TRAFFIC_ENFORCEMENT_ENABLED:-true}
-      # Proxy configuration for agent
+      # Proxy configuration for agent (all traffic through proxy)
       - HTTP_PROXY=http://proxy:3000
       - HTTPS_PROXY=http://proxy:3000
       - NO_PROXY=localhost,127.0.0.1,proxy,postgres
@@ -130,6 +135,9 @@ services:
       - MTLS_CLIENT_CERT=/certs/agent.crt
       - MTLS_CLIENT_KEY=/certs/agent.key
       - MTLS_VERIFY_HOSTNAME=${MTLS_VERIFY_HOSTNAME:-true}
+      # Ollama Local LLM Configuration (via proxy)
+      - OLLAMA_HOST=${OLLAMA_HOST:-host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5-coder:7b}
     volumes:
       - ./.env:/host-env/.env:ro  # Mount host .env read-only for processing
       - agent-workspace:/home/agent/workspace

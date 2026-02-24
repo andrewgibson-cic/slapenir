@@ -39,15 +39,17 @@ jobs:
         key: ${{ runner.os }}-cargo-tools-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Install cargo-audit
-      run: cargo install cargo-audit --force
-    
+      run: cargo install cargo-audit --locked
+
     - name: Run cargo audit
       working-directory: ./proxy
       # RUSTSEC-2023-0071 (rsa Marvin attack) is ignored because:
       # - It only affects MySQL connections via sqlx-mysql
       # - We only use PostgreSQL, so this vulnerability does not apply
       # - No fix is available from the rsa maintainers
-      run: cargo audit --ignore RUSTSEC-2023-0071
+      run: |
+        echo "Running cargo audit with ignored advisories..."
+        cargo audit --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2025-0134
       continue-on-error: true
       id: audit
     

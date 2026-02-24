@@ -1,3 +1,33 @@
+## [1.1.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.0.1...v1.1.0) (2026-02-24)
+
+
+### Features
+
+* **agent:** add Ollama local LLM support with Aider through proxy ([9496c75](https://github.com/andrewgibson-cic/slapenir/commit/9496c756a49c97677695cd9b9f8f2665b2c87d44))
+* **auto-detect:** add PostgreSQL-based automatic secret detection ([32114fb](https://github.com/andrewgibson-cic/slapenir/commit/32114fbf2dc576863b54daf8558809db42fea890))
+* **security:** add iptables-based traffic enforcement ([25d6660](https://github.com/andrewgibson-cic/slapenir/commit/25d6660e43cbc0f47ae039757cf02c95158d7147))
+
+
+### Bug Fixes
+
+* change network subnet from 172.21.0.0/24 to 172.30.0.0/24 to avoid conflict ([a7c8134](https://github.com/andrewgibson-cic/slapenir/commit/a7c8134fe1cc20cab7cacf71a50ca7fd52584e10))
+* **ci:** add --force flag to cargo-audit install ([1c2c3f3](https://github.com/andrewgibson-cic/slapenir/commit/1c2c3f3475fdf849092f36667a11d9540ec61ae3))
+* **ci:** add --ignore flags to cargo audit in test.yml and release.yml ([f694ce2](https://github.com/andrewgibson-cic/slapenir/commit/f694ce2308fa031df4e03a0b579bbcfede792146))
+* **ci:** force cargo audit step to always succeed ([61be61f](https://github.com/andrewgibson-cic/slapenir/commit/61be61f912e382c3f1dc29299342d7e224e81e6a))
+* **ci:** improve cargo audit with explicit ignores and debug output ([6ccecb5](https://github.com/andrewgibson-cic/slapenir/commit/6ccecb56529bd03d81b2d4c1df8afbdb0961580e))
+* integrate auto-detection database into proxy startup ([3d6d7fd](https://github.com/andrewgibson-cic/slapenir/commit/3d6d7fdcf0008b4314b2989aa7f2c2558e9e269b))
+* only collect dummy patterns for strategies with real credentials ([a39c040](https://github.com/andrewgibson-cic/slapenir/commit/a39c0407635642976d032b2d538f71a696e0fb4a))
+* **security:** add deny.toml to ignore RSA advisory in cargo-deny ([ff32eb7](https://github.com/andrewgibson-cic/slapenir/commit/ff32eb7a994d2873e8ae96e10ae9846bb06d6a34))
+* **security:** resolve cargo audit vulnerabilities ([febe66b](https://github.com/andrewgibson-cic/slapenir/commit/febe66bf4301695d70bb50e516f296e78575f040))
+* **security:** resolve critical sanitization bypass vulnerabilities ([9e4a42b](https://github.com/andrewgibson-cic/slapenir/commit/9e4a42b04501eca81f73be7ead65b58085e8d256))
+* **security:** resolve critical sanitization bypass vulnerabilities ([747da48](https://github.com/andrewgibson-cic/slapenir/commit/747da481ed337825071b6c7f3f49389e22ed1924))
+* use docker-compose (v1) instead of docker compose (v2) ([bf58fd8](https://github.com/andrewgibson-cic/slapenir/commit/bf58fd8a2c4a241002e035b9d87793ea88565c6d))
+
+
+### Code Refactoring
+
+* simplify Makefile from 177 to 48 lines ([1d456e8](https://github.com/andrewgibson-cic/slapenir/commit/1d456e8521dbe68386408f9e12557912e78bd8f8))
+
 ## [1.0.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.0.0...v1.0.1) (2026-02-05)
 
 

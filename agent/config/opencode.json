@@ -1,0 +1,38 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "share": "disabled",
+  "tools": {
+    "websearch": false
+  },
+  "autoupdate": false,
+  "experimental": {
+    "openTelemetry": false
+  },
+  "permission": {
+    "*": "deny",
+    "read": "allow",
+    "edit": "ask",
+    "bash": "deny",
+    "webfetch": "deny",
+    "mcp_*": "deny"
+  },
+  "instructions": [],
+  "provider": {
+    "local-llama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Local Llama Server",
+      "options": {
+        "baseURL": "http://host.docker.internal:8080/v1"
+      },
+      "models": {
+        "qwen3.5-35b-a3b": {
+          "name": "Qwen 3.5 35B A3B (Local)",
+          "limit": {
+            "context": 262144,
+            "output": 65536
+          }
+        }
+      }
+    }
+  }
+}

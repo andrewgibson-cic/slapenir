@@ -37,6 +37,16 @@ All HTTP/HTTPS traffic routed through SLAPENIR proxy
 - Memory-safe Python 3.11
 - Certificate-based authentication
 
+### 5. Zero-Leak Local AI (OpenCode)
+
+Air-gapped AI code analysis with complete privacy:
+- **OpenCode CLI** installed and hardened
+- **Local LLM inference** via llama-server on host
+- **Network isolation** - all external traffic blocked
+- **Default-deny permissions** - only read access allowed
+
+See [Zero-Leak Local AI Setup](#zero-leak-local-ai-setup) section below.
+
 ## Building
 
 ```bash
@@ -374,10 +384,200 @@ Inside Aider, you can use:
 /home/agent/
 ├── certs/              # mTLS certificates
 ├── workspace/          # Agent working directory
+├── .opencode/          # OpenCode configuration
+│   └── config.json     # Hardened permissions config
+├── .claude-host/       # Host ~/.claude (read-only mount)
 └── scripts/
     ├── bootstrap-certs.sh
+    ├── traffic-enforcement.sh
+    ├── verify-network-isolation.sh
     └── agent.py
 ```
+
+---
+
+## Zero-Leak Local AI Setup
+
+**Complete air-gapped AI development with zero data exfiltration risk**
+
+### Overview
+
+This setup provides three-layer security for using OpenCode with local LLMs:
+
+1. **Application Layer**: Hardened OpenCode config (default-deny all tools)
+2. **Infrastructure Layer**: iptables network isolation (block all external traffic)
+3. **Runtime Layer**: Container security (non-root, read-only mounts)
+
+### Prerequisites
+
+- **Hardware**: 16GB+ RAM (32GB recommended)
+- **Software**: Docker Desktop/Engine 20.10+
+- **Model**: Qwen 2.5 Coder (7B for 16GB, 14B for 32GB)
+
+### Quick Start
+
+**1. Install and start llama-server on host:**
+
+```bash
+# Using Ollama (recommended)
+brew install ollama
+ollama serve &
+ollama pull qwen2.5-coder:7b
+
+# Verify
+curl http://localhost:11434/api/tags
+```
+
+**2. Build and start SLAPENIR:**
+
+```bash
+# Build container with OpenCode
+docker compose build agent
+
+# Start all services
+docker compose up -d
+
+# Verify
+docker logs slapenir-agent
+```
+
+**3. Test zero-leak setup:**
+
+```bash
+# Enter container
+docker exec -it slapenir-agent bash
+
+# Run verification tests
+/home/agent/scripts/verify-network-isolation.sh
+python3 /home/agent/tests/test_opencode_permissions.py
+
+# Test OpenCode
+opencode --version
+```
+
+### Configuration
+
+**Environment Variables** (`.env`):
+
+```bash
+OPENCODE_DISABLE_CLAUDE_CODE=1
+LLAMA_SERVER_HOST=host.docker.internal
+LLAMA_SERVER_PORT=11434  # Use 8080 for llama.cpp
+```
+
+**Hardened OpenCode Config** (`/home/agent/.opencode/config.json`):
+
+```json
+{
+  "permission": {
+    "*": "deny",        // Default deny all
+    "read": "allow",    // Allow reading files
+    "edit": "ask",      // Require approval
+    "bash": "deny",     // Block shell commands
+    "webfetch": "deny", // Block network requests
+    "mcp_*": "deny"     // Block MCP servers
+  },
+  "tools": { "websearch": false },
+  "autoupdate": false,
+  "share": "disabled",
+  "experimental": { "openTelemetry": false },
+  "provider": {
+    "local-llama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": { "baseURL": "http://host.docker.internal:11434/v1" },
+      "models": {
+        "qwen2.5-coder:7b": {
+          "name": "Qwen 2.5 Coder 7B (Local)",
+          "limit": { "context": 16384, "output": 8192 }
+        }
+      }
+    }
+  }
+}
+```
+
+### Security Verification
+
+**Test network isolation:**
+
+```bash
+# Should fail (external traffic blocked)
+docker exec slapenir-agent curl -s --connect-timeout 5 https://www.google.com
+
+# Should succeed (llama server accessible)
+docker exec slapenir-agent curl -s http://host.docker.internal:11434/api/tags
+
+# Should succeed (internal proxy accessible)
+docker exec slapenir-agent curl -s http://proxy:3000/health
+```
+
+**Verify iptables rules:**
+
+```bash
+docker exec slapenir-agent iptables -L TRAFFIC_ENFORCE -n -v
+
+# Should show:
+# - ALLOW host.docker.internal:11434
+# - ALLOW proxy:3000
+# - DROP all other outbound
+```
+
+### Usage
+
+```bash
+# Enter container
+docker exec -it slapenir-agent bash
+
+# Navigate to workspace
+cd /home/agent/workspace
+
+# Use OpenCode
+opencode
+
+# Example commands:
+# > Analyze the authentication module
+# > Suggest improvements for error handling
+# > Explain this database schema
+```
+
+### Troubleshooting
+
+**Llama server not responding:**
+```bash
+curl http://localhost:11434/api/tags
+docker logs slapenir-agent | grep llama
+```
+
+**External traffic not blocked:**
+```bash
+docker exec slapenir-agent /home/agent/scripts/verify-network-isolation.sh
+docker exec slapenir-agent iptables -L TRAFFIC_ENFORCE -n
+```
+
+**OpenCode permission errors:**
+```bash
+docker exec slapenir-agent python3 /home/agent/tests/test_opencode_permissions.py
+docker exec slapenir-agent cat /home/agent/.opencode/config.json
+```
+
+### Model Selection
+
+| Hardware | Model | RAM Usage | Speed | Quality |
+|----------|-------|-----------|-------|---------|
+| M1 Pro 16GB | `qwen2.5-coder:7b` | ~6GB | Fast (25-40 t/s) | Good |
+| M1 Max 32GB | `qwen2.5-coder:14b` | ~12GB | Medium (10-20 t/s) | Excellent |
+| 64GB+ RAM | `qwen2.5-coder:32b` | ~24GB | Slow (5-10 t/s) | Outstanding |
+
+### Security Guarantees
+
+✅ **Zero internet access** - iptables blocks all external traffic
+✅ **No cloud APIs** - All inference happens locally
+✅ **No telemetry** - Disabled in OpenCode config
+✅ **No credential exposure** - Container has no real API keys
+✅ **Audit logging** - All bypass attempts logged by iptables
+✅ **Defense-in-depth** - Three independent security layers
+
+---
 
 ## Testing
 

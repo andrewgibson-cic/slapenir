@@ -22,6 +22,22 @@ RUN apk add --no-cache \
     iptables \
     iproute2
 
+# Install Node.js for OpenCode CLI
+RUN apk add --no-cache nodejs npm
+
+# Install OpenCode CLI globally
+RUN npm install -g @anthropics/claude-code@latest
+
+# Create OpenCode configuration directory
+RUN mkdir -p /home/agent/.opencode && \
+    chown agent:agent /home/agent/.opencode && \
+    chmod 755 /home/agent/.opencode
+
+# Copy OpenCode configuration
+COPY config/opencode.json /home/agent/.opencode/config.json
+RUN chown agent:agent /home/agent/.opencode/config.json && \
+    chmod 644 /home/agent/.opencode/config.json
+
 # Install s6-overlay from GitHub releases (Wolfi doesn't have s6-overlay package)
 ARG S6_OVERLAY_VERSION=3.1.6.2
 ARG TARGETARCH=aarch64

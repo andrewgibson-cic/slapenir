@@ -26,17 +26,7 @@ RUN apk add --no-cache \
 RUN apk add --no-cache nodejs npm
 
 # Install OpenCode CLI globally
-RUN npm install -g @anthropics/claude-code@latest
-
-# Create OpenCode configuration directory
-RUN mkdir -p /home/agent/.opencode && \
-    chown agent:agent /home/agent/.opencode && \
-    chmod 755 /home/agent/.opencode
-
-# Copy OpenCode configuration
-COPY config/opencode.json /home/agent/.opencode/config.json
-RUN chown agent:agent /home/agent/.opencode/config.json && \
-    chmod 644 /home/agent/.opencode/config.json
+RUN npm install -g opencode-ai@latest
 
 # Install s6-overlay from GitHub releases (Wolfi doesn't have s6-overlay package)
 ARG S6_OVERLAY_VERSION=3.1.6.2
@@ -50,6 +40,16 @@ COPY --from=smallstep/step-ca:latest /usr/local/bin/step /usr/local/bin/step
 # Create agent user (non-root for security) with bash as default shell
 RUN addgroup -g 1000 agent && \
     adduser -D -u 1000 -G agent -s /bin/bash agent
+
+# Create OpenCode configuration directory
+RUN mkdir -p /home/agent/.config/opencode && \
+    chown agent:agent /home/agent/.config/opencode && \
+    chmod 755 /home/agent/.config/opencode
+
+# Copy OpenCode configuration
+COPY config/opencode.json /home/agent/.config/opencode/opencode.json
+RUN chown agent:agent /home/agent/.config/opencode/opencode.json && \
+    chmod 644 /home/agent/.config/opencode/opencode.json
 
 # Set up directories
 RUN mkdir -p /home/agent/certs \

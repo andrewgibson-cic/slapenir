@@ -142,10 +142,11 @@ services:
       - OPENCODE_DISABLE_CLAUDE_CODE=${OPENCODE_DISABLE_CLAUDE_CODE:-1}
       - LLAMA_SERVER_HOST=${LLAMA_SERVER_HOST:-host.docker.internal}
       - LLAMA_SERVER_PORT=${LLAMA_SERVER_PORT:-8080}
-      - OPENCODE_CONFIG_PATH=/home/agent/.opencode/config.json
+      - OPENCODE_CONFIG_PATH=/home/agent/.config/opencode/opencode.json
+      - OPENCODE_YOLO=true
     volumes:
       - ./.env:/host-env/.env:ro  # Mount host .env read-only for processing
-      - ${HOME}/.claude:/home/agent/.claude-host:ro  # Mount host .claude read-only
+      - ${HOME}/.claude:/home/agent/.claude:ro  # Mount host .claude read-only
       - agent-workspace:/home/agent/workspace
       - agent-certs:/certs:ro  # Read-only certificate access
       - agent-ssh:/home/agent/.ssh  # Persist SSH keys

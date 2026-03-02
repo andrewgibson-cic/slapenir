@@ -386,7 +386,7 @@ Inside Aider, you can use:
 ├── workspace/          # Agent working directory
 ├── .opencode/          # OpenCode configuration
 │   └── config.json     # Hardened permissions config
-├── .claude-host/       # Host ~/.claude (read-only mount)
+├── .claude/            # Host ~/.claude (read-only mount)
 └── scripts/
     ├── bootstrap-certs.sh
     ├── traffic-enforcement.sh

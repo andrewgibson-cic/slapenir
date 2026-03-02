@@ -281,7 +281,8 @@ test_local_llm() {
             fi
             
             # Verify localhost bypass rule exists
-            if iptables -L TRAFFIC_ENFORCE -n | grep -q "127.0.0.0/8.*ACCEPT"; then
+            # The rule format is: "ACCEPT all -- 0.0.0.0/0 127.0.0.0/8"
+            if iptables -L TRAFFIC_ENFORCE -n | grep -q "ACCEPT.*127.0.0.0/8"; then
                 test_pass "Localhost bypass rule active (127.0.0.0/8 ACCEPT)"
             else
                 test_fail "CRITICAL: Localhost bypass rule missing - llama-server connections will fail!"

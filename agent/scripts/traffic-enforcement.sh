@@ -55,9 +55,23 @@ iptables -A TRAFFIC_ENFORCE -o lo -j ACCEPT
 # Allow established connections
 iptables -A TRAFFIC_ENFORCE -m state --state ESTABLISHED,RELATED -j ACCEPT
 
-# Allow DNS (both UDP and TCP)
-iptables -A TRAFFIC_ENFORCE -p udp --dport 53 -j ACCEPT
-iptables -A TRAFFIC_ENFORCE -p tcp --dport 53 -j ACCEPT
+# DNS FILTERING: Only allow specific DNS servers (prevents DNS exfiltration)
+# Allow Google DNS
+iptables -A TRAFFIC_ENFORCE -p udp --dport 53 -d 8.8.8.8 -j ACCEPT
+iptables -A TRAFFIC_ENFORCE -p udp --dport 53 -d 8.8.4.4 -j ACCEPT
+iptables -A TRAFFIC_ENFORCE -p tcp --dport 53 -d 8.8.8.8 -j ACCEPT
+iptables -A TRAFFIC_ENFORCE -p tcp --dport 53 -d 8.8.4.4 -j ACCEPT
+
+# Allow Cloudflare DNS
+iptables -A TRAFFIC_ENFORCE -p udp --dport 53 -d 1.1.1.1 -j ACCEPT
+iptables -A TRAFFIC_ENFORCE -p tcp --dport 53 -d 1.1.1.1 -j ACCEPT
+
+# Block all other DNS (prevents DNS exfiltration to arbitrary servers)
+iptables -A TRAFFIC_ENFORCE -p udp --dport 53 -j LOG --log-prefix "[DNS-BLOCK] " --log-level 4
+iptables -A TRAFFIC_ENFORCE -p tcp --dport 53 -j LOG --log-prefix "[DNS-BLOCK] " --log-level 4
+iptables -A TRAFFIC_ENFORCE -p udp --dport 53 -j DROP
+iptables -A TRAFFIC_ENFORCE -p tcp --dport 53 -j DROP
+log "DNS filtered to trusted servers only (8.8.8.8, 8.8.4.4, 1.1.1.1)"
 
 # Allow SSH outbound (port 22)
 iptables -A TRAFFIC_ENFORCE -p tcp --dport 22 -j ACCEPT
@@ -113,6 +127,34 @@ log "Traffic enforcement active!"
 log "Summary:"
 log "  - HTTP/HTTPS: Redirected to proxy:$PROXY_PORT"
 log "  - SSH (port 22): Allowed directly"
-log "  - DNS (port 53): Allowed"
+log "  - DNS: Filtered to trusted servers (8.8.8.8, 8.8.4.4, 1.1.1.1)"
 log "  - Llama server ($LLAMA_SERVER_HOST:$LLAMA_SERVER_PORT): Allowed"
 log "  - All other traffic: Blocked and logged"
+
+# =============================================================================
+# FAIL-SAFE VERIFICATION
+# =============================================================================
+
+log "Verifying traffic enforcement rules..."
+
+# Verify TRAFFIC_ENFORCE chain exists
+if ! iptables -L TRAFFIC_ENFORCE -n > /dev/null 2>&1; then
+    log "CRITICAL: TRAFFIC_ENFORCE chain does not exist after setup!"
+    exit 1
+fi
+
+# Verify DROP rule exists
+if ! iptables -L TRAFFIC_ENFORCE -n | grep -q "DROP"; then
+    log "CRITICAL: DROP rule not found in TRAFFIC_ENFORCE chain!"
+    exit 1
+fi
+
+# Count total rules (should have multiple rules)
+RULE_COUNT=$(iptables -L TRAFFIC_ENFORCE -n | grep -c "^" || echo "0")
+if [ "$RULE_COUNT" -lt 10 ]; then
+    log "CRITICAL: Too few rules in TRAFFIC_ENFORCE chain (found: $RULE_COUNT, expected: >10)"
+    exit 1
+fi
+
+log "✓ Fail-safe verification passed - $RULE_COUNT rules active"
+log "✓ Traffic enforcement is active and protecting the container"

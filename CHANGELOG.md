@@ -1,3 +1,19 @@
+## [1.6.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.5.2...v1.6.0) (2026-03-02)
+
+
+### Features
+
+* Add comprehensive traffic enforcement tests to startup validation ([2b33c77](https://github.com/andrewgibson-cic/slapenir/commit/2b33c77f8d8f4609508579d91a6fce1f2ffa2ea6))
+
+
+### Bug Fixes
+
+* Correct traffic enforcement initialization for Wolfi container ([9f0c6e9](https://github.com/andrewgibson-cic/slapenir/commit/9f0c6e9880a711c6af8beeec7a924057fef578fd))
+* Handle dmesg permission errors gracefully in runtime-monitor ([d2753a2](https://github.com/andrewgibson-cic/slapenir/commit/d2753a23f6033b757abdeea319575b5186833645))
+* Route local LLM requests via Host header ([e1ad3b1](https://github.com/andrewgibson-cic/slapenir/commit/e1ad3b1a152375c6013d87751dbd875016ca1275))
+* Route local LLM requests via Host header ([8bb668e](https://github.com/andrewgibson-cic/slapenir/commit/8bb668eb02d943d217dd5efce21d3ed8c12e27a4))
+* Update OpenCode config to use top-level model key ([a5d16aa](https://github.com/andrewgibson-cic/slapenir/commit/a5d16aa0d0170836f3d79d348124a9cdebf64fb5))
+
 ## [1.5.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.5.1...v1.5.2) (2026-03-02)
 
 

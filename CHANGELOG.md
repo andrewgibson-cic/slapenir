@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/andrewgibson-cic/slapenir/compare/v1.2.2...v1.2.3) (2026-03-02)
+
+
+### Bug Fixes
+
+* add proxy bypass for local llama server requests ([91276c0](https://github.com/andrewgibson-cic/slapenir/commit/91276c0ad518b8d245502819938c6bdd27a8ccf3))
+
 ## [1.2.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.2.1...v1.2.2) (2026-03-02)
 
 

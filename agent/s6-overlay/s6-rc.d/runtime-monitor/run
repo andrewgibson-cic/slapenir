@@ -1,3 +1,7 @@
-#!/usr/bin/execlineb -P
+#!/command/execlineb -P
 # Runtime Monitor Service - Continuously monitors traffic enforcement
-exec /home/agent/scripts/runtime-monitor.sh
+# Runs as part of s6 longrun service
+
+foreground {
+    exec /home/agent/scripts/runtime-monitor.sh
+}

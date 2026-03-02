@@ -1,0 +1,8 @@
+#!/command/execlineb -P
+# S6 oneshot service to initialize GPG for commit signing
+# Runs once at container startup after git-init
+
+foreground {
+  s6-setuidgid agent
+  /home/agent/scripts/setup-gpg.sh
+}

@@ -126,6 +126,17 @@ rules:
     strategy: semantic-scholar
     priority: 100
 
+# Proxy Bypass Rules
+# Direct pass-through for local/external hosts (no API key injection)
+bypass_rules:
+  - name: localhost
+    domain_regex: "^(localhost|127\\.0\\.0\\.1|host\\.docker\\.internal)$"
+    priority: 1
+  
+  - name: internal_network
+    domain_regex: "^proxy$|^step-ca$|^postgres$"
+    priority: 2
+
 # Global Settings
 settings:
   # Logging configuration
@@ -133,7 +144,7 @@ settings:
   log_format: json  # json or text
   
   # Security settings
-  fail_mode: closed  # closed (drop on error) or open (pass through on error)
+  fail_mode: open  # pass through on error for local services
   
   # Performance settings
   max_body_size_mb: 100  # Maximum body size to process (larger uses streaming)

@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "local-llama/qwen3.5-35b-a3b",
   "share": "disabled",
   "tools": {
     "websearch": false
@@ -17,8 +18,6 @@
     "mcp_*": "deny"
   },
   "instructions": [],
-  "defaultProvider": "local-llama",
-  "defaultModel": "qwen3.5-35b-a3b",
   "provider": {
     "local-llama": {
       "npm": "@ai-sdk/openai-compatible",

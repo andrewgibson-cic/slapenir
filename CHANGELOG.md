@@ -1,3 +1,11 @@
+## [1.5.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.5.0...v1.5.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* Add traffic enforcement dependency to startup validation ([2d37690](https://github.com/andrewgibson-cic/slapenir/commit/2d3769007bedd64c04e20a2356a65556b5f9f6ea))
+* fix/agent-connection-to-llama-server ([c44a272](https://github.com/andrewgibson-cic/slapenir/commit/c44a272e7b4ca4846b2a34615411d5383015f1dc))
+
 ## [1.5.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.4.0...v1.5.0) (2026-03-02)
 
 

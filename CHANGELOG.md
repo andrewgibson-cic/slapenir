@@ -1,3 +1,11 @@
+## [1.2.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.2.1...v1.2.2) (2026-03-02)
+
+
+### Bug Fixes
+
+* add proxy bypass for local llama server ([eeb8578](https://github.com/andrewgibson-cic/slapenir/commit/eeb85785033a137a2aff2cdec0a4f1ea75de9147))
+* use correct opencode config path and enable OPENCODE_YOLO ([7b2a807](https://github.com/andrewgibson-cic/slapenir/commit/7b2a807264786a0ea32ae6c1ae6b8701de013218))
+
 ## [1.2.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.2.0...v1.2.1) (2026-03-02)
 
 

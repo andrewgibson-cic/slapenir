@@ -1,4 +1,4 @@
-#!/command/execlineb -P
+#!/command/execuserb -u root -P
 # Initialize iptables traffic enforcement rules
 # Must run early in container startup before any user processes
 

@@ -226,6 +226,19 @@ test_local_llm() {
         test_warn "Local llama-server not accessible (may not be running)"
     fi
     
+    # Check if llama-server is accessible via localhost (127.0.0.1)
+    if curl -s -f --max-time 3 http://127.0.0.1:8080/v1/models > /dev/null 2>&1; then
+        test_pass "Local llama-server accessible at 127.0.0.1:8080 (localhost bypass rule working)"
+        
+        # Try to get models list
+        local models=$(curl -s --max-time 3 http://127.0.0.1:8080/v1/models 2>/dev/null)
+        if echo "$models" | grep -q "model"; then
+            test_pass "llama-server responding with model information via localhost"
+        fi
+    else
+        test_warn "Local llama-server not accessible at 127.0.0.1:8080 (localhost bypass rule may not be active)"
+    fi
+    
     # Check OpenCode configuration
     if [ -f "/home/agent/.config/opencode/opencode.json" ]; then
         test_pass "OpenCode config file exists"
@@ -265,6 +278,13 @@ test_local_llm() {
                 test_pass "Traffic enforcement has $rule_count rules (properly configured)"
             else
                 test_fail "CRITICAL: Too few iptables rules ($rule_count) - traffic enforcement incomplete!"
+            fi
+            
+            # Verify localhost bypass rule exists
+            if iptables -L TRAFFIC_ENFORCE -n | grep -q "127.0.0.0/8.*ACCEPT"; then
+                test_pass "Localhost bypass rule active (127.0.0.0/8 ACCEPT)"
+            else
+                test_fail "CRITICAL: Localhost bypass rule missing - llama-server connections will fail!"
             fi
         else
             test_fail "CRITICAL: Traffic enforcement iptables chain NOT found - container is NOT secure!"

@@ -145,6 +145,35 @@ pub fn build_response_headers(original_headers: &HeaderMap, body_len: usize) -> 
     headers
 }
 
+/// Check if request should bypass proxy (local addresses, internal services)
+fn should_bypass_proxy(uri: &Uri, headers: &HeaderMap) -> bool {
+    // Check X-Target-URL header first
+    if let Some(target) = headers.get("x-target-url") {
+        if let Ok(target_str) = target.to_str() {
+            let target_lower = target_str.to_lowercase();
+            if target_lower.contains("localhost")
+                || target_lower.contains("127.0.0.1")
+                || target_lower.contains("host.docker.internal")
+            {
+                tracing::debug!("Bypassing proxy for local target: {}", target_str);
+                return true;
+            }
+        }
+    }
+
+    // Check target URL from uri path
+    let path = uri.path().to_lowercase();
+    if path.contains("localhost")
+        || path.contains("127.0.0.1")
+        || path.contains("host.docker.internal")
+    {
+        tracing::debug!("Bypassing proxy for local path: {}", path);
+        return true;
+    }
+
+    false
+}
+
 /// Main proxy handler for LLM API requests
 ///
 /// This handler:
@@ -165,6 +194,12 @@ pub async fn proxy_handler(
 ) -> Result<Response, ProxyError> {
     let start_time = Instant::now();
     metrics::inc_active_connections();
+
+    // Bypass proxy for local addresses (llama server, etc.)
+    if should_bypass_proxy(&uri, &headers) {
+        tracing::info!("Bypassing proxy for local request");
+        return forward_directly(state, method, uri, headers, request).await;
+    }
 
     // Get config (use defaults if not configured)
     let config = state.config.clone().unwrap_or_default();
@@ -329,6 +364,86 @@ fn determine_target_url(headers: &HeaderMap, uri: &Uri) -> Result<String, ProxyE
         base_url.trim_end_matches('/'),
         path_and_query
     ))
+}
+
+/// Forward request directly without sanitization (for local services)
+async fn forward_directly(
+    state: AppState,
+    method: Method,
+    uri: Uri,
+    headers: HeaderMap,
+    request: Request,
+) -> Result<Response, ProxyError> {
+    let start_time = Instant::now();
+    metrics::inc_active_connections();
+
+    // Read request body
+    let body_bytes = axum::body::to_bytes(request.into_body(), DEFAULT_MAX_REQUEST_SIZE)
+        .await
+        .map_err(|e| ProxyError::RequestBodyRead(e.to_string()))?;
+
+    // Determine target URL
+    let target_url = determine_target_url(&headers, &uri)?;
+    tracing::info!("Forwarding directly to: {}", target_url);
+
+    // Build target URI
+    let target_uri: Uri = target_url
+        .parse()
+        .map_err(|e| ProxyError::InvalidTargetUrl(format!("Failed to parse URL: {}", e)))?;
+
+    // Build forwarded request
+    let mut forwarded_request = hyper::Request::builder()
+        .method(method.clone())
+        .uri(target_uri);
+
+    // Copy headers (skip hop-by-hop)
+    for (name, value) in headers.iter() {
+        let name_str = name.as_str();
+        if !is_hop_by_hop_header(name_str) {
+            forwarded_request = forwarded_request.header(name, value);
+        }
+    }
+
+    let forwarded_request = forwarded_request
+        .body(Body::from(body_bytes))
+        .map_err(|e| ProxyError::ForwardRequest(format!("Failed to build request: {}", e)))?;
+
+    // Execute request
+    let response = state
+        .http_client
+        .request(forwarded_request)
+        .await
+        .map_err(|e| ProxyError::ForwardRequest(e.to_string()))?;
+
+    let (parts, body) = response.into_parts();
+    let body = Body::new(body);
+
+    // Read response body
+    let response_bytes = axum::body::to_bytes(body, DEFAULT_MAX_RESPONSE_SIZE)
+        .await
+        .map_err(|e| ProxyError::ResponseBodyRead(e.to_string()))?;
+
+    // Build response with headers
+    let final_headers = build_response_headers(&parts.headers, response_bytes.len());
+
+    let mut response_builder = Response::builder().status(parts.status);
+    for (name, value) in final_headers.iter() {
+        response_builder = response_builder.header(name, value);
+    }
+
+    let response = response_builder
+        .body(Body::from(response_bytes))
+        .map_err(|e| ProxyError::ResponseBodyRead(format!("Failed to build response: {}", e)))?;
+
+    let duration = start_time.elapsed().as_secs_f64();
+    let status = parts.status.as_u16();
+    let endpoint = uri.path().split('/').nth(1).unwrap_or("unknown");
+
+    metrics::record_http_request(method.as_str(), status, endpoint, duration);
+    metrics::dec_active_connections();
+
+    tracing::info!("Direct forward completed successfully");
+    Ok(response)
 }
 
 /// Check if a header is hop-by-hop (should not be forwarded)

@@ -1,3 +1,15 @@
+## [1.2.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.2.0...v1.2.1) (2026-03-02)
+
+
+### Bug Fixes
+
+* resolve production readiness review issues ([ebd239e](https://github.com/andrewgibson-cic/slapenir/commit/ebd239ee5527220ec9f6510f522cf6011224e2f7))
+
+
+### Code Refactoring
+
+* remove aider-init service and update proxy configuration ([ecb50a0](https://github.com/andrewgibson-cic/slapenir/commit/ecb50a09ce7322a6edb3f1036a094879e5fad92d))
+
 ## [1.2.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.1.0...v1.2.0) (2026-03-02)
 
 

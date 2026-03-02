@@ -1,3 +1,10 @@
+## [1.3.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.2.3...v1.3.0) (2026-03-02)
+
+
+### Features
+
+* Add local LLM support with zero-trust network isolation ([76b7157](https://github.com/andrewgibson-cic/slapenir/commit/76b715789abdd4c55f478e7983ea9bc2f314d651))
+
 ## [1.2.3](https://github.com/andrewgibson-cic/slapenir/compare/v1.2.2...v1.2.3) (2026-03-02)
 
 

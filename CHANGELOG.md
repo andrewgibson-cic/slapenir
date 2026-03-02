@@ -1,3 +1,10 @@
+## [1.5.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.4.0...v1.5.0) (2026-03-02)
+
+
+### Features
+
+* Enhanced security for internal:false with multi-layer protection ([d5b5a6e](https://github.com/andrewgibson-cic/slapenir/commit/d5b5a6e7ea7d826dd7ad1d0e527372d7f1c9b725))
+
 ## [1.4.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.3.0...v1.4.0) (2026-03-02)
 
 

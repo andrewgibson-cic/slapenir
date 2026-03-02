@@ -147,6 +147,9 @@ services:
       - LLAMA_SERVER_PORT=${LLAMA_SERVER_PORT:-8080}
       - OPENCODE_CONFIG_PATH=/home/agent/.config/opencode/opencode.json
       - OPENCODE_YOLO=true
+      # SSH/GPG Agent forwarding for git operations
+      - SSH_AUTH_SOCK=/home/agent/.ssh/agent.sock
+      - GPG_KEY=${GPG_KEY:-164DA43B214F0144}
     volumes:
       - ./.env:/host-env/.env:ro  # Mount host .env read-only for processing
       - ${HOME}/.claude:/home/agent/.claude:ro  # Mount host .claude read-only
@@ -154,6 +157,17 @@ services:
       - agent-certs:/certs:ro  # Read-only certificate access
       - agent-ssh:/home/agent/.ssh  # Persist SSH keys
       - ~/.claude:/home/agent/.claude:ro  # Claude settings
+      # Git config with conditional includes (for signed commits)
+      - ~/.gitconfig:/home/agent/.gitconfig:ro
+      - ~/.gitconfig-ho:/home/agent/.gitconfig-ho:ro
+      - ~/.gitconfig-ibm:/home/agent/.gitconfig-ibm:ro
+      - ~/.gitconfig-personal:/home/agent/.gitconfig-personal:ro
+      # SSH config (keys accessed via agent socket)
+      - ~/.ssh/config:/home/agent/.ssh/config:ro
+      - ~/.ssh/known_hosts:/home/agent/.ssh/known_hosts:ro
+      # GPG public data (agent socket mounted at runtime via dev.sh)
+      - ~/.gnupg/pubring.kbx:/home/agent/.gnupg/pubring.kbx:ro
+      - ~/.gnupg/trustdb.gpg:/home/agent/.gnupg/trustdb.gpg:ro
     healthcheck:
       test: |
         python3 -c "import sys; sys.exit(0)" && \

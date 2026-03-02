@@ -250,11 +250,18 @@ test_local_llm() {
             test_warn "OpenCode local-llama provider not found in config"
         fi
 
-        # Check if default provider is set
-        if grep -q '"defaultProvider".*"local-llama"' /home/agent/.config/opencode/opencode.json; then
+        # Check if model is set at top level (standard format: "model": "provider/model-id")
+        if grep -q '"model".*"local-llama/' /home/agent/.config/opencode/opencode.json; then
+            test_pass "OpenCode default model set to local-llama provider"
+        # Fallback: check defaults.model format
+        elif grep -q '"defaults"' /home/agent/.config/opencode/opencode.json && \
+             grep -q '"model".*"local-llama/' /home/agent/.config/opencode/opencode.json; then
+            test_pass "OpenCode defaults.model set to local-llama provider"
+        # Fallback: check old defaultProvider format
+        elif grep -q '"defaultProvider".*"local-llama"' /home/agent/.config/opencode/opencode.json; then
             test_pass "OpenCode defaultProvider set to local-llama"
         else
-            test_warn "OpenCode defaultProvider not set (manual selection required)"
+            test_warn "OpenCode default model not set (manual selection required)"
         fi
     else
         test_fail "OpenCode config file not found"

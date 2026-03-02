@@ -18,6 +18,36 @@ log() {
     echo "$LOG_PREFIX $1"
 }
 
+# Resolve hostname to IP address (Wolfi-compatible, no getent)
+# Tries multiple methods: /etc/hosts, ping, Python
+resolve_host() {
+    local hostname="$1"
+    local ip=""
+
+    # Method 1: Check /etc/hosts first
+    ip=$(grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\s+${hostname}" /etc/hosts 2>/dev/null | awk '{print $1}' | head -1)
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return 0
+    fi
+
+    # Method 2: Use ping (shows IP in output even if ping fails due to permissions)
+    ip=$(ping -c 1 -W 1 "$hostname" 2>&1 | grep -oE '\([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\)' | head -1 | tr -d '()')
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return 0
+    fi
+
+    # Method 3: Use Python as fallback (always available in agent container)
+    ip=$(python3 -c "import socket; print(socket.gethostbyname('$hostname'))" 2>/dev/null)
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return 0
+    fi
+
+    return 1
+}
+
 # Check if running as root
 if [ "$(id -u)" -ne 0 ]; then
     log "ERROR: Must run as root for iptables"
@@ -34,7 +64,7 @@ iptables -X TRAFFIC_ENFORCE 2>/dev/null || true
 iptables -N TRAFFIC_ENFORCE
 
 # Get proxy IP from DNS
-PROXY_IP=$(getent hosts "$PROXY_HOST" | awk '{print $1}' | head -1)
+PROXY_IP=$(resolve_host "$PROXY_HOST")
 if [ -z "$PROXY_IP" ]; then
     log "ERROR: Cannot resolve proxy hostname"
     exit 1
@@ -88,7 +118,7 @@ log "Proxy connections allowed"
 iptables -A TRAFFIC_ENFORCE -d 172.30.0.0/24 -j ACCEPT
 
 # Allow connections to llama server on host
-LLAMA_HOST_IP=$(getent hosts "$LLAMA_SERVER_HOST" 2>/dev/null | awk '{print $1}' | head -1)
+LLAMA_HOST_IP=$(resolve_host "$LLAMA_SERVER_HOST" 2>/dev/null)
 if [ -n "$LLAMA_HOST_IP" ]; then
     iptables -A TRAFFIC_ENFORCE -d "$LLAMA_HOST_IP" -p tcp --dport "$LLAMA_SERVER_PORT" -j ACCEPT
     log "Llama server connections allowed to $LLAMA_HOST_IP:$LLAMA_SERVER_PORT"
@@ -97,16 +127,25 @@ else
 fi
 
 # =============================================================================
-# REDIRECT RULES
+# REDIRECT RULES (in nat table - REDIRECT only works in nat)
 # =============================================================================
 
+# Create nat table rules for traffic redirection
+# Note: REDIRECT target only works in nat table, not filter table
+iptables -t nat -F TRAFFIC_REDIRECT 2>/dev/null || true
+iptables -t nat -X TRAFFIC_REDIRECT 2>/dev/null || true
+iptables -t nat -N TRAFFIC_REDIRECT
+
 # Redirect HTTP (port 80) to proxy
-iptables -A TRAFFIC_ENFORCE -p tcp --dport 80 -j REDIRECT --to-ports "$PROXY_PORT"
+iptables -t nat -A TRAFFIC_REDIRECT -p tcp --dport 80 -j REDIRECT --to-ports "$PROXY_PORT"
 log "HTTP traffic redirected to proxy"
 
 # Redirect HTTPS (port 443) to proxy for CONNECT tunneling
-iptables -A TRAFFIC_ENFORCE -p tcp --dport 443 -j REDIRECT --to-ports "$PROXY_PORT"
+iptables -t nat -A TRAFFIC_REDIRECT -p tcp --dport 443 -j REDIRECT --to-ports "$PROXY_PORT"
 log "HTTPS traffic redirected to proxy"
+
+# Apply nat rules to OUTPUT chain
+iptables -t nat -I OUTPUT 1 -j TRAFFIC_REDIRECT
 
 # =============================================================================
 # BLOCK AND LOG RULES

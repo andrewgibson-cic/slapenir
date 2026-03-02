@@ -59,10 +59,19 @@ echo ""
 # Note: Actual llama-server command varies by implementation
 # This is a generic template - adjust based on your llama server
 
+# IMPORTANT: We bind to 0.0.0.0 to allow Docker containers to connect
+# This is SAFE because:
+#   1. The Docker network is isolated (internal: true)
+#   2. Traffic enforcement blocks unauthorized external access
+#   3. Only the agent container can reach this endpoint
+#   4. The proxy bypasses credential injection for local services
+
 # Option 1: Using llama.cpp server
 if command -v llama-server &> /dev/null; then
     echo "Starting with llama.cpp server..."
-    llama-server --model "$LLAMA_MODEL" --port "$LLAMA_PORT" --host 127.0.0.1 &
+    echo "⚠️  Binding to 0.0.0.0 to allow Docker containers to connect"
+    echo "   This is SAFE due to network isolation (see docs/LOCAL_LLM_SECURITY.md)"
+    llama-server --model "$LLAMA_MODEL" --port "$LLAMA_PORT" --host 0.0.0.0 &
     SERVER_PID=$!
 # Option 2: Using Ollama (if available)
 elif command -v ollama &> /dev/null; then

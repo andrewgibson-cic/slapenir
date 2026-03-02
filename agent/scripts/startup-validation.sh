@@ -200,7 +200,105 @@ test_connectivity() {
 }
 
 # ============================================================================
-# Test 4: Credentials - Verify Dummy Values
+# Test 4: Local LLM - Verify Connectivity and Isolation
+# ============================================================================
+
+test_local_llm() {
+    print_header "🤖 Local LLM Validation"
+    
+    # Check if host.docker.internal can be resolved
+    if getent hosts host.docker.internal > /dev/null 2>&1; then
+        test_pass "host.docker.internal resolves (extra_hosts configured)"
+    else
+        test_warn "host.docker.internal does not resolve (extra_hosts may not be configured)"
+    fi
+    
+    # Check if llama-server is accessible
+    if curl -s -f --max-time 3 http://host.docker.internal:8080/v1/models > /dev/null 2>&1; then
+        test_pass "Local llama-server accessible at host.docker.internal:8080"
+        
+        # Try to get models list
+        local models=$(curl -s --max-time 3 http://host.docker.internal:8080/v1/models 2>/dev/null)
+        if echo "$models" | grep -q "model"; then
+            test_pass "llama-server responding with model information"
+        fi
+    else
+        test_warn "Local llama-server not accessible (may not be running)"
+    fi
+    
+    # Check OpenCode configuration
+    if [ -f "/home/agent/.config/opencode/opencode.json" ]; then
+        test_pass "OpenCode config file exists"
+        
+        # Check if local-llama provider is configured
+        if grep -q '"local-llama"' /home/agent/.config/opencode/opencode.json; then
+            test_pass "OpenCode has local-llama provider configured"
+        else
+            test_warn "OpenCode local-llama provider not found in config"
+        fi
+        
+        # Check if default provider is set
+        if grep -q '"defaultProvider".*"local-llama"' /home/agent/.config/opencode/opencode.json; then
+            test_pass "OpenCode defaultProvider set to local-llama"
+        else
+            test_warn "OpenCode defaultProvider not set (manual selection required)"
+        fi
+    else
+        test_fail "OpenCode config file not found"
+    fi
+    
+    # Check traffic enforcement (iptables)
+    if command -v iptables > /dev/null 2>&1; then
+        if iptables -L TRAFFIC_ENFORCE > /dev/null 2>&1; then
+            test_pass "Traffic enforcement iptables chain exists"
+            
+            # Check if DROP rule exists
+            if iptables -L TRAFFIC_ENFORCE | grep -q "DROP"; then
+                test_pass "Traffic enforcement has DROP rule (unauthorized traffic blocked)"
+            else
+                test_warn "Traffic enforcement DROP rule not found"
+            fi
+        else
+            test_warn "Traffic enforcement iptables chain not found (may not be initialized yet)"
+        fi
+    else
+        test_warn "iptables not available"
+    fi
+    
+    # Verify network isolation - external access should be blocked
+    # Test a few common external services
+    local blocked_count=0
+    local tested_count=0
+    
+    # Test 1: Try to reach api.openai.com (should be blocked)
+    tested_count=$((tested_count + 1))
+    if ! timeout 2 curl -s --max-time 2 https://api.openai.com > /dev/null 2>&1; then
+        blocked_count=$((blocked_count + 1))
+    fi
+    
+    # Test 2: Try to reach api.anthropic.com (should be blocked)
+    tested_count=$((tested_count + 1))
+    if ! timeout 2 curl -s --max-time 2 https://api.anthropic.com > /dev/null 2>&1; then
+        blocked_count=$((blocked_count + 1))
+    fi
+    
+    # Test 3: Try to reach google.com (should be blocked)
+    tested_count=$((tested_count + 1))
+    if ! timeout 2 curl -s --max-time 2 https://www.google.com > /dev/null 2>&1; then
+        blocked_count=$((blocked_count + 1))
+    fi
+    
+    if [ $blocked_count -eq $tested_count ]; then
+        test_pass "Network isolation verified ($blocked_count/$tested_count external sites blocked)"
+    elif [ $blocked_count -gt 0 ]; then
+        test_warn "Partial network isolation ($blocked_count/$tested_count external sites blocked)"
+    else
+        test_warn "Network isolation not active (all external sites accessible)"
+    fi
+}
+
+# ============================================================================
+# Test 5: Credentials - Verify Dummy Values
 # ============================================================================
 
 test_credentials() {
@@ -245,6 +343,7 @@ echo -e "${BLUE}╚════════════════════�
 test_security
 test_environment
 test_connectivity
+test_local_llm
 test_credentials
 
 # Print summary

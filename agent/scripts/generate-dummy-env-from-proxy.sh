@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🔒 Generating dummy credentials based on proxy configuration...${NC}"
 
 # Path to proxy env file (mounted or accessible)
-PROXY_ENV_PATH="${PROXY_ENV_PATH:-/tmp/.env.proxy}"
+PROXY_ENV_PATH="${PROXY_ENV_PATH:-/host-env/.env}"
 
 # Mapping of real credential patterns to dummy values
 declare -A DUMMY_MAP=(

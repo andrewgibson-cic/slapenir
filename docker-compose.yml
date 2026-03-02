@@ -149,6 +149,7 @@ services:
       - agent-workspace:/home/agent/workspace
       - agent-certs:/certs:ro  # Read-only certificate access
       - agent-ssh:/home/agent/.ssh  # Persist SSH keys
+      - ~/.claude:/home/agent/.claude:ro  # Claude settings
     healthcheck:
       test: |
         python3 -c "import sys; sys.exit(0)" && \

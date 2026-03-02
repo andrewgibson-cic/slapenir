@@ -16,7 +16,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 
 # Build release binary
-RUN cargo build --release --locked
+RUN cargo build --release
 
 # Runtime stage
 FROM alpine:latest

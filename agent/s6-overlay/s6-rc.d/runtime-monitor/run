@@ -1,0 +1,3 @@
+#!/usr/bin/execlineb -P
+# Runtime Monitor Service - Continuously monitors traffic enforcement
+exec /home/agent/scripts/runtime-monitor.sh

@@ -247,22 +247,30 @@ test_local_llm() {
         test_fail "OpenCode config file not found"
     fi
     
-    # Check traffic enforcement (iptables)
+    # Check traffic enforcement (iptables) - MANDATORY for security
     if command -v iptables > /dev/null 2>&1; then
         if iptables -L TRAFFIC_ENFORCE > /dev/null 2>&1; then
             test_pass "Traffic enforcement iptables chain exists"
             
-            # Check if DROP rule exists
+            # Check if DROP rule exists - MANDATORY
             if iptables -L TRAFFIC_ENFORCE | grep -q "DROP"; then
                 test_pass "Traffic enforcement has DROP rule (unauthorized traffic blocked)"
             else
-                test_warn "Traffic enforcement DROP rule not found"
+                test_fail "CRITICAL: Traffic enforcement DROP rule not found - container is NOT secure!"
+            fi
+            
+            # Count rules to ensure proper setup
+            local rule_count=$(iptables -L TRAFFIC_ENFORCE -n | grep -c "^" || echo "0")
+            if [ "$rule_count" -ge 10 ]; then
+                test_pass "Traffic enforcement has $rule_count rules (properly configured)"
+            else
+                test_fail "CRITICAL: Too few iptables rules ($rule_count) - traffic enforcement incomplete!"
             fi
         else
-            test_warn "Traffic enforcement iptables chain not found (may not be initialized yet)"
+            test_fail "CRITICAL: Traffic enforcement iptables chain NOT found - container is NOT secure!"
         fi
     else
-        test_warn "iptables not available"
+        test_fail "CRITICAL: iptables not available - cannot enforce traffic rules!"
     fi
     
     # Verify network isolation - external access should be blocked

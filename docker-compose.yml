@@ -283,14 +283,20 @@ networks:
   slape-net:
     name: slape-net
     driver: bridge
-    # Environment-aware: internal in production, external in development
-    # In development mode, allows DNS resolution for monitoring tools
-    internal: ${NETWORK_INTERNAL:-true}
+    # Enable external routing for local LLM access (host.docker.internal)
+    # Security is maintained through iptables traffic enforcement:
+    #   - DNS filtering (only trusted servers)
+    #   - Mandatory startup validation
+    #   - Runtime monitoring with auto-shutdown
+    #   - All traffic through proxy or explicitly whitelisted
+    # Set NETWORK_INTERNAL=true for maximum isolation (no local LLM support)
+    internal: ${NETWORK_INTERNAL:-false}
     ipam:
       config:
         - subnet: 172.30.0.0/24
     labels:
-      - "slapenir.network=internal"
+      - "slapenir.network=external-routing-enabled"
+      - "slapenir.security=iptables-enforced"
 
 # ============================================================================
 # Volumes

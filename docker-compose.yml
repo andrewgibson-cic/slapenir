@@ -118,6 +118,9 @@ services:
     hostname: agent
     networks:
       - slape-net
+    # Enable host.docker.internal resolution for local services (llama-server, etc.)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Required for iptables traffic enforcement
     cap_add:
       - NET_ADMIN

@@ -5,10 +5,13 @@
 # Must run as root (via s6-overlay init)
 # Usage: /home/agent/scripts/traffic-enforcement.sh
 
-set -e
+set -euo pipefail
 
-PROXY_HOST="proxy"
-PROXY_PORT="3000"
+# Configuration (can be overridden via environment variables)
+PROXY_HOST="${PROXY_HOST:-proxy}"
+PROXY_PORT="${PROXY_PORT:-3000}"
+LLAMA_SERVER_HOST="${LLAMA_SERVER_HOST:-host.docker.internal}"
+LLAMA_SERVER_PORT="${LLAMA_SERVER_PORT:-8080}"
 LOG_PREFIX="[TRAFFIC-ENFORCE]"
 
 log() {
@@ -68,13 +71,12 @@ log "Proxy connections allowed"
 iptables -A TRAFFIC_ENFORCE -d 172.30.0.0/24 -j ACCEPT
 
 # Allow connections to llama server on host
-LLAMA_HOST_IP=$(getent hosts host.docker.internal | awk '{print $1}' | head -1)
+LLAMA_HOST_IP=$(getent hosts "$LLAMA_SERVER_HOST" 2>/dev/null | awk '{print $1}' | head -1)
 if [ -n "$LLAMA_HOST_IP" ]; then
-    LLAMA_PORT=${LLAMA_SERVER_PORT:-8080}
-    iptables -A TRAFFIC_ENFORCE -d "$LLAMA_HOST_IP" -p tcp --dport "$LLAMA_PORT" -j ACCEPT
-    log "Llama server connections allowed to $LLAMA_HOST_IP:$LLAMA_PORT"
+    iptables -A TRAFFIC_ENFORCE -d "$LLAMA_HOST_IP" -p tcp --dport "$LLAMA_SERVER_PORT" -j ACCEPT
+    log "Llama server connections allowed to $LLAMA_HOST_IP:$LLAMA_SERVER_PORT"
 else
-    log "WARNING: Could not resolve host.docker.internal - llama server connections not allowed"
+    log "WARNING: Could not resolve $LLAMA_SERVER_HOST - llama server connections not allowed"
 fi
 
 # =============================================================================
@@ -112,5 +114,5 @@ log "Summary:"
 log "  - HTTP/HTTPS: Redirected to proxy:$PROXY_PORT"
 log "  - SSH (port 22): Allowed directly"
 log "  - DNS (port 53): Allowed"
-log "  - Llama server (host.docker.internal:$LLAMA_PORT): Allowed"
+log "  - Llama server ($LLAMA_SERVER_HOST:$LLAMA_SERVER_PORT): Allowed"
 log "  - All other traffic: Blocked and logged"

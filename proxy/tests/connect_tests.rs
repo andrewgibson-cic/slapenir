@@ -24,10 +24,7 @@ fn create_test_state() -> AppState {
     secrets.insert("DUMMY_GITHUB".to_string(), "ghp_real_token_456".to_string());
 
     let secret_map = SecretMap::new(secrets).expect("Failed to create SecretMap");
-    AppState::new(
-        Arc::new(secret_map),
-        create_http_client(),
-    )
+    AppState::new(Arc::new(secret_map), create_http_client())
 }
 
 /// Create a mock TCP echo server for testing
@@ -59,6 +56,7 @@ async fn create_mock_server() -> (String, tokio::task::JoinHandle<()>) {
 }
 
 /// Create a mock server that closes immediately
+#[allow(dead_code)]
 async fn create_failing_server() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
@@ -513,7 +511,7 @@ async fn test_memory_cleanup() {
     }
 
     // If we get here without OOM, cleanup is working
-    assert!(true);
+    // Test passed if we reached this point without panic
 }
 
 // ============================================================================
@@ -572,8 +570,8 @@ async fn test_connect_timeout_handling() {
 
     // Should either timeout or return error within 2 seconds
     match result {
-        Ok(Err(_)) => assert!(true, "Connection failed as expected"),
-        Err(_) => assert!(true, "Timeout as expected"),
+        Ok(Err(_)) => {} // Connection failed as expected
+        Err(_) => {}     // Timeout as expected
         Ok(Ok(_)) => panic!("Should not succeed connecting to blackhole"),
     }
 }

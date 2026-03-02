@@ -176,10 +176,7 @@ impl SecretMap {
     }
 
     /// Filter dangerous headers from a HeaderMap
-    pub fn filter_dangerous_headers(
-        headers: &HeaderMap,
-        blocked: &[&str],
-    ) -> HeaderMap {
+    pub fn filter_dangerous_headers(headers: &HeaderMap, blocked: &[&str]) -> HeaderMap {
         let mut filtered = HeaderMap::new();
 
         for (name, value) in headers.iter() {
@@ -227,7 +224,10 @@ impl SecretMap {
         }
 
         if dummy_secrets.is_empty() || real_secrets.is_empty() {
-            return Err("No valid credentials found in strategies. Add API keys to your .env file.".to_string());
+            return Err(
+                "No valid credentials found in strategies. Add API keys to your .env file."
+                    .to_string(),
+            );
         }
 
         if dummy_secrets.len() != real_secrets.len() {

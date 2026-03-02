@@ -219,7 +219,7 @@ mod bearer_strategy_additional_tests {
         headers.insert("x-custom", "value".parse().unwrap());
 
         let body = "test";
-        let result = strategy.inject(body, &mut headers);
+        let _result = strategy.inject(body, &mut headers);
 
         // Should preserve existing headers
         assert!(headers.get("content-type").is_some());

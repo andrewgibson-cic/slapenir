@@ -7,8 +7,10 @@
 //! - E: Content-Length desynchronization
 //! - G: Automaton recreation performance
 
+use slapenir_proxy::proxy::{
+    build_response_headers, ProxyConfig, DEFAULT_MAX_REQUEST_SIZE, DEFAULT_MAX_RESPONSE_SIZE,
+};
 use slapenir_proxy::sanitizer::SecretMap;
-use slapenir_proxy::proxy::{ProxyConfig, build_response_headers, DEFAULT_MAX_REQUEST_SIZE, DEFAULT_MAX_RESPONSE_SIZE};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -22,16 +24,18 @@ mod non_utf8_bypass {
     #[test]
     fn test_binary_payload_with_embedded_secret() {
         let mut secrets = HashMap::new();
-        secrets.insert("DUMMY_API_KEY".to_string(), "sk-secret-key-12345".to_string());
+        secrets.insert(
+            "DUMMY_API_KEY".to_string(),
+            "sk-secret-key-12345".to_string(),
+        );
         let map = SecretMap::new(secrets).unwrap();
 
         // Create binary payload with embedded secret and invalid UTF-8
         let binary_with_secret: Vec<u8> = vec![
             0x89, 0x50, 0x4E, 0x47, // PNG magic bytes (valid)
-            0x0D, 0x0A, 0x1A, 0x0A,
-            // Embedded secret in the middle
-            b's', b'k', b'-', b's', b'e', b'c', b'r', b'e', b't', b'-',
-            b'k', b'e', b'y', b'-', b'1', b'2', b'3', b'4', b'5',
+            0x0D, 0x0A, 0x1A, 0x0A, // Embedded secret in the middle
+            b's', b'k', b'-', b's', b'e', b'c', b'r', b'e', b't', b'-', b'k', b'e', b'y', b'-',
+            b'1', b'2', b'3', b'4', b'5',
             // Invalid UTF-8 sequence (continuation byte without start)
             0x80, 0x81, 0x82,
         ];
@@ -43,7 +47,9 @@ mod non_utf8_bypass {
         // Verify secret is redacted
         let secret_bytes = b"sk-secret-key-12345";
         assert!(
-            !sanitized_vec.windows(secret_bytes.len()).any(|w| w == secret_bytes),
+            !sanitized_vec
+                .windows(secret_bytes.len())
+                .any(|w| w == secret_bytes),
             "SECRET LEAKED: Binary payload contains unsanitized secret!"
         );
 
@@ -72,7 +78,9 @@ mod non_utf8_bypass {
         // Secret must be redacted even with invalid UTF-8
         let secret_bytes = b"ghp_tokensecret123";
         assert!(
-            !sanitized_vec.windows(secret_bytes.len()).any(|w| w == secret_bytes),
+            !sanitized_vec
+                .windows(secret_bytes.len())
+                .any(|w| w == secret_bytes),
             "SECRET LEAKED: Base64 payload contains unsanitized secret!"
         );
     }
@@ -92,7 +100,9 @@ mod non_utf8_bypass {
 
         let secret_bytes = b"AWS_SECRET_KEY_12345";
         assert!(
-            !sanitized_vec.windows(secret_bytes.len()).any(|w| w == secret_bytes),
+            !sanitized_vec
+                .windows(secret_bytes.len())
+                .any(|w| w == secret_bytes),
             "SECRET LEAKED: Split secret not sanitized!"
         );
     }
@@ -114,15 +124,21 @@ mod non_utf8_bypass {
 
         let secret_bytes = b"real_secret";
         assert!(
-            !sanitized_vec.windows(secret_bytes.len()).any(|w| w == secret_bytes),
+            !sanitized_vec
+                .windows(secret_bytes.len())
+                .any(|w| w == secret_bytes),
             "SECRET LEAKED: Mixed UTF-8 payload contains unsanitized secret!"
         );
 
         // Count redactions - should find both instances
-        let redacted_count = sanitized_vec.windows(10)
+        let redacted_count = sanitized_vec
+            .windows(10)
             .filter(|w| *w == b"[REDACTED]")
             .count();
-        assert_eq!(redacted_count, 2, "Both secret instances should be redacted");
+        assert_eq!(
+            redacted_count, 2,
+            "Both secret instances should be redacted"
+        );
     }
 }
 
@@ -138,12 +154,21 @@ mod header_url_sanitization {
     #[test]
     fn test_secret_in_response_header() {
         let mut secrets = HashMap::new();
-        secrets.insert("DUMMY_API_KEY".to_string(), "sk-leaked-in-header".to_string());
+        secrets.insert(
+            "DUMMY_API_KEY".to_string(),
+            "sk-leaked-in-header".to_string(),
+        );
         let map = SecretMap::new(secrets).unwrap();
 
         let mut headers = HeaderMap::new();
-        headers.insert("x-custom-token", HeaderValue::from_static("sk-leaked-in-header"));
-        headers.insert("x-request-id", HeaderValue::from_static("req-123-sk-leaked-in-header-456"));
+        headers.insert(
+            "x-custom-token",
+            HeaderValue::from_static("sk-leaked-in-header"),
+        );
+        headers.insert(
+            "x-request-id",
+            HeaderValue::from_static("req-123-sk-leaked-in-header-456"),
+        );
 
         let sanitized_headers = map.sanitize_headers(&headers);
 
@@ -152,7 +177,8 @@ mod header_url_sanitization {
             if let Ok(v) = value.to_str() {
                 assert!(
                     !v.contains("sk-leaked-in-header"),
-                    "SECRET LEAKED: Header contains unsanitized secret: {}", v
+                    "SECRET LEAKED: Header contains unsanitized secret: {}",
+                    v
                 );
             }
         }
@@ -162,13 +188,16 @@ mod header_url_sanitization {
     #[test]
     fn test_secret_in_cookie_header() {
         let mut secrets = HashMap::new();
-        secrets.insert("DUMMY_SESSION".to_string(), "session_secret_abc".to_string());
+        secrets.insert(
+            "DUMMY_SESSION".to_string(),
+            "session_secret_abc".to_string(),
+        );
         let map = SecretMap::new(secrets).unwrap();
 
         let mut headers = HeaderMap::new();
         headers.insert(
             "set-cookie",
-            HeaderValue::from_static("session=session_secret_abc; Path=/; HttpOnly")
+            HeaderValue::from_static("session=session_secret_abc; Path=/; HttpOnly"),
         );
 
         let sanitized_headers = map.sanitize_headers(&headers);
@@ -191,7 +220,7 @@ mod header_url_sanitization {
         let mut headers = HeaderMap::new();
         headers.insert(
             "location",
-            HeaderValue::from_static("https://api.example.com/callback?token=token_xyz789")
+            HeaderValue::from_static("https://api.example.com/callback?token=token_xyz789"),
         );
 
         let sanitized_headers = map.sanitize_headers(&headers);
@@ -210,14 +239,26 @@ mod header_url_sanitization {
         let mut headers = HeaderMap::new();
         headers.insert("x-debug-token", HeaderValue::from_static("debug-info"));
         headers.insert("server-timing", HeaderValue::from_static("db;dur=53"));
-        headers.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
+        headers.insert(
+            "x-content-type-options",
+            HeaderValue::from_static("nosniff"),
+        );
 
         let blocked_headers = SecretMap::get_blocked_headers();
         let filtered = SecretMap::filter_dangerous_headers(&headers, &blocked_headers);
 
-        assert!(!filtered.contains_key("x-debug-token"), "x-debug-token should be removed");
-        assert!(!filtered.contains_key("server-timing"), "server-timing should be removed");
-        assert!(filtered.contains_key("x-content-type-options"), "Safe headers should be preserved");
+        assert!(
+            !filtered.contains_key("x-debug-token"),
+            "x-debug-token should be removed"
+        );
+        assert!(
+            !filtered.contains_key("server-timing"),
+            "server-timing should be removed"
+        );
+        assert!(
+            filtered.contains_key("x-content-type-options"),
+            "Safe headers should be preserved"
+        );
     }
 }
 
@@ -241,7 +282,7 @@ mod memory_limits {
     #[test]
     fn test_proxy_config_custom() {
         let config = ProxyConfig {
-            max_request_size: 1024,      // 1KB
+            max_request_size: 1024,       // 1KB
             max_response_size: 10 * 1024, // 10KB
         };
 
@@ -271,7 +312,10 @@ mod content_length_desync {
     #[test]
     fn test_content_length_recalculation() {
         let mut secrets = HashMap::new();
-        secrets.insert("DUMMY".to_string(), "this_is_a_very_long_secret_key".to_string());
+        secrets.insert(
+            "DUMMY".to_string(),
+            "this_is_a_very_long_secret_key".to_string(),
+        );
         let map = SecretMap::new(secrets).unwrap();
 
         let original_body = "Token: this_is_a_very_long_secret_key";
@@ -281,8 +325,10 @@ mod content_length_desync {
         let sanitized_len = sanitized.len();
 
         // Sanitized should be different length
-        assert_ne!(original_len, sanitized_len,
-            "Content-Length should change after sanitization");
+        assert_ne!(
+            original_len, sanitized_len,
+            "Content-Length should change after sanitization"
+        );
 
         // Verify the correct Content-Length would be calculated
         assert!(sanitized.contains("[REDACTED]"));
@@ -300,13 +346,18 @@ mod content_length_desync {
         let response_headers = build_response_headers(&headers, sanitized_body.len());
 
         // Transfer-Encoding should be removed
-        assert!(!response_headers.contains_key("transfer-encoding"),
-            "Transfer-Encoding should be removed when Content-Length is set");
+        assert!(
+            !response_headers.contains_key("transfer-encoding"),
+            "Transfer-Encoding should be removed when Content-Length is set"
+        );
 
         // Content-Length should be correct
         if let Some(cl) = response_headers.get("content-length") {
-            assert_eq!(cl.to_str().unwrap(), "23",
-                "Content-Length should match sanitized body length");
+            assert_eq!(
+                cl.to_str().unwrap(),
+                "23",
+                "Content-Length should match sanitized body length"
+            );
         }
     }
 
@@ -320,10 +371,14 @@ mod content_length_desync {
         let response_headers = build_response_headers(&headers, 100);
 
         // Checksums should be removed since body changed
-        assert!(!response_headers.contains_key("etag"),
-            "ETag should be removed (body was modified)");
-        assert!(!response_headers.contains_key("content-md5"),
-            "Content-MD5 should be removed (body was modified)");
+        assert!(
+            !response_headers.contains_key("etag"),
+            "ETag should be removed (body was modified)"
+        );
+        assert!(
+            !response_headers.contains_key("content-md5"),
+            "Content-MD5 should be removed (body was modified)"
+        );
     }
 }
 
@@ -342,12 +397,13 @@ mod automaton_caching {
         for i in 0..50 {
             secrets.insert(
                 format!("DUMMY_{}", i),
-                format!("secret_key_number_{}_with_padding", i)
+                format!("secret_key_number_{}_with_padding", i),
             );
         }
         let map = SecretMap::new(secrets).unwrap();
 
-        let test_data = "Data with secret_key_number_25_with_padding and secret_key_number_10_with_padding";
+        let test_data =
+            "Data with secret_key_number_25_with_padding and secret_key_number_10_with_padding";
 
         // Warm up
         for _ in 0..10 {
@@ -385,7 +441,10 @@ mod integration {
     #[test]
     fn test_full_binary_response_sanitization() {
         let mut secrets = HashMap::new();
-        secrets.insert("DUMMY_GITHUB".to_string(), "ghp_real_github_token".to_string());
+        secrets.insert(
+            "DUMMY_GITHUB".to_string(),
+            "ghp_real_github_token".to_string(),
+        );
         secrets.insert("DUMMY_OPENAI".to_string(), "sk-real-openai-key".to_string());
         let map = SecretMap::new(secrets).unwrap();
 
@@ -411,11 +470,16 @@ mod integration {
         let sanitized_vec = sanitized.into_owned();
 
         // Verify no secrets remain
-        assert!(!sanitized_vec.windows(22).any(|w| w == b"ghp_real_github_token"));
-        assert!(!sanitized_vec.windows(19).any(|w| w == b"sk-real-openai-key"));
+        assert!(!sanitized_vec
+            .windows(22)
+            .any(|w| w == b"ghp_real_github_token"));
+        assert!(!sanitized_vec
+            .windows(19)
+            .any(|w| w == b"sk-real-openai-key"));
 
         // Verify redactions present
-        let redacted_count = sanitized_vec.windows(10)
+        let redacted_count = sanitized_vec
+            .windows(10)
             .filter(|w| *w == b"[REDACTED]")
             .count();
         assert_eq!(redacted_count, 2, "Both secrets should be redacted");

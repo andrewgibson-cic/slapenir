@@ -50,10 +50,7 @@ async fn main() -> anyhow::Result<()> {
     // Load secrets using strategy pattern with auto-detection
     let secret_map = load_secrets_with_strategies().await?;
 
-    let app_state = AppState::new(
-        std::sync::Arc::new(secret_map),
-        proxy::create_http_client(),
-    );
+    let app_state = AppState::new(std::sync::Arc::new(secret_map), proxy::create_http_client());
 
     // Build our application with routes
     let mut app = Router::new()
@@ -186,7 +183,10 @@ async fn load_secrets_with_strategies() -> anyhow::Result<SecretMap> {
                 match detector.scan().await {
                     Ok(result) => {
                         if !result.detected.is_empty() {
-                            tracing::info!("🔍 Auto-detected {} API(s) from database", result.detected.len());
+                            tracing::info!(
+                                "🔍 Auto-detected {} API(s) from database",
+                                result.detected.len()
+                            );
 
                             // Build strategies from auto-detected configs
                             match AutoDetector::build_strategies(&result.detected) {
@@ -194,11 +194,17 @@ async fn load_secrets_with_strategies() -> anyhow::Result<SecretMap> {
                                     if has_manual_config {
                                         // Merge: auto-detected only adds strategies not in manual config
                                         let manual_names: std::collections::HashSet<String> =
-                                            all_strategies.iter().map(|s| s.name().to_string()).collect();
+                                            all_strategies
+                                                .iter()
+                                                .map(|s| s.name().to_string())
+                                                .collect();
 
                                         for strategy in auto_strategies {
                                             if !manual_names.contains(strategy.name()) {
-                                                tracing::info!("  ➕ Adding auto-detected strategy: {}", strategy.name());
+                                                tracing::info!(
+                                                    "  ➕ Adding auto-detected strategy: {}",
+                                                    strategy.name()
+                                                );
                                                 all_strategies.push(strategy);
                                             }
                                         }
@@ -208,7 +214,10 @@ async fn load_secrets_with_strategies() -> anyhow::Result<SecretMap> {
                                     }
                                 }
                                 Err(e) => {
-                                    tracing::warn!("⚠️  Failed to build auto-detected strategies: {}", e);
+                                    tracing::warn!(
+                                        "⚠️  Failed to build auto-detected strategies: {}",
+                                        e
+                                    );
                                 }
                             }
                         }

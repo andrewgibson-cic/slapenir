@@ -2,8 +2,8 @@
 // Scans environment variables and matches against PostgreSQL database of known APIs
 
 use crate::config::{StrategyConfig, StrategyParams};
-use crate::strategy::AuthStrategy;
 use crate::strategies::AWSSigV4Strategy;
+use crate::strategy::AuthStrategy;
 use crate::strategy::BearerStrategy;
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::Row;
@@ -117,7 +117,10 @@ impl AutoDetector {
 
         // Get all environment variables
         let env_vars: HashSet<String> = env::vars().map(|(k, _)| k).collect();
-        tracing::debug!("Scanning {} environment variables for known APIs", env_vars.len());
+        tracing::debug!(
+            "Scanning {} environment variables for known APIs",
+            env_vars.len()
+        );
 
         // Query database for APIs that match any of the env vars
         let apis = self.query_matching_apis(&env_vars).await?;
@@ -134,10 +137,7 @@ impl AutoDetector {
             }
 
             // Check if any of the API's env vars are set
-            let matching_env_var = api
-                .env_vars
-                .iter()
-                .find(|ev| env_vars.contains(*ev));
+            let matching_env_var = api.env_vars.iter().find(|ev| env_vars.contains(*ev));
 
             if let Some(env_var) = matching_env_var {
                 tracing::info!(
@@ -152,7 +152,10 @@ impl AutoDetector {
                 matched_env_vars.push(env_var.clone());
 
                 if detected.len() >= self.config.max_strategies {
-                    tracing::warn!("Reached max strategies limit ({})", self.config.max_strategies);
+                    tracing::warn!(
+                        "Reached max strategies limit ({})",
+                        self.config.max_strategies
+                    );
                     break;
                 }
             }
@@ -177,10 +180,7 @@ impl AutoDetector {
         );
 
         if !unmatched_env_vars.is_empty() {
-            tracing::debug!(
-                "Unmatched potential API keys: {:?}",
-                unmatched_env_vars
-            );
+            tracing::debug!("Unmatched potential API keys: {:?}", unmatched_env_vars);
         }
 
         Ok(AutoDetectResult {
@@ -191,7 +191,10 @@ impl AutoDetector {
     }
 
     /// Query database for APIs matching the given environment variables
-    async fn query_matching_apis(&self, env_vars: &HashSet<String>) -> Result<Vec<ApiDefinition>, String> {
+    async fn query_matching_apis(
+        &self,
+        env_vars: &HashSet<String>,
+    ) -> Result<Vec<ApiDefinition>, String> {
         let env_var_list: Vec<String> = env_vars.iter().cloned().collect();
 
         let rows = sqlx::query(
@@ -203,7 +206,7 @@ impl AutoDetector {
             WHERE is_active = true
             AND env_vars && $1::text[]
             ORDER BY name
-            "#
+            "#,
         )
         .bind(&env_var_list)
         .fetch_all(&self.pool)
@@ -277,13 +280,17 @@ impl AutoDetector {
                 || value.starts_with("xoxp-")
                 || value.starts_with("AKIA")
                 || value.starts_with("AIza")
-                || value.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_'));
+                || value
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '-' || c == '_'));
 
         is_api_key_pattern && value_looks_like_secret
     }
 
     /// Build AuthStrategy instances from detected configurations
-    pub fn build_strategies(configs: &[StrategyConfig]) -> Result<Vec<Box<dyn AuthStrategy>>, String> {
+    pub fn build_strategies(
+        configs: &[StrategyConfig],
+    ) -> Result<Vec<Box<dyn AuthStrategy>>, String> {
         let mut strategies: Vec<Box<dyn AuthStrategy>> = Vec::new();
 
         for config in configs {
@@ -293,9 +300,11 @@ impl AutoDetector {
                         format!("Bearer strategy '{}' missing env_var", config.name)
                     })?;
 
-                    let dummy_pattern = config.config.dummy_pattern.clone().unwrap_or_else(|| {
-                        format!("DUMMY_{}", config.name.to_uppercase())
-                    });
+                    let dummy_pattern = config
+                        .config
+                        .dummy_pattern
+                        .clone()
+                        .unwrap_or_else(|| format!("DUMMY_{}", config.name.to_uppercase()));
 
                     match BearerStrategy::new(
                         config.name.clone(),
@@ -310,22 +319,35 @@ impl AutoDetector {
                         Err(e) => {
                             tracing::warn!(
                                 "Failed to build bearer strategy '{}': {}",
-                                config.name, e
+                                config.name,
+                                e
                             );
                         }
                     }
                 }
 
                 "aws_sigv4" => {
-                    let access_key_env = config.config.access_key_env.as_ref().ok_or_else(|| {
-                        format!("AWS SigV4 strategy '{}' missing access_key_env", config.name)
-                    })?;
+                    let access_key_env =
+                        config.config.access_key_env.as_ref().ok_or_else(|| {
+                            format!(
+                                "AWS SigV4 strategy '{}' missing access_key_env",
+                                config.name
+                            )
+                        })?;
 
-                    let secret_key_env = config.config.secret_key_env.as_ref().ok_or_else(|| {
-                        format!("AWS SigV4 strategy '{}' missing secret_key_env", config.name)
-                    })?;
+                    let secret_key_env =
+                        config.config.secret_key_env.as_ref().ok_or_else(|| {
+                            format!(
+                                "AWS SigV4 strategy '{}' missing secret_key_env",
+                                config.name
+                            )
+                        })?;
 
-                    let region = config.config.region.clone().unwrap_or_else(|| "us-east-1".to_string());
+                    let region = config
+                        .config
+                        .region
+                        .clone()
+                        .unwrap_or_else(|| "us-east-1".to_string());
 
                     match AWSSigV4Strategy::new(
                         config.name.clone(),
@@ -342,7 +364,8 @@ impl AutoDetector {
                         Err(e) => {
                             tracing::warn!(
                                 "Failed to build AWS SigV4 strategy '{}': {}",
-                                config.name, e
+                                config.name,
+                                e
                             );
                         }
                     }
@@ -354,9 +377,11 @@ impl AutoDetector {
                         config.name
                     );
                     if let Some(env_var) = &config.config.env_var {
-                        let dummy_pattern = config.config.dummy_pattern.clone().unwrap_or_else(|| {
-                            format!("DUMMY_{}", config.name.to_uppercase())
-                        });
+                        let dummy_pattern = config
+                            .config
+                            .dummy_pattern
+                            .clone()
+                            .unwrap_or_else(|| format!("DUMMY_{}", config.name.to_uppercase()));
 
                         match BearerStrategy::new(
                             config.name.clone(),
@@ -365,13 +390,17 @@ impl AutoDetector {
                             config.config.allowed_hosts.clone(),
                         ) {
                             Ok(strategy) => {
-                                tracing::debug!("Built HMAC strategy as bearer for '{}'", config.name);
+                                tracing::debug!(
+                                    "Built HMAC strategy as bearer for '{}'",
+                                    config.name
+                                );
                                 strategies.push(Box::new(strategy));
                             }
                             Err(e) => {
                                 tracing::warn!(
                                     "Failed to build HMAC strategy '{}': {}",
-                                    config.name, e
+                                    config.name,
+                                    e
                                 );
                             }
                         }
@@ -379,7 +408,11 @@ impl AutoDetector {
                 }
 
                 _ => {
-                    tracing::warn!("Unknown strategy type '{}' for '{}'", config.strategy_type, config.name);
+                    tracing::warn!(
+                        "Unknown strategy type '{}' for '{}'",
+                        config.strategy_type,
+                        config.name
+                    );
                 }
             }
         }
@@ -488,6 +521,9 @@ mod tests {
         assert!(merged.iter().any(|s| s.name == "anthropic"));
 
         let openai = merged.iter().find(|s| s.name == "openai").unwrap();
-        assert_eq!(openai.config.env_var, Some("MY_CUSTOM_OPENAI_KEY".to_string()));
+        assert_eq!(
+            openai.config.env_var,
+            Some("MY_CUSTOM_OPENAI_KEY".to_string())
+        );
     }
 }

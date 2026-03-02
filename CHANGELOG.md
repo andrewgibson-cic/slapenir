@@ -1,3 +1,16 @@
+## [1.2.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.1.0...v1.2.0) (2026-03-02)
+
+
+### Features
+
+* add zero-leak local AI setup with OpenCode ([17a29ea](https://github.com/andrewgibson-cic/slapenir/commit/17a29eaf0971264606bb90492a41a56dd2ead65a))
+* add zero-leak local AI setup with OpenCode ([1ed62c7](https://github.com/andrewgibson-cic/slapenir/commit/1ed62c772515e5be4e7365d3b6b233991736198b))
+
+
+### Bug Fixes
+
+* add error handling and use env vars in traffic-enforcement.sh ([3ddc412](https://github.com/andrewgibson-cic/slapenir/commit/3ddc4128df2632afb590b728b01df1dc81f6e124))
+
 ## [1.1.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.0.1...v1.1.0) (2026-02-24)
 
 

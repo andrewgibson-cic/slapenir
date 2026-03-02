@@ -59,7 +59,11 @@ RUN mkdir -p /home/agent/certs \
     chown -R agent:agent /home/agent
 
 # Copy s6 service configuration
-COPY s6-overlay/ /etc/s6-overlay/
+COPY s6-overlay/s6-rc.d/ /etc/s6-overlay/s6-rc.d/
+
+# Copy cont-init.d scripts to the correct location for s6-overlay
+COPY s6-overlay/cont-init.d/ /etc/cont-init.d/
+RUN chmod +x /etc/cont-init.d/* 2>/dev/null || true
 
 # Copy agent scripts
 COPY scripts/ /home/agent/scripts/
@@ -76,8 +80,8 @@ RUN pip install --no-cache-dir --break-system-packages \
 # Set working directory
 WORKDIR /home/agent/workspace
 
-# Switch to agent user
-USER agent
+# Don't use USER directive - run as root for iptables traffic enforcement
+# s6-overlay will drop privileges for user services via S6_RUNASUSER
 
 # Environment variables
 ENV PYTHON_VERSION=3.11 \
@@ -85,9 +89,12 @@ ENV PYTHON_VERSION=3.11 \
     HOME=/home/agent \
     PATH=/home/agent/.local/bin:$PATH
 
-# Health check
+# Configure s6-overlay to run user services as agent
+ENV S6_RUNASUSER=agent
+
+# Health check (run as agent user)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "import sys; sys.exit(0)" || exit 1
+    CMD su - agent -c "python3 -c 'import sys; sys.exit(0)'" || exit 1
 
 # Use s6-overlay as init system
 ENTRYPOINT ["/init"]

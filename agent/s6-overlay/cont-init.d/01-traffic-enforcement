@@ -1,0 +1,15 @@
+#!/bin/bash
+# SLAPENIR Traffic Enforcement Initialization
+# Runs during container initialization to set up iptables rules
+# Container runs as root, so this script has root privileges
+
+# Only run if traffic enforcement is enabled
+if [ "${TRAFFIC_ENFORCEMENT_ENABLED:-true}" != "true" ]; then
+    echo "[traffic-init] Traffic enforcement disabled, skipping"
+    exit 0
+fi
+
+echo "[traffic-init] Setting up traffic enforcement rules..."
+
+# Run the traffic enforcement script (runs as root)
+exec /home/agent/scripts/traffic-enforcement.sh

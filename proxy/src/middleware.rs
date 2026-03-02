@@ -37,7 +37,11 @@ impl AppState {
     }
 
     /// Create an AppState with custom configuration
-    pub fn with_config(secret_map: Arc<SecretMap>, http_client: HttpClient, config: ProxyConfig) -> Self {
+    pub fn with_config(
+        secret_map: Arc<SecretMap>,
+        http_client: HttpClient,
+        config: ProxyConfig,
+    ) -> Self {
         Self {
             secret_map,
             http_client,
@@ -56,7 +60,8 @@ pub async fn inject_secrets_middleware(
     next: Next,
 ) -> impl IntoResponse {
     // Get max request size from config
-    let max_size = state.config
+    let max_size = state
+        .config
         .as_ref()
         .map(|c| c.max_request_size)
         .unwrap_or(DEFAULT_MAX_REQUEST_SIZE);
@@ -117,7 +122,8 @@ pub async fn sanitize_secrets_middleware(
     next: Next,
 ) -> impl IntoResponse {
     // Get max response size from config
-    let max_size = state.config
+    let max_size = state
+        .config
         .as_ref()
         .map(|c| c.max_response_size)
         .unwrap_or(DEFAULT_MAX_RESPONSE_SIZE);
@@ -165,7 +171,8 @@ pub async fn sanitize_secrets_middleware(
     let sanitized_headers = state.secret_map.sanitize_headers(&parts.headers);
 
     // SECURITY FIX E: Build headers with correct Content-Length
-    let final_headers = crate::proxy::build_response_headers(&sanitized_headers, sanitized_bytes.len());
+    let final_headers =
+        crate::proxy::build_response_headers(&sanitized_headers, sanitized_bytes.len());
 
     // Build final response
     let mut response_builder = Response::builder().status(parts.status);

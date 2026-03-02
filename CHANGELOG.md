@@ -1,3 +1,10 @@
+## [1.5.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.5.1...v1.5.2) (2026-03-02)
+
+
+### Bug Fixes
+
+* Correct runtime-monitor run script for longrun service ([eb09e66](https://github.com/andrewgibson-cic/slapenir/commit/eb09e66c350b942d90343f8594cdadc7b3eb2048))
+
 ## [1.5.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.5.0...v1.5.1) (2026-03-02)
 
 

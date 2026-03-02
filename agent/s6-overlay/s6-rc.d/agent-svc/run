@@ -13,6 +13,19 @@ if [ ! -f /home/agent/certs/cert.pem ]; then
     /home/agent/scripts/bootstrap-certs.sh
 fi
 
+# Copy Claude commands and skills to OpenCode directories
+if [ -d /home/agent/.claude/commands ]; then
+    mkdir -p /home/agent/.config/opencode/commands
+    cp /home/agent/.claude/commands/*.md /home/agent/.config/opencode/commands/ 2>/dev/null || true
+    echo "[agent-svc] Copied Claude commands to OpenCode"
+fi
+
+if [ -d /home/agent/.claude/skills ]; then
+    mkdir -p /home/agent/.config/opencode/skills
+    cp /home/agent/.claude/skills/*.md /home/agent/.config/opencode/skills/ 2>/dev/null || true
+    echo "[agent-svc] Copied Claude skills to OpenCode"
+fi
+
 # Set HTTP proxy to use the SLAPENIR proxy
 export HTTP_PROXY="https://proxy:443"
 export HTTPS_PROXY="https://proxy:443"

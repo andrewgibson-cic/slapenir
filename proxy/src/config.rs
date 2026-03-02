@@ -37,11 +37,17 @@ pub struct AutoDetectSection {
 
 impl Default for AutoDetectSection {
     fn default() -> Self {
-        Self { enabled: true, exclude: Vec::new(), max_strategies: 100 }
+        Self {
+            enabled: true,
+            exclude: Vec::new(),
+            max_strategies: 100,
+        }
     }
 }
 
-fn default_max_strategies() -> usize { 100 }
+fn default_max_strategies() -> usize {
+    100
+}
 
 /// Strategy configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

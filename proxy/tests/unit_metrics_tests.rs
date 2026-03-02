@@ -22,7 +22,7 @@ mod metrics_comprehensive_tests {
     fn test_metrics_registry_gather() {
         let _families = REGISTRY.gather();
         // Registry should contain metrics (always returns vec, may be empty)
-        assert!(true); // Registry exists if we get here
+        // Registry exists if we get here
     }
 
     // ===== HTTP Request Metrics Tests =====
@@ -301,9 +301,9 @@ mod metrics_comprehensive_tests {
         let result = gather_metrics();
         assert!(result.is_ok());
 
-        let metrics = result.unwrap();
+        let _metrics = result.unwrap();
         // Metrics may be empty if not initialized, which is acceptable
-        assert!(metrics.len() >= 0);
+        // len() is always >= 0 for usize
     }
 
     #[test]
@@ -345,11 +345,11 @@ mod metrics_comprehensive_tests {
     fn test_gather_metrics_includes_uptime() {
         let _ = init_metrics();
 
-        let result = gather_metrics().unwrap();
+        let _result = gather_metrics().unwrap();
 
         // If metrics present, may include uptime
         // Empty result is acceptable
-        assert!(result.is_empty() || result.len() >= 0);
+        // len() is always >= 0 for usize
     }
 
     // ===== Request Size Metrics Tests =====

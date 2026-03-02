@@ -16,7 +16,7 @@ pub mod strategy;
 pub mod tls;
 
 // Re-export commonly used types
-pub use auto_detect::{AutoDetectConfig, AutoDetector, merge_strategies};
+pub use auto_detect::{merge_strategies, AutoDetectConfig, AutoDetector};
 pub use builder::{build_strategies_from_config, is_telemetry_domain};
 pub use config::{Config, SecurityConfig, StrategyConfig};
 pub use middleware::{inject_secrets_middleware, sanitize_secrets_middleware, AppState};

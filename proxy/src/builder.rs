@@ -120,12 +120,9 @@ pub fn is_telemetry_domain(host: &str, telemetry_domains: &[String]) -> bool {
                 return true;
             }
         }
-        // Exact match
-        else if host_lower == domain_lower {
-            return true;
-        }
-        // Subdomain match (domain matches as base)
-        else if host_lower.ends_with(&format!(".{}", domain_lower)) {
+        // Exact match or subdomain match
+        else if host_lower == domain_lower || host_lower.ends_with(&format!(".{}", domain_lower))
+        {
             return true;
         }
     }

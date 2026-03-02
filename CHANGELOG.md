@@ -1,3 +1,11 @@
+## [1.7.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.6.0...v1.7.0) (2026-03-02)
+
+
+### Features
+
+* Add host git/SSH/GPG config for agent container ([3ee303e](https://github.com/andrewgibson-cic/slapenir/commit/3ee303e5172817708b3b01002abe9b96e9af754e))
+* Add host git/SSH/GPG config for agent container ([2ee26ee](https://github.com/andrewgibson-cic/slapenir/commit/2ee26ee4c3ed0f2e56186a2d42dd5f6f7920fdae))
+
 ## [1.6.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.5.2...v1.6.0) (2026-03-02)
 
 

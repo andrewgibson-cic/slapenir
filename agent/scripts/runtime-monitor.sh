@@ -55,20 +55,20 @@ while true; do
                 log "Traffic enforcement restored (was failing)"
             fi
             FAILURE_COUNT=0
-            
-            # Check for bypass attempts in kernel logs
-            if command -v dmesg > /dev/null 2>&1; then
-                BYPASS_COUNT=$(dmesg | grep -c "BYPASS-ATTEMPT" || echo "0")
-                if [ "$BYPASS_COUNT" -gt 0 ]; then
+
+            # Check for bypass attempts in kernel logs (skip if dmesg not available)
+            if command -v dmesg > /dev/null 2>&1 && dmesg > /dev/null 2>&1; then
+                BYPASS_COUNT=$(dmesg | grep -c "BYPASS-ATTEMPT" 2>/dev/null || echo 0)
+                if [ "$BYPASS_COUNT" -gt 0 ] 2>/dev/null; then
                     log "⚠ Detected $BYPASS_COUNT bypass attempts in kernel log"
-                    dmesg | grep "BYPASS-ATTEMPT" | tail -5 >> "$BYPASS_LOG"
+                    dmesg | grep "BYPASS-ATTEMPT" | tail -5 >> "$BYPASS_LOG" 2>/dev/null
                 fi
             fi
-            
+
             # Check for DNS block attempts
-            if command -v dmesg > /dev/null 2>&1; then
-                DNS_BLOCK_COUNT=$(dmesg | grep -c "DNS-BLOCK" || echo "0")
-                if [ "$DNS_BLOCK_COUNT" -gt 0 ]; then
+            if command -v dmesg > /dev/null 2>&1 && dmesg > /dev/null 2>&1; then
+                DNS_BLOCK_COUNT=$(dmesg | grep -c "DNS-BLOCK" 2>/dev/null || echo 0)
+                if [ "$DNS_BLOCK_COUNT" -gt 0 ] 2>/dev/null; then
                     log "⚠ Detected $DNS_BLOCK_COUNT unauthorized DNS attempts"
                 fi
             fi

@@ -161,6 +161,21 @@ fn should_bypass_proxy(uri: &Uri, headers: &HeaderMap) -> bool {
         }
     }
 
+    // Check Host header for local endpoints (HTTP_PROXY scenario)
+    // When using HTTP_PROXY, the Host header may contain the original target
+    if let Some(host) = headers.get("host") {
+        if let Ok(host_str) = host.to_str() {
+            let host_lower = host_str.to_lowercase();
+            if host_lower.contains("localhost")
+                || host_lower.starts_with("127.0.0.1")
+                || host_lower.contains("host.docker.internal")
+            {
+                tracing::debug!("Bypassing proxy for local host: {}", host_str);
+                return true;
+            }
+        }
+    }
+
     // Check target URL from uri path
     let path = uri.path().to_lowercase();
     if path.contains("localhost")
@@ -353,7 +368,30 @@ fn determine_target_url(headers: &HeaderMap, uri: &Uri) -> Result<String, ProxyE
         ));
     }
 
-    // Default to OpenAI API
+    // Check Host header for target (HTTP_PROXY scenario)
+    // When using HTTP_PROXY, the Host header contains the original target
+    if let Some(host) = headers.get("host") {
+        let host_str = host
+            .to_str()
+            .map_err(|e| ProxyError::InvalidTargetUrl(e.to_string()))?;
+
+        // Only use Host header if it looks like an external target (not the proxy itself)
+        // The proxy runs on port 3000, so other ports indicate the original target
+        if !host_str.ends_with(":3000") && !host_str.contains("proxy:") {
+            // Use the Host header to construct the target URL
+            let scheme = "http"; // HTTP_PROXY typically uses http
+            let path_and_query = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("/");
+
+            return Ok(format!(
+                "{}://{}{}",
+                scheme,
+                host_str,
+                path_and_query
+            ));
+        }
+    }
+
+    // Default to OpenAI API (fallback for legacy behavior)
     let base_url =
         std::env::var("OPENAI_API_URL").unwrap_or_else(|_| "https://api.openai.com".to_string());
 
@@ -505,5 +543,72 @@ mod tests {
 
         let result = determine_target_url(&headers, &uri).unwrap();
         assert!(result.contains("/v1/models?limit=10"));
+    }
+
+    #[test]
+    fn test_determine_target_url_with_host_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("host.docker.internal:8080"));
+        let uri: Uri = "/v1/chat/completions".parse().unwrap();
+
+        let result = determine_target_url(&headers, &uri).unwrap();
+        assert_eq!(result, "http://host.docker.internal:8080/v1/chat/completions");
+    }
+
+    #[test]
+    fn test_determine_target_url_with_localhost_host() {
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("localhost:11434"));
+        let uri: Uri = "/v1/chat/completions".parse().unwrap();
+
+        let result = determine_target_url(&headers, &uri).unwrap();
+        assert_eq!(result, "http://localhost:11434/v1/chat/completions");
+    }
+
+    #[test]
+    fn test_determine_target_url_ignores_proxy_host() {
+        // The proxy itself runs on port 3000, should fall back to OpenAI
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("proxy:3000"));
+        let uri: Uri = "/v1/chat/completions".parse().unwrap();
+
+        let result = determine_target_url(&headers, &uri).unwrap();
+        assert!(result.starts_with("https://api.openai.com"));
+    }
+
+    #[test]
+    fn test_should_bypass_proxy_with_local_host_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("host.docker.internal:8080"));
+        let uri: Uri = "/v1/chat/completions".parse().unwrap();
+
+        assert!(should_bypass_proxy(&uri, &headers));
+    }
+
+    #[test]
+    fn test_should_bypass_proxy_with_localhost_host_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("localhost:11434"));
+        let uri: Uri = "/v1/chat/completions".parse().unwrap();
+
+        assert!(should_bypass_proxy(&uri, &headers));
+    }
+
+    #[test]
+    fn test_should_bypass_proxy_with_127_0_0_1_host_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("127.0.0.1:8080"));
+        let uri: Uri = "/v1/chat/completions".parse().unwrap();
+
+        assert!(should_bypass_proxy(&uri, &headers));
+    }
+
+    #[test]
+    fn test_should_not_bypass_proxy_for_external_host() {
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("api.openai.com"));
+        let uri: Uri = "/v1/chat/completions".parse().unwrap();
+
+        assert!(!should_bypass_proxy(&uri, &headers));
     }
 }

@@ -12,6 +12,15 @@ NC='\033[0m' # No Color
 
 echo "🔧 Configuring Git credentials for SLAPENIR Agent..."
 
+# Add GitHub's SSH host keys to known_hosts if using SSH
+if [ -d /home/agent/.ssh ]; then
+    echo "🔑 Adding GitHub host keys to known_hosts..."
+    mkdir -p /home/agent/.ssh
+    ssh-keyscan -t ed25519 github.com >> /home/agent/.ssh/known_hosts 2>/dev/null
+    chown -R agent:agent /home/agent/.ssh 2>/dev/null || true
+    echo -e "${GREEN}✅ GitHub host keys added${NC}"
+fi
+
 # Git uses direct HTTPS with PAT tokens (bypasses proxy)
 # This is the recommended and most secure method
 echo "📡 Git configured for direct HTTPS authentication"

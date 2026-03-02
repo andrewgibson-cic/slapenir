@@ -20,7 +20,8 @@ RUN apk add --no-cache \
     openssh-client \
     bash \
     iptables \
-    iproute2
+    iproute2 \
+    gnupg
 
 # Install Node.js for OpenCode CLI
 RUN apk add --no-cache nodejs npm

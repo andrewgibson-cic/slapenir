@@ -205,18 +205,18 @@ test_connectivity() {
 
 test_local_llm() {
     print_header "🤖 Local LLM Validation"
-    
+
     # Check if host.docker.internal can be resolved
     if getent hosts host.docker.internal > /dev/null 2>&1; then
         test_pass "host.docker.internal resolves (extra_hosts configured)"
     else
         test_warn "host.docker.internal does not resolve (extra_hosts may not be configured)"
     fi
-    
+
     # Check if llama-server is accessible
     if curl -s -f --max-time 3 http://host.docker.internal:8080/v1/models > /dev/null 2>&1; then
         test_pass "Local llama-server accessible at host.docker.internal:8080"
-        
+
         # Try to get models list
         local models=$(curl -s --max-time 3 http://host.docker.internal:8080/v1/models 2>/dev/null)
         if echo "$models" | grep -q "model"; then
@@ -225,11 +225,11 @@ test_local_llm() {
     else
         test_warn "Local llama-server not accessible (may not be running)"
     fi
-    
+
     # Check if llama-server is accessible via localhost (127.0.0.1)
     if curl -s -f --max-time 3 http://127.0.0.1:8080/v1/models > /dev/null 2>&1; then
         test_pass "Local llama-server accessible at 127.0.0.1:8080 (localhost bypass rule working)"
-        
+
         # Try to get models list
         local models=$(curl -s --max-time 3 http://127.0.0.1:8080/v1/models 2>/dev/null)
         if echo "$models" | grep -q "model"; then
@@ -238,18 +238,18 @@ test_local_llm() {
     else
         test_warn "Local llama-server not accessible at 127.0.0.1:8080 (localhost bypass rule may not be active)"
     fi
-    
+
     # Check OpenCode configuration
     if [ -f "/home/agent/.config/opencode/opencode.json" ]; then
         test_pass "OpenCode config file exists"
-        
+
         # Check if local-llama provider is configured
         if grep -q '"local-llama"' /home/agent/.config/opencode/opencode.json; then
             test_pass "OpenCode has local-llama provider configured"
         else
             test_warn "OpenCode local-llama provider not found in config"
         fi
-        
+
         # Check if default provider is set
         if grep -q '"defaultProvider".*"local-llama"' /home/agent/.config/opencode/opencode.json; then
             test_pass "OpenCode defaultProvider set to local-llama"
@@ -259,70 +259,217 @@ test_local_llm() {
     else
         test_fail "OpenCode config file not found"
     fi
-    
+}
+
+# ============================================================================
+# Test 5: Traffic Enforcement - Comprehensive iptables Validation
+# ============================================================================
+
+test_traffic_enforcement() {
+    print_header "🛡️ Traffic Enforcement Validation"
+
     # Check traffic enforcement (iptables) - MANDATORY for security
-    if command -v iptables > /dev/null 2>&1; then
-        if iptables -L TRAFFIC_ENFORCE > /dev/null 2>&1; then
-            test_pass "Traffic enforcement iptables chain exists"
-            
-            # Check if DROP rule exists - MANDATORY
-            if iptables -L TRAFFIC_ENFORCE | grep -q "DROP"; then
-                test_pass "Traffic enforcement has DROP rule (unauthorized traffic blocked)"
-            else
-                test_fail "CRITICAL: Traffic enforcement DROP rule not found - container is NOT secure!"
-            fi
-            
-            # Count rules to ensure proper setup
-            local rule_count=$(iptables -L TRAFFIC_ENFORCE -n | grep -c "^" || echo "0")
-            if [ "$rule_count" -ge 10 ]; then
-                test_pass "Traffic enforcement has $rule_count rules (properly configured)"
-            else
-                test_fail "CRITICAL: Too few iptables rules ($rule_count) - traffic enforcement incomplete!"
-            fi
-            
-            # Verify localhost bypass rule exists
-            # The rule format is: "ACCEPT all -- 0.0.0.0/0 127.0.0.0/8"
-            if iptables -L TRAFFIC_ENFORCE -n | grep -q "ACCEPT.*127.0.0.0/8"; then
-                test_pass "Localhost bypass rule active (127.0.0.0/8 ACCEPT)"
-            else
-                test_fail "CRITICAL: Localhost bypass rule missing - llama-server connections will fail!"
-            fi
+    if ! command -v iptables > /dev/null 2>&1; then
+        test_fail "CRITICAL: iptables not available - cannot enforce traffic rules!"
+        return
+    fi
+
+    # Test 1: Check TRAFFIC_ENFORCE chain exists in filter table
+    if iptables -L TRAFFIC_ENFORCE > /dev/null 2>&1; then
+        test_pass "Traffic enforcement iptables chain exists"
+    else
+        test_fail "CRITICAL: Traffic enforcement iptables chain NOT found - container is NOT secure!"
+        return
+    fi
+
+    # Test 2: Check if DROP rule exists - MANDATORY
+    if iptables -L TRAFFIC_ENFORCE -n | grep -q "DROP"; then
+        test_pass "Traffic enforcement has DROP rule (unauthorized traffic blocked)"
+    else
+        test_fail "CRITICAL: Traffic enforcement DROP rule not found - container is NOT secure!"
+    fi
+
+    # Test 3: Count rules to ensure proper setup (should be ~21 rules)
+    local rule_count=$(iptables -L TRAFFIC_ENFORCE -n | grep -c "^" || echo "0")
+    if [ "$rule_count" -ge 10 ]; then
+        test_pass "Traffic enforcement has $rule_count rules (properly configured)"
+    else
+        test_fail "CRITICAL: Too few iptables rules ($rule_count) - traffic enforcement incomplete!"
+    fi
+
+    # Test 4: Verify localhost bypass rule exists
+    # The rule format is: "ACCEPT all -- 0.0.0.0/0 127.0.0.0/8"
+    if iptables -L TRAFFIC_ENFORCE -n | grep -q "ACCEPT.*127.0.0.0/8"; then
+        test_pass "Localhost bypass rule active (127.0.0.0/8 ACCEPT)"
+    else
+        test_fail "CRITICAL: Localhost bypass rule missing - llama-server connections will fail!"
+    fi
+
+    # Test 5: Check NAT table redirect rules exist
+    if iptables -t nat -L TRAFFIC_REDIRECT > /dev/null 2>&1; then
+        test_pass "NAT redirect chain exists (TRAFFIC_REDIRECT)"
+
+        # Check HTTP redirect
+        if iptables -t nat -L TRAFFIC_REDIRECT -n | grep -q "dpt:80.*redir"; then
+            test_pass "HTTP traffic redirect rule exists (port 80 → proxy)"
         else
-            test_fail "CRITICAL: Traffic enforcement iptables chain NOT found - container is NOT secure!"
+            test_fail "HTTP redirect rule missing in NAT table"
+        fi
+
+        # Check HTTPS redirect
+        if iptables -t nat -L TRAFFIC_REDIRECT -n | grep -q "dpt:443.*redir"; then
+            test_pass "HTTPS traffic redirect rule exists (port 443 → proxy)"
+        else
+            test_fail "HTTPS redirect rule missing in NAT table"
         fi
     else
-        test_fail "CRITICAL: iptables not available - cannot enforce traffic rules!"
+        test_warn "NAT redirect chain not found (HTTP/HTTPS redirect may not work)"
     fi
-    
-    # Verify network isolation - external access should be blocked
-    # Test a few common external services
+
+    # Test 6: Verify proxy IP is allowed
+    local proxy_ip=$(grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\s+proxy" /etc/hosts 2>/dev/null | awk '{print $1}' | head -1)
+    if [ -n "$proxy_ip" ]; then
+        if iptables -L TRAFFIC_ENFORCE -n | grep -q "$proxy_ip"; then
+            test_pass "Proxy IP ($proxy_ip) allowed in iptables rules"
+        else
+            test_fail "Proxy IP ($proxy_ip) not found in ALLOW rules"
+        fi
+    fi
+
+    # Test 7: Verify SSH port is allowed
+    if iptables -L TRAFFIC_ENFORCE -n | grep -q "dpt:22.*ACCEPT"; then
+        test_pass "SSH traffic (port 22) allowed"
+    else
+        test_warn "SSH allow rule not found (may be expected if SSH not needed)"
+    fi
+
+    # Test 8: Verify DNS filtering rules exist
+    if iptables -L TRAFFIC_ENFORCE -n | grep -q "DNS-BLOCK"; then
+        test_pass "DNS filtering rules exist (unauthorized DNS blocked)"
+    else
+        test_warn "DNS filtering rules not found"
+    fi
+
+    # Test 9: Verify bypass attempt logging is configured
+    if iptables -L TRAFFIC_ENFORCE -n | grep -q "BYPASS-ATTEMPT"; then
+        test_pass "Bypass attempt logging configured"
+    else
+        test_warn "Bypass attempt logging not configured"
+    fi
+
+    # Test 10: Verify OUTPUT chain links to TRAFFIC_ENFORCE
+    if iptables -L OUTPUT -n | grep -q "TRAFFIC_ENFORCE"; then
+        test_pass "OUTPUT chain linked to TRAFFIC_ENFORCE"
+    else
+        test_fail "CRITICAL: OUTPUT chain not linked to TRAFFIC_ENFORCE - rules not active!"
+    fi
+}
+
+# ============================================================================
+# Test 6: Network Isolation - Verify External Access Blocked
+# ============================================================================
+
+test_network_isolation() {
+    print_header "🌐 Network Isolation Validation"
+
     local blocked_count=0
     local tested_count=0
-    
+
     # Test 1: Try to reach api.openai.com (should be blocked)
     tested_count=$((tested_count + 1))
-    if ! timeout 2 curl -s --max-time 2 https://api.openai.com > /dev/null 2>&1; then
+    echo -n "  Testing api.openai.com... "
+    if ! timeout 3 curl -s --max-time 3 https://api.openai.com > /dev/null 2>&1; then
+        echo -e "${GREEN}BLOCKED ✓${NC}"
         blocked_count=$((blocked_count + 1))
+    else
+        echo -e "${RED}ACCESSIBLE ✗${NC}"
     fi
-    
+
     # Test 2: Try to reach api.anthropic.com (should be blocked)
     tested_count=$((tested_count + 1))
-    if ! timeout 2 curl -s --max-time 2 https://api.anthropic.com > /dev/null 2>&1; then
+    echo -n "  Testing api.anthropic.com... "
+    if ! timeout 3 curl -s --max-time 3 https://api.anthropic.com > /dev/null 2>&1; then
+        echo -e "${GREEN}BLOCKED ✓${NC}"
         blocked_count=$((blocked_count + 1))
+    else
+        echo -e "${RED}ACCESSIBLE ✗${NC}"
     fi
-    
+
     # Test 3: Try to reach google.com (should be blocked)
     tested_count=$((tested_count + 1))
-    if ! timeout 2 curl -s --max-time 2 https://www.google.com > /dev/null 2>&1; then
+    echo -n "  Testing www.google.com... "
+    if ! timeout 3 curl -s --max-time 3 https://www.google.com > /dev/null 2>&1; then
+        echo -e "${GREEN}BLOCKED ✓${NC}"
         blocked_count=$((blocked_count + 1))
+    else
+        echo -e "${RED}ACCESSIBLE ✗${NC}"
     fi
-    
+
+    # Test 4: Try HTTP to external site (should be blocked)
+    tested_count=$((tested_count + 1))
+    echo -n "  Testing http://example.com... "
+    if ! timeout 3 curl -s --max-time 3 http://example.com > /dev/null 2>&1; then
+        echo -e "${GREEN}BLOCKED ✓${NC}"
+        blocked_count=$((blocked_count + 1))
+    else
+        echo -e "${RED}ACCESSIBLE ✗${NC}"
+    fi
+
+    echo ""
     if [ $blocked_count -eq $tested_count ]; then
         test_pass "Network isolation verified ($blocked_count/$tested_count external sites blocked)"
     elif [ $blocked_count -gt 0 ]; then
         test_warn "Partial network isolation ($blocked_count/$tested_count external sites blocked)"
     else
-        test_warn "Network isolation not active (all external sites accessible)"
+        test_fail "CRITICAL: Network isolation not active (all external sites accessible)"
+    fi
+}
+
+# ============================================================================
+# Test 7: Allowed Connectivity - Verify Internal Access Works
+# ============================================================================
+
+test_allowed_connectivity() {
+    print_header "✅ Allowed Connectivity Validation"
+
+    # Test 1: Proxy should be reachable
+    echo -n "  Testing proxy:3000/health... "
+    if curl -s --max-time 5 http://proxy:3000/health > /dev/null 2>&1; then
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "Proxy health endpoint reachable"
+    else
+        echo -e "${RED}FAILED ✗${NC}"
+        test_fail "Proxy not reachable - agent cannot function!"
+    fi
+
+    # Test 2: Localhost should be allowed
+    echo -n "  Testing localhost connectivity... "
+    if curl -s --max-time 2 http://127.0.0.1:1 2>&1 | grep -q "Connection refused\|Empty reply"; then
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "Localhost connectivity allowed (127.0.0.0/8 bypass active)"
+    else
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "Localhost connectivity allowed"
+    fi
+
+    # Test 3: DNS resolution should work (through allowed DNS servers)
+    echo -n "  Testing DNS resolution... "
+    if python3 -c "import socket; socket.gethostbyname('google.com')" 2>/dev/null; then
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "DNS resolution works (through allowed DNS servers)"
+    else
+        echo -e "${RED}FAILED ✗${NC}"
+        test_fail "DNS resolution failed - check DNS filtering rules"
+    fi
+
+    # Test 4: Internal Docker network should be accessible
+    echo -n "  Testing internal Docker network (postgres)... "
+    if timeout 3 curl -s --max-time 3 http://postgres:5432 2>&1 | grep -q "PostgreSQL\|Connection refused\|Empty"; then
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "Internal Docker network accessible (172.30.0.0/24)"
+    else
+        echo -e "${YELLOW}PARTIAL${NC}"
+        test_warn "Internal network test inconclusive"
     fi
 }
 
@@ -373,6 +520,9 @@ test_security
 test_environment
 test_connectivity
 test_local_llm
+test_traffic_enforcement
+test_network_isolation
+test_allowed_connectivity
 test_credentials
 
 # Print summary

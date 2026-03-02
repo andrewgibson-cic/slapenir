@@ -49,8 +49,11 @@ log "Local IP: $LOCAL_IP"
 # ALLOW RULES (processed first)
 # =============================================================================
 
-# Allow loopback
+# Allow loopback (must be first to allow localhost connections)
 iptables -A TRAFFIC_ENFORCE -o lo -j ACCEPT
+
+# Allow direct connections to localhost on any port
+iptables -A TRAFFIC_ENFORCE -d 127.0.0.0/8 -j ACCEPT
 
 # Allow established connections
 iptables -A TRAFFIC_ENFORCE -m state --state ESTABLISHED,RELATED -j ACCEPT

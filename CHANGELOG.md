@@ -1,3 +1,11 @@
+## [1.4.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.3.0...v1.4.0) (2026-03-02)
+
+
+### Features
+
+* Add local LLM connectivity and network isolation tests to startup validation ([c20e094](https://github.com/andrewgibson-cic/slapenir/commit/c20e09472138be7b42b5f81b9189231e6024fe56))
+* Set default provider and model for OpenCode ([7822105](https://github.com/andrewgibson-cic/slapenir/commit/782210568fc32117f15869b22c720056faf379fa))
+
 ## [1.3.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.2.3...v1.3.0) (2026-03-02)
 
 

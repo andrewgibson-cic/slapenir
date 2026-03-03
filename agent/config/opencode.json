@@ -17,7 +17,6 @@
     "webfetch": "deny",
     "mcp_*": "deny"
   },
-  "instructions": ["config/opencode-instructions.md"],
   "provider": {
     "local-llama": {
       "npm": "@ai-sdk/openai-compatible",

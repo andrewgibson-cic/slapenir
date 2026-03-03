@@ -100,6 +100,38 @@ If you keep getting permission denied:
 3. Don't repeat the same action - it won't magically work
 4. Ask user to adjust permissions or provide alternative
 
+### Tool Denied by Configuration (CRITICAL - READ THIS)
+
+Your environment has restricted tool access. Check opencode.json for allowed tools.
+
+**Current restrictions:**
+- `bash`: DENIED - Cannot execute shell commands or scripts
+- `edit`: ASK - Must get permission to edit files
+- `webfetch`: DENIED - Cannot fetch external URLs
+- `mcp_*`: DENIED - No MCP tools available
+- `read`: ALLOWED - Can read files
+
+**When a tool is denied:**
+1. **STOP IMMEDIATELY** - Do not retry or work around
+2. **Do NOT write shell scripts** (`.sh` files) - they cannot be executed without bash
+3. **Do NOT try different file paths** - if write is denied, changing location won't help
+4. **Do NOT try to write to /tmp or external directories** - restricted for security
+5. **Ask the user** for an alternative approach that uses allowed tools
+
+**Loop Pattern to AVOID:**
+```
+Attempt 1: Write /tmp/setup-worktree.sh → DENIED
+Attempt 2: Write ../../tmp/setup-worktree.sh → DENIED
+Attempt 3: Write ./setup-worktree.sh → DENIED
+[INFINITE LOOP - BAD]
+```
+
+**Correct Response:**
+```
+First denial: STOP. Tool is denied by configuration.
+Ask user: "I cannot write shell scripts because bash is denied. What alternative approach would you like?"
+```
+
 ## Maximum Attempts Rule
 
 **Maximum 3 attempts** at any single approach before you MUST:

@@ -59,8 +59,10 @@ RUN mkdir -p /home/agent/.config/opencode \
 # Copy OpenCode configuration and AGENTS.md (OpenCode's instruction file)
 COPY config/opencode.json /home/agent/.config/opencode/opencode.json
 COPY config/AGENTS.md /home/agent/.config/opencode/AGENTS.md
-RUN chown agent:agent /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/AGENTS.md && \
-    chmod 644 /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/AGENTS.md
+# Also copy AGENTS.md to workspace (OpenCode reads it from working directory)
+COPY config/AGENTS.md /home/agent/workspace/AGENTS.md
+RUN chown agent:agent /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/AGENTS.md /home/agent/workspace/AGENTS.md && \
+    chmod 644 /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/AGENTS.md /home/agent/workspace/AGENTS.md
 
 # Set up directories
 RUN mkdir -p /home/agent/certs \

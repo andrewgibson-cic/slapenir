@@ -11,20 +11,20 @@ license = "MIT"
 tokio = { version = "1.35", features = ["full"] }
 
 # HTTP server framework
-axum = "0.7"
-tower = { version = "0.4", features = ["util"] }
-tower-http = { version = "0.5", features = ["trace", "cors"] }
+axum = "0.8"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["trace", "cors"] }
 
 # HTTP client for proxying
 hyper = { version = "1.1", features = ["client", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", "http2", "tokio"] }
 
 # TLS support
-rustls = "0.22"
-tokio-rustls = "0.25"
+rustls = "0.23"
+tokio-rustls = "0.26"
 rustls-pemfile = "2.2"
-rcgen = "0.12"  # Certificate generation for MITM
-x509-parser = "0.16"  # Certificate parsing
+rcgen = "0.14"  # Certificate generation for MITM
+x509-parser = "0.18"  # Certificate parsing
 pem = "3.0"  # PEM file handling
 
 # Streaming pattern matching (Aho-Corasick)
@@ -58,7 +58,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Error handling
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 
 # Environment variables
 dotenvy = "0.15"
@@ -73,7 +73,7 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio",
 [dev-dependencies]
 # Testing
 proptest = "1.4"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 mockito = "1.2"
 futures = "0.3"  # For concurrent test scenarios
 tempfile = "3.8"  # Temporary files for testing

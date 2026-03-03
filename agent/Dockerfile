@@ -21,8 +21,15 @@ RUN apk add --no-cache \
     bash \
     iptables \
     iproute2 \
-    gnupg \
-    musl-getconf
+    gnupg
+
+# Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
+RUN printf '#!/bin/sh\n\
+case "$1" in\n\
+    LONG_BIT) echo 64 ;;\n\
+    GNU_LIBC_VERSION) echo "glibc 2.38" ;;\n\
+    *) echo "getconf: unknown variable $1" >&2; exit 1 ;;\n\
+esac\n' > /usr/bin/getconf && chmod +x /usr/bin/getconf
 
 # Install Node.js for OpenCode CLI
 RUN apk add --no-cache nodejs npm
@@ -49,11 +56,11 @@ RUN mkdir -p /home/agent/.config/opencode \
     chown -R agent:agent /home/agent/.config/opencode /home/agent/.local/share/opencode && \
     chmod 755 /home/agent/.config/opencode /home/agent/.local/share/opencode
 
-# Copy OpenCode configuration and instructions
+# Copy OpenCode configuration and AGENTS.md (OpenCode's instruction file)
 COPY config/opencode.json /home/agent/.config/opencode/opencode.json
-COPY config/opencode-instructions.md /home/agent/.config/opencode/opencode-instructions.md
-RUN chown agent:agent /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/opencode-instructions.md && \
-    chmod 644 /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/opencode-instructions.md
+COPY config/AGENTS.md /home/agent/.config/opencode/AGENTS.md
+RUN chown agent:agent /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/AGENTS.md && \
+    chmod 644 /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/AGENTS.md
 
 # Set up directories
 RUN mkdir -p /home/agent/certs \

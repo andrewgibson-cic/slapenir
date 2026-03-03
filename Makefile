@@ -32,8 +32,8 @@ logs:
 	docker-compose logs -f $(SERVICE)
 
 shell:
-	docker-compose exec $(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
-	docker-compose exec $(or $(SERVICE),agent) /bin/sh
+	@exec docker-compose exec -u agent $(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
+	exec docker-compose exec -u agent $(or $(SERVICE),agent) /bin/sh
 
 test:
 	cd proxy && cargo test --all

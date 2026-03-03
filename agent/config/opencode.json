@@ -13,7 +13,7 @@
     "*": "deny",
     "read": "allow",
     "edit": "ask",
-    "bash": "deny",
+    "bash": "ask",
     "webfetch": "deny",
     "mcp_*": "deny"
   },

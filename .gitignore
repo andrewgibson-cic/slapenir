@@ -69,6 +69,8 @@ temp/
 !Readme*.md
 # Keep CHANGELOG and similar important files
 !CHANGELOG*.md
+# Keep agent configuration instructions
+!agent/config/*.md
 
 # Ignore docs directory contents
 docs/*

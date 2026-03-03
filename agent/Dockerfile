@@ -21,7 +21,8 @@ RUN apk add --no-cache \
     bash \
     iptables \
     iproute2 \
-    gnupg
+    gnupg \
+    musl-getconf
 
 # Install Node.js for OpenCode CLI
 RUN apk add --no-cache nodejs npm
@@ -42,10 +43,11 @@ COPY --from=smallstep/step-ca:latest /usr/local/bin/step /usr/local/bin/step
 RUN addgroup -g 1000 agent && \
     adduser -D -u 1000 -G agent -s /bin/bash agent
 
-# Create OpenCode configuration directory
-RUN mkdir -p /home/agent/.config/opencode && \
-    chown agent:agent /home/agent/.config/opencode && \
-    chmod 755 /home/agent/.config/opencode
+# Create OpenCode configuration and data directories
+RUN mkdir -p /home/agent/.config/opencode \
+             /home/agent/.local/share/opencode && \
+    chown -R agent:agent /home/agent/.config/opencode /home/agent/.local/share/opencode && \
+    chmod 755 /home/agent/.config/opencode /home/agent/.local/share/opencode
 
 # Copy OpenCode configuration
 COPY config/opencode.json /home/agent/.config/opencode/opencode.json

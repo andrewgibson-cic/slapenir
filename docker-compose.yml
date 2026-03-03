@@ -152,11 +152,16 @@ services:
       - GPG_KEY=${GPG_KEY:-164DA43B214F0144}
     volumes:
       - ./.env:/host-env/.env:ro  # Mount host .env read-only for processing
-      - ${HOME}/.claude:/home/agent/.claude:ro  # Mount host .claude read-only
+      - ${HOME}/.claude:/home/agent/.claude:ro  # Claude settings and memory
       - agent-workspace:/home/agent/workspace
       - agent-certs:/certs:ro  # Read-only certificate access
       - agent-ssh:/home/agent/.ssh  # Persist SSH keys
-      - ~/.claude:/home/agent/.claude:ro  # Claude settings
+      # OpenCode commands and skills (for slash commands in container)
+      - ${HOME}/.config/opencode/commands:/home/agent/.config/opencode/commands:ro
+      - ${HOME}/.config/opencode/skills:/home/agent/.config/opencode/skills:ro
+      # Claude Code global commands and skills (mounted to ~/.opencode for OpenCode discovery)
+      - ${HOME}/.claude/commands:/home/agent/.opencode/commands:ro
+      - ${HOME}/.claude/skills:/home/agent/.opencode/skills:ro
       # Git config with conditional includes (for signed commits)
       - ~/.gitconfig:/home/agent/.gitconfig:ro
       - ~/.gitconfig-ho:/home/agent/.gitconfig-ho:ro

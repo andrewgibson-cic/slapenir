@@ -49,10 +49,11 @@ RUN mkdir -p /home/agent/.config/opencode \
     chown -R agent:agent /home/agent/.config/opencode /home/agent/.local/share/opencode && \
     chmod 755 /home/agent/.config/opencode /home/agent/.local/share/opencode
 
-# Copy OpenCode configuration
+# Copy OpenCode configuration and instructions
 COPY config/opencode.json /home/agent/.config/opencode/opencode.json
-RUN chown agent:agent /home/agent/.config/opencode/opencode.json && \
-    chmod 644 /home/agent/.config/opencode/opencode.json
+COPY config/opencode-instructions.md /home/agent/.config/opencode/opencode-instructions.md
+RUN chown agent:agent /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/opencode-instructions.md && \
+    chmod 644 /home/agent/.config/opencode/opencode.json /home/agent/.config/opencode/opencode-instructions.md
 
 # Set up directories
 RUN mkdir -p /home/agent/certs \

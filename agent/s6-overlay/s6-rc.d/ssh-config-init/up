@@ -1,0 +1,8 @@
+#!/command/execlineb -P
+# S6 oneshot service to initialize SSH config
+# Runs once at container startup to filter macOS-specific options
+# Must run as root to fix permissions on mounted volumes
+
+foreground {
+  /home/agent/scripts/setup-ssh-config.sh
+}

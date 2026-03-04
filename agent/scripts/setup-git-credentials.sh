@@ -14,11 +14,19 @@ echo "🔧 Configuring Git credentials for SLAPENIR Agent..."
 
 # Add GitHub's SSH host keys to known_hosts if using SSH
 if [ -d /home/agent/.ssh ]; then
-    echo "🔑 Adding GitHub host keys to known_hosts..."
-    mkdir -p /home/agent/.ssh
-    ssh-keyscan -t ed25519 github.com >> /home/agent/.ssh/known_hosts 2>/dev/null
-    chown -R agent:agent /home/agent/.ssh 2>/dev/null || true
-    echo -e "${GREEN}✅ GitHub host keys added${NC}"
+    # Fix permissions if running as root
+    if [ "$(id -u)" = "0" ]; then
+        chown -R agent:agent /home/agent/.ssh 2>/dev/null || true
+    fi
+    
+    # Try to add GitHub keys if known_hosts is writable
+    if [ -w /home/agent/.ssh/known_hosts ] 2>/dev/null; then
+        echo "🔑 Adding GitHub host keys to known_hosts..."
+        ssh-keyscan -t ed25519 github.com >> /home/agent/.ssh/known_hosts 2>/dev/null || true
+        echo -e "${GREEN}✅ GitHub host keys added${NC}"
+    else
+        echo "⚠️  known_hosts is read-only - skipping GitHub key addition"
+    fi
 fi
 
 # Git uses direct HTTPS with PAT tokens (bypasses proxy)

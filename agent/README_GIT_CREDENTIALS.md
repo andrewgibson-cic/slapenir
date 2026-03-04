@@ -42,8 +42,9 @@ This ensures the agent **never has access to real credentials**.
 
 1. **`git-credential-helper.sh`** - Provides credentials to Git from environment variables
 2. **`setup-git-credentials.sh`** - Configures Git at container startup
-3. **S6 oneshot service (`git-init`)** - Runs setup script before agent starts
-4. **Environment variables** - Injects PAT securely at runtime
+3. **`setup-ssh-config.sh`** - Filters macOS-specific SSH options for Linux compatibility
+4. **S6 oneshot services (`git-init`, `ssh-config-init`, `gpg-init`)** - Run setup scripts before agent starts
+5. **Environment variables** - Injects PAT securely at runtime
 
 ### Flow
 
@@ -61,9 +62,24 @@ setup-git-credentials.sh executes
 - Sets user identity
 - Validates token with GitHub API
     ↓
+ssh-config-init service runs
+    ↓
+setup-ssh-config.sh executes
+    ↓
+- Filters macOS-specific SSH options (UseKeychain, etc.)
+- Creates Linux-compatible SSH config
+- Adds GitHub host keys to known_hosts
+    ↓
+gpg-init service runs (if GPG agent socket mounted)
+    ↓
+setup-gpg.sh executes
+    ↓
+- Configures GPG for commit signing
+- Sets up git signing key
+    ↓
 Agent service starts
     ↓
-Git operations use PAT transparently
+Git operations work with SSH and PAT transparently
 ```
 
 ## Setup Instructions
@@ -111,8 +127,8 @@ docker-compose build agent
 # Start services
 docker-compose up -d
 
-# Check logs to verify Git configuration
-docker-compose logs agent | grep -A 10 "Configuring Git credentials"
+# Check logs to verify Git and SSH configuration
+docker-compose logs agent | grep -A 20 "Configuring Git credentials"
 ```
 
 Expected output:
@@ -125,7 +141,22 @@ Expected output:
 ✅ GitHub token valid (authenticated as: your-username)
 ✅ Git credentials configured successfully
 🚀 Ready for Git operations (clone, pull, push, etc.)
+🔐 Setting up SSH config for container...
+📝 Filtering macOS-specific options from SSH config...
+✅ SSH config filtered and configured
+🔑 Adding GitHub host keys...
+✅ GitHub host keys added
+✅ SSH setup complete
 ```
+
+### SSH Configuration Notes
+
+The container automatically filters macOS-specific SSH options that don't exist in Linux:
+
+- **UseKeychain** - macOS Keychain integration
+- **IgnoreUnknown** - macOS-specific option
+
+Your host SSH config is mounted as `config.host` and processed by `setup-ssh-config.sh` to create a Linux-compatible `config` file inside the container. This allows you to use the same SSH config on both macOS and inside the container without modification.
 
 ## Usage Examples
 

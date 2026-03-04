@@ -1,34 +1,29 @@
 #!/bin/bash
-# Development wrapper that provides git/SSH/GPG access from the container
+# Development wrapper that provides git/SSH access from the container
 # Usage: ./dev.sh [command] [args...]
 #
-# IMPORTANT: On macOS with Colima, socket forwarding has limitations.
-# This script mounts the SSH keys directly (read-only) as a fallback.
+# IMPORTANT: On macOS with Colima/Docker Desktop, socket forwarding has limitations.
+# This script mounts the SSH keys directly (read-only).
+# GPG socket mounting doesn't work reliably - use HTTPS tokens for git instead.
 #
 # Prerequisites:
 #   1. SSH keys available in ~/.ssh/
-#   2. GPG public keys in ~/.gnupg/
 #
 # Examples:
 #   ./dev.sh bash              # Start interactive shell
 #   ./dev.sh opencode          # Run OpenCode CLI
 #   ./dev.sh git status        # Run git command
+#   ./dev.sh gradle build      # Run Gradle build
 
 set -e
 
-echo "🚀 Starting SLAPENIR agent with host git/SSH/GPG access..."
+echo "🚀 Starting SLAPENIR agent with host git/SSH access..."
+echo "   Java 21 + Gradle: ✅"
+echo "   SSH keys: ✅"
+echo "   GPG signing: ❌ (not supported on macOS Docker)"
 
-# Create a temporary SSH config that works in the container
-# The host's SSH config uses ~/.ssh/id_ed25519_ho etc, but references
-# IdentityFile ~/.ssh/id_ed25519_ho which works in both host and container
-# We need to add GitHub's host key to known_hosts
-
-# Run docker compose with:
-# - SSH keys (read-only, for git operations)
-# - GPG public keys (read-only, for verification)
-# - Git configs (read-only)
-# - SSH config (read-only)
-# - known_hosts (read-only)
+# Build docker-compose command with SSH keys
+# SSH keys are mounted read-only for security
 docker-compose run \
     -v "${HOME}/.ssh/id_ed25519_ho:/home/agent/.ssh/id_ed25519_ho:ro" \
     -v "${HOME}/.ssh/id_ed25519_ho.pub:/home/agent/.ssh/id_ed25519_ho.pub:ro" \

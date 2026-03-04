@@ -11,6 +11,8 @@ The SLAPENIR Agent is a Wolfi-based minimal container designed for secure AI age
 - **mTLS authentication** with Step-CA integration
 - **Proxy enforcement** - all HTTP traffic routes through SLAPENIR proxy
 - **Non-root execution** for enhanced security
+- **Java 21 + Gradle support** for building JVM projects
+- **GPG commit signing** using host GPG agent
 
 ## Features
 
@@ -46,6 +48,25 @@ Air-gapped AI code analysis with complete privacy:
 - **Default-deny permissions** - only read access allowed
 
 See [Zero-Leak Local AI Setup](#zero-leak-local-ai-setup) section below.
+
+### 6. Java 21 + Gradle Support
+
+Full JVM development environment:
+- **OpenJDK 21** - Latest LTS release
+- **Gradle** - Build automation tool
+- **JAVA_HOME** - Pre-configured environment variable
+- **Memory optimization** - Default 2GB max heap
+
+### 7. GPG Commit Signing
+
+**⚠️ Limited Support on macOS Docker**
+
+GPG commit signing using the host's GPG agent is **not supported** on macOS with Docker Desktop or Colima due to socket mounting limitations.
+
+**Alternatives:**
+- Use HTTPS git URLs with GitHub PAT tokens (already configured)
+- Disable GPG signing for this repo: `git config commit.gpgsign false`
+- Use SSH-based git URLs (no signing needed)
 
 ## Building
 
@@ -213,43 +234,183 @@ aider --model ollama_chat/qwen2.5-coder:7b
 
 All requests are logged in the proxy for security auditing.
 
-### Testing Connectivity
+---
+
+## Java 21 + Gradle Support
+
+The agent includes a complete Java 21 development environment for building JVM projects.
+
+### Installed Components
+
+- **OpenJDK 21** (LTS release)
+- **Gradle** (latest version from Wolfi)
+- **JAVA_HOME**: `/usr/lib/jvm/java-21-openjdk`
+- **Default JVM opts**: `-Xmx2g -Xms512m` (configurable via `JAVA_OPTS`)
+
+### Usage
 
 ```bash
-# Test 1: Direct Ollama on host
-curl http://localhost:11434/api/tags
-
-# Test 2: Through SLAPENIR proxy (from agent container)
+# Enter container
 docker exec -it slapenir-agent bash
-curl -H "X-Target-URL: http://host.docker.internal:11434" http://proxy:3000/api/tags
 
-# Test 3: Using the proxy helper
-python3 /home/agent/scripts/ollama-proxy-helper.py &
-curl http://localhost:8765/api/tags
+# Verify Java version
+java --version
+# openjdk 21.x.x
+
+# Verify Gradle
+gradle --version
+
+# Build a Gradle project
+cd /home/agent/workspace/my-project
+gradle build
+
+# Run tests
+gradle test
+
+# Create JAR
+gradle jar
+```
+
+### Memory Configuration
+
+Adjust JVM memory for large projects:
+
+```bash
+# In container
+export JAVA_OPTS="-Xmx4g -Xms1g"
+
+# Or in .env file
+JAVA_OPTS=-Xmx4g -Xms1g
+```
+
+### Gradle Wrapper Support
+
+Projects with Gradle wrapper work automatically:
+
+```bash
+cd project-with-wrapper
+./gradlew build  # Uses wrapper, not system Gradle
+```
+
+---
+
+## GPG Commit Signing
+
+The agent supports GPG commit signing using the **host's GPG agent**. This ensures the same GPG key used on the host is used inside the container.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│              HOST MACHINE                             │
+│                                                      │
+│  GPG Agent (gpg-agent)                               │
+│     ↓                                                │
+│  Socket: ~/.gnupg/S.gpg-agent                        │
+└──────────────────────────────────────────────────────┘
+                    ↓ (mounted)
+┌──────────────────────────────────────────────────────┐
+│              AGENT CONTAINER                          │
+│                                                      │
+│  Git ──► GPG (container) ──► Socket ──► Host Agent   │
+│         (signing)                  (forwarded)        │
+└──────────────────────────────────────────────────────┘
+```
+
+### Prerequisites
+
+1. **GPG agent running on host**:
+   ```bash
+   # Check if running
+   gpg-agent --version
+   
+   # Start if not running
+   gpg-agent --daemon
+   ```
+
+2. **GPG key configured on host**:
+   ```bash
+   # List keys
+   gpg --list-secret-keys --keyid-format=long
+   
+   # Should show your signing key
+   ```
+
+3. **GPG key ID in .env**:
+   ```bash
+   # Add to .env
+   GPG_KEY=164DA43B214F0144  # Your key ID (last 16 chars)
+   ```
+
+### Usage with dev.sh
+
+The `dev.sh` script automatically mounts the GPG agent socket:
+
+```bash
+# Start with GPG support
+./dev.sh bash
+
+# Verify GPG works
+gpg --version
+gpg-connect-agent /bye  # Should succeed
+
+# Make a signed commit
+git commit -S -m "Signed commit"
+# Or if commit.gpgsign=true (default):
+git commit -m "Automatically signed commit"
+```
+
+### Verification
+
+```bash
+# In container, check git config
+git config --get user.signingkey
+# Should show: 164DA43B214F0144
+
+git config --get commit.gpgsign
+# Should show: true
+
+# Test signing
+echo "test" | gpg --clearsign
+# Should prompt on host for passphrase (if needed)
 ```
 
 ### Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| "Connection refused" | Ensure Ollama is running: `ollama serve` |
-| "Model not found" | Pull the model: `ollama pull qwen2.5-coder:7b` |
-| Proxy returns 502 | Check proxy can reach host: `docker exec slapenir-proxy curl http://host.docker.internal:11434/api/tags` |
-| Slow responses | Normal for local inference; try `qwen2.5-coder:3b` |
-| Out of memory | Use smaller model or close other apps |
-
-### Context Window Configuration
-
-For better performance on 16GB RAM, configure a smaller context window:
-
+**GPG agent socket not mounted:**
 ```bash
-# In agent container, create aider config
-cat > ~/.aider.model.settings.yml << 'EOF'
-- name: ollama/qwen2.5-coder:7b
-  extra_params:
-    num_ctx: 16384  # 16K context (saves memory)
-EOF
+# Check socket exists on host
+ls -la ~/.gnupg/S.gpg-agent
+
+# Verify dev.sh is mounting it
+./dev.sh bash
+ls -la /home/agent/.gnupg/S.gpg-agent
 ```
+
+**Commits not signed:**
+```bash
+# Verify GPG_KEY is set
+echo $GPG_KEY
+
+# Check git config
+git config --list | grep gpg
+```
+
+**Passphrase prompt not appearing:**
+```bash
+# On host, ensure GPG agent is running
+gpg-agent --daemon
+
+# Test agent connection
+gpg-connect-agent /bye
+```
+
+### Security Notes
+
+- ✅ Private keys **never** leave the host
+- ✅ GPG agent socket is **read-only** from container
+- ✅ Passphrase prompts appear on **host** (via pinentry)
+- ✅ Same security model as SSH agent forwarding
 
 ---
 

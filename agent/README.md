@@ -748,3 +748,106 @@ The placeholder agent (`agent.py`) logs heartbeats every 30 seconds and demonstr
 - Logging configuration
 
 Replace this with your actual AI agent logic.
+## Logging Configuration
+
+The agent container includes structured logging with automatic rotation.
+
+### Features
+
+- **Structured JSON logging** to `/var/log/slapenir/` (machine-parseable)
+- **Human-readable stdout logging** (for debugging)
+- **Automatic log rotation** (10MB per file, 5 backups)
+- **Three-tier fallback** (file → stdout → stderr)
+- **Zero external dependencies** (stdlib only)
+- **Environment-based configuration**
+
+### Environment Variables
+
+```bash
+LOG_ENABLED=true                    # Enable/disable logging (default: true)
+LOG_DIR=/var/log/slapenir          # Log directory path (default: /var/log/slapenir)
+LOG_LEVEL=INFO                    # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO)
+LOG_MAX_BYTES=10485760             # Max bytes per file before rotation (default: 10MB)
+LOG_BACKUP_COUNT=5                # Number of backup files (default: 5)
+SERVICE_NAME=agent-svc              # Service name for logs (default: agent-svc)
+```
+
+### Usage in Python Code
+
+```python
+from logging_config import LoggingConfig
+
+# Setup logging
+logger = LoggingConfig.get_logger(
+    service_name='my-service',
+    log_dir='/var/log/slapenir',
+    log_level='INFO'
+)
+
+# Use like standard Python logger
+logger.info("Service started")
+logger.error("Something went wrong", exc_info=True)
+```
+
+### Log Format
+
+**File logs (JSON)**:
+```json
+{"timestamp":"2026-03-04T12:30:45.123456","level":"INFO","service":"agent-svc","message":"Service started"}
+```
+
+**Stdout logs (text)**:
+```
+[2026-03-04 12:30:45] [INFO] Service started
+```
+
+### Log Rotation
+
+Logs are automatically rotated when they reach 10MB:
+- `agent-svc.log` (current log)
+- `agent-svc.log.1` (first backup)
+- `agent-svc.log.2` (second backup)
+- `agent-svc.log.3` (third backup)
+- `agent-svc.log.4` (fourth backup)
+
+**Total disk usage**: 50MB maximum (10MB × 5 files)
+
+### Viewing Logs
+
+```bash
+# View current log
+tail -f /var/log/slapenir/agent-svc.log
+
+# View JSON logs in structured format
+jq '.' /var/log/slapenir/agent-svc.log | less
+
+# View all logs
+cat /var/log/slapenir/agent-svc.log*
+```
+
+### Troubleshooting
+
+**Log directory permission denied**:
+```bash
+# Check permissions
+ls -ld /var/log/slapenir
+
+# Fix permissions
+sudo chown agent:agent /var/log/slapenir
+sudo chmod 755 /var/log/slapenir
+```
+
+**Logging not working**:
+```bash
+# Check if logging is enabled
+echo $LOG_ENABLED
+
+# Check log level
+echo $LOG_LEVEL
+
+# Check if directory is writable
+touch /var/log/slapenir/test.log
+```
+
+---
+

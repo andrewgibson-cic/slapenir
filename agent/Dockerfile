@@ -8,7 +8,7 @@ LABEL maintainer="andrew.gibson-cic@ibm.com"
 LABEL description="SLAPENIR Agent: Secure Python execution environment with process supervision"
 LABEL version="0.1.0"
 
-# Install build tools, Python, bash, and iptables for traffic enforcement
+# Install build tools, Python, bash, iptables for traffic enforcement, and Java 21
 RUN apk add --no-cache \
     python-3.11 \
     py3-pip \
@@ -21,7 +21,9 @@ RUN apk add --no-cache \
     bash \
     iptables \
     iproute2 \
-    gnupg
+    gnupg \
+    openjdk-21 \
+    gradle
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\
@@ -100,7 +102,9 @@ WORKDIR /home/agent/workspace
 ENV PYTHON_VERSION=3.11 \
     PYTHONUNBUFFERED=1 \
     HOME=/home/agent \
-    PATH=/home/agent/.local/bin:$PATH
+    JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
+    JAVA_OPTS="-Xmx2g -Xms512m" \
+    PATH=/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
 
 # Configure s6-overlay to run user services as agent
 ENV S6_RUNASUSER=agent

@@ -150,12 +150,19 @@ services:
       # SSH/GPG Agent forwarding for git operations
       - SSH_AUTH_SOCK=/home/agent/.ssh/agent.sock
       - GPG_KEY=${GPG_KEY:-164DA43B214F0144}
+      # GIT
+      - GIT_CONFIG_COUNT=1
+      - GIT_CONFIG_KEY_0=safe.directory
+      - GIT_CONFIG_VALUE_0=/home/agent/workspace
     volumes:
       - ./.env:/host-env/.env:ro  # Mount host .env read-only for processing
       - ${HOME}/.claude:/home/agent/.claude:ro  # Claude settings and memory
       - agent-workspace:/home/agent/workspace
       - agent-certs:/certs:ro  # Read-only certificate access
       - agent-ssh:/home/agent/.ssh  # Persist SSH keys
+      # SSH agent socket (requires forwardAgent: true in colima.yaml)
+      # Uses host's SSH_AUTH_SOCK - ensure agent is running and keys are added
+      - ${SSH_AUTH_SOCK}:/home/agent/.ssh/agent.sock:ro
       # OpenCode commands and skills (for slash commands in container)
       - ${HOME}/.config/opencode/commands:/home/agent/.config/opencode/commands:ro
       - ${HOME}/.config/opencode/skills:/home/agent/.config/opencode/skills:ro
@@ -168,8 +175,9 @@ services:
       - ~/.gitconfig-ibm:/home/agent/.gitconfig-ibm:ro
       - ~/.gitconfig-personal:/home/agent/.gitconfig-personal:ro
       # SSH config (keys accessed via agent socket)
-      - ~/.ssh/config:/home/agent/.ssh/config:ro
-      - ~/.ssh/known_hosts:/home/agent/.ssh/known_hosts:ro
+      # Mount as config.host so setup script can filter macOS-specific options
+      - ~/.ssh/config:/home/agent/.ssh/config.host:ro
+      - ~/.ssh/known_hosts:/home/agent/.ssh/known_hosts
       # GPG public data (agent socket mounted at runtime via dev.sh)
       - ~/.gnupg/pubring.kbx:/home/agent/.gnupg/pubring.kbx:ro
       - ~/.gnupg/trustdb.gpg:/home/agent/.gnupg/trustdb.gpg:ro

@@ -25,6 +25,9 @@ alias ll='ls -lah'
 alias python='python3'
 alias pip='pip3'
 
+# OpenCode wrapper with session logging
+alias opencode='/home/agent/scripts/opencode-wrapper'
+
 # Environment info
 export EDITOR=vi
 export LANG=en_US.UTF-8

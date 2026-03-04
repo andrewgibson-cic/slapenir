@@ -43,13 +43,14 @@ class LoggingConfig:
     """
 
     _instance: Optional["LoggingConfig"] = None
-    _logger_instance: Optional[logging.Logger] = None
+    _initialized: bool = False
 
     def __new__(cls):
-        """Create singleton instance."""
+        """Create singleton instance with lazy initialization."""
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
+            instance = super().__new__(cls)
+            instance._initialized = False
+            cls._instance = instance
         return cls._instance
 
     def __init__(self):

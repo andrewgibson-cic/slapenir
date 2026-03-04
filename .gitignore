@@ -77,3 +77,6 @@ docs/*
 # Explicitly exclude security audits
 *SECURITY_AUDIT*.md
 *.mdarxiv-cosci/
+
+# Bug fix documentation (development)
+.claude/docs/fix-agent-log-directory-empty/

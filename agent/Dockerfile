@@ -70,8 +70,11 @@ RUN chown agent:agent /home/agent/.config/opencode/opencode.json /home/agent/.co
 RUN mkdir -p /home/agent/certs \
              /home/agent/workspace \
              /home/agent/scripts \
-             /etc/s6-overlay/s6-rc.d/agent-svc && \
-    chown -R agent:agent /home/agent
+             /etc/s6-overlay/s6-rc.d/agent-svc \
+             /var/log/slapenir && \
+    chown -R agent:agent /home/agent && \
+    chown agent:agent /var/log/slapenir && \
+    chmod 755 /var/log/slapenir
 
 # Copy s6 service configuration
 COPY s6-overlay/s6-rc.d/ /etc/s6-overlay/s6-rc.d/

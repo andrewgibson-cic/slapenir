@@ -1,3 +1,24 @@
+## [1.8.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.7.0...v1.8.0) (2026-03-05)
+
+
+### Features
+
+* Add automatic git safe directory configuration ([current](https://github.com/andrewgibson-cic/slapenir))
+* Fix workspace permissions for git operations in copied repositories ([current](https://github.com/andrewgibson-cic/slapenir))
+
+
+### Code Refactoring
+
+* Remove Ollama and Aider support - focus on llama-server only ([current](https://github.com/andrewgibson-cic/slapenir))
+* Delete ollama-proxy-helper.py and related scripts ([current](https://github.com/andrewgibson-cic/slapenir))
+* Clean up environment variables and configuration ([current](https://github.com/andrewgibson-cic/slapenir))
+
+
+### Documentation
+
+* Update documentation to reflect current architecture without Ollama ([current](https://github.com/andrewgibson-cic/slapenir))
+* Remove docs/LOCAL_LLM_QUICKSTART.md (ollama-focused) ([current](https://github.com/andrewgibson-cic/slapenir))
+
 ## [1.7.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.6.0...v1.7.0) (2026-03-03)
 
 

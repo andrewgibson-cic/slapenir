@@ -32,6 +32,9 @@ alias opencode='/home/agent/scripts/opencode-wrapper'
 export EDITOR=vi
 export LANG=en_US.UTF-8
 
+# Git safe directories - use writable config location
+export GIT_CONFIG_GLOBAL=~/.config/git/config
+
 EOF
 
 chmod 644 /home/agent/.bashrc

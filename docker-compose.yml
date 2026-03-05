@@ -70,7 +70,6 @@ services:
     hostname: proxy
     networks:
       - slape-net
-    # Enable host.docker.internal resolution for Ollama forwarding
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -86,8 +85,6 @@ services:
       - MTLS_CA_CERT=/certs/root_ca.crt
       - MTLS_SERVER_CERT=/certs/proxy.crt
       - MTLS_SERVER_KEY=/certs/proxy.key
-      # Ollama endpoint for proxy forwarding
-      - OLLAMA_HOST=${OLLAMA_HOST:-host.docker.internal:11434}
     volumes:
       - ./proxy/config.yaml:/app/config.yaml:ro
       - proxy-certs:/certs:ro
@@ -138,9 +135,6 @@ services:
       - MTLS_CLIENT_CERT=/certs/agent.crt
       - MTLS_CLIENT_KEY=/certs/agent.key
       - MTLS_VERIFY_HOSTNAME=${MTLS_VERIFY_HOSTNAME:-true}
-      # Ollama Local LLM Configuration (via proxy)
-      - OLLAMA_HOST=${OLLAMA_HOST:-host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5-coder:7b}
       # OpenCode Configuration
       - OPENCODE_DISABLE_CLAUDE_CODE=${OPENCODE_DISABLE_CLAUDE_CODE:-1}
       - LLAMA_SERVER_HOST=${LLAMA_SERVER_HOST:-host.docker.internal}
@@ -150,10 +144,10 @@ services:
       # SSH/GPG Agent forwarding for git operations
       - SSH_AUTH_SOCK=/home/agent/.ssh/agent.sock
       - GPG_KEY=${GPG_KEY:-164DA43B214F0144}
-      # GIT
+      # GIT - Allow all workspace subdirectories as safe
       - GIT_CONFIG_COUNT=1
       - GIT_CONFIG_KEY_0=safe.directory
-      - GIT_CONFIG_VALUE_0=/home/agent/workspace
+      - GIT_CONFIG_VALUE_0=*
     volumes:
       - ./.env:/host-env/.env:ro  # Mount host .env read-only for processing
       - ${HOME}/.claude:/home/agent/.claude:ro  # Claude settings and memory

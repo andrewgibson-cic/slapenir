@@ -23,7 +23,6 @@ if ! command -v llama-server &> /dev/null; then
     echo "     Linux: See https://github.com/ggerganov/llama.cpp"
     echo ""
     echo "  3. Use alternative local LLM servers:"
-    echo "     - Ollama: https://ollama.ai"
     echo "     - LocalAI: https://localai.io"
     echo "     - text-generation-webui: https://github.com/oobabooga/text-generation-webui"
     exit 1
@@ -73,17 +72,6 @@ if command -v llama-server &> /dev/null; then
     echo "   This is SAFE due to network isolation (see docs/LOCAL_LLM_SECURITY.md)"
     llama-server --model "$LLAMA_MODEL" --port "$LLAMA_PORT" --host 0.0.0.0 &
     SERVER_PID=$!
-# Option 2: Using Ollama (if available)
-elif command -v ollama &> /dev/null; then
-    echo "Ollama detected. Please ensure Ollama is running with:"
-    echo "  ollama serve"
-    echo ""
-    echo "Then pull the model:"
-    echo "  ollama pull $LLAMA_MODEL"
-    echo ""
-    echo "Note: Ollama runs on port 11434 by default."
-    echo "To use port 8080, set OLLAMA_HOST=127.0.0.1:8080"
-    exit 1
 else
     echo "❌ No supported llama server implementation found"
     exit 1

@@ -1,28 +1,23 @@
-## [1.7.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.6.0...v1.7.0) (2026-03-04)
+## [1.8.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.7.0...v1.8.0) (2026-03-05)
 
 
 ### Features
 
-* Add host git/SSH/GPG config for agent container ([44e9a26](https://github.com/andrewgibson-cic/slapenir/commit/44e9a26ab3ca2a33e453189feea3247b1518f0c7))
-* Add host git/SSH/GPG config for agent container ([fc33650](https://github.com/andrewgibson-cic/slapenir/commit/fc3365059a87757565c74b1763509c494c8892b9))
-* add SSH config init and update agent setup scripts ([ceba86e](https://github.com/andrewgibson-cic/slapenir/commit/ceba86e2d4d37f37bf0c960bfe151352323cbad3))
-* implement session-based logging with rotation ([d193d40](https://github.com/andrewgibson-cic/slapenir/commit/d193d40eb016c5f863310a134279d2ad695135eb))
+* Add automatic git safe directory configuration ([current](https://github.com/andrewgibson-cic/slapenir))
+* Fix workspace permissions for git operations in copied repositories ([current](https://github.com/andrewgibson-cic/slapenir))
 
 
-### Bug Fixes
+### Code Refactoring
 
-* Add loop-prevention instructions for OpenCode agent ([cb378cb](https://github.com/andrewgibson-cic/slapenir/commit/cb378cbeb252539b3596650d3822afe6eb913708))
-* Add loop-prevention instructions for OpenCode agent ([4fac6c2](https://github.com/andrewgibson-cic/slapenir/commit/4fac6c249248f299c87e95ba7cfa299136495bd6))
-* Agent container user and permissions improvements ([642b178](https://github.com/andrewgibson-cic/slapenir/commit/642b178c4efd6503567346058d25fd40103062df))
-* Enable bash access for OpenCode agent with permission prompt ([7c28219](https://github.com/andrewgibson-cic/slapenir/commit/7c28219819d097ddc34c347a283d51e87d49ffcb))
-* improve singleton pattern and add workspace permission fix ([1c4b47b](https://github.com/andrewgibson-cic/slapenir/commit/1c4b47b43cf42fc93de5d099a4a759970cb78cb0))
-* Use AGENTS.md for OpenCode instructions (correct mechanism) ([0a9e74e](https://github.com/andrewgibson-cic/slapenir/commit/0a9e74eea4a7f09c553b073996e232d5c92abe6e))
+* Remove Ollama and Aider support - focus on llama-server only ([current](https://github.com/andrewgibson-cic/slapenir))
+* Delete ollama-proxy-helper.py and related scripts ([current](https://github.com/andrewgibson-cic/slapenir))
+* Clean up environment variables and configuration ([current](https://github.com/andrewgibson-cic/slapenir))
 
 
 ### Documentation
 
-* add logging configuration documentation ([66b568a](https://github.com/andrewgibson-cic/slapenir/commit/66b568a723ad176e15d7c4bd8322a701ff283e4c))
-* Streamline README and remove redundant documentation ([97cc899](https://github.com/andrewgibson-cic/slapenir/commit/97cc899a3f2c155e6f5932bb4483b1c6c5e41a14))
+* Update documentation to reflect current architecture without Ollama ([current](https://github.com/andrewgibson-cic/slapenir))
+* Remove docs/LOCAL_LLM_QUICKSTART.md (ollama-focused) ([current](https://github.com/andrewgibson-cic/slapenir))
 
 ## [1.7.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.6.0...v1.7.0) (2026-03-03)
 

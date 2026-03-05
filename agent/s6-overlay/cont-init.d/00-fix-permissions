@@ -1,4 +1,8 @@
 #!/bin/bash
 # Fix permissions on workspace volume (created as root by Docker)
 chown -R agent:agent /home/agent/workspace
-echo "✅ Fixed workspace permissions"
+
+# Fix any git directories that might have been copied in
+find /home/agent/workspace -name '.git' -type d -exec chown -R agent:agent {} \; 2>/dev/null || true
+
+echo "✅ Fixed workspace and git directory permissions"

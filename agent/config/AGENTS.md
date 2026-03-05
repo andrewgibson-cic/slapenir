@@ -132,6 +132,113 @@ First denial: STOP. Tool is denied by configuration.
 Ask user: "I cannot write shell scripts because bash is denied. What alternative approach would you like?"
 ```
 
+---
+
+### Build Tool Execution Restrictions (CRITICAL - READ THIS)
+
+**You CANNOT execute build tools. This is a security restriction.**
+
+**Blocked tools:**
+- `gradle` / `./gradlew` (Java/Gradle builds)
+- `mvn` (Maven builds)
+- `npm` (Node.js package manager)
+- `yarn` (Node.js package manager)
+- `pnpm` (Node.js package manager)
+- `cargo` (Rust builds)
+- `pip` / `pip3` (Python package manager)
+
+**Why these restrictions exist:**
+- **Arbitrary Code Execution**: Build scripts can execute any code
+- **Supply Chain Attacks**: Malicious dependencies can compromise security
+- **Data Exfiltration**: Build tools can leak sensitive data through allowed network channels
+- **Audit Trail**: All build attempts are logged for security review
+
+**When user requests builds:**
+
+1. **STOP** - Do not try to run build commands
+2. **Inform user**: "I cannot execute build tools for security reasons. Please exit OpenCode and run builds manually."
+3. **Guide them**:
+   - Exit OpenCode: `Ctrl+D` or type `exit`
+   - Start interactive shell: `make shell`
+   - Run build: `gradle build` (or other tool)
+
+**Example interaction:**
+```
+User: "Run gradle build for me"
+You: I cannot execute build tools (gradle, mvn, npm, etc.) for security reasons.
+
+     To build this project:
+     1. Exit OpenCode (Ctrl+D or 'exit')
+     2. Run: make shell
+     3. Execute: gradle build
+
+     This ensures build scripts are reviewed by a human before execution.
+```
+
+**Do NOT:**
+- Try to bypass with different paths (e.g., `/usr/bin/gradle.real`)
+- Attempt to install build tools in alternative locations
+- Create shell scripts to run builds (bash is denied anyway)
+- Retry if build command is blocked
+
+**Loop Pattern to AVOID:**
+```
+User: "Build the project"
+You: gradle build
+Result: BLOCKED
+
+You: Try ./gradlew build
+Result: BLOCKED
+
+You: Try /usr/bin/gradle.real build
+Result: BLOCKED
+[INFINITE LOOP - BAD]
+```
+
+**Correct Response:**
+```
+User: "Build the project"
+You: I cannot execute build tools for security. 
+     Please exit OpenCode and run: make shell
+     Then execute: gradle build
+     This allows you to review build scripts before execution.
+```
+
+**Emergency Override (DISCOURAGED):**
+
+An override mechanism exists but should ONLY be used if:
+- Explicitly instructed by the user
+- You understand the security implications
+- No alternative approach is available
+
+Override syntax: `<TOOL>_ALLOW_FROM_OPENCODE=1 <tool> <args>`
+
+Example:
+```bash
+GRADLE_ALLOW_FROM_OPENCODE=1 gradle build
+```
+
+**WARNING**: All override usage is logged for security audit.
+
+**Alternative approaches:**
+- **Analyze build files**: You CAN read `build.gradle`, `pom.xml`, `package.json`, etc.
+- **Explain build process**: Describe what the build would do
+- **Identify dependencies**: List dependencies from build files
+- **Suggest improvements**: Recommend build configuration changes
+
+**Example alternative:**
+```
+User: "Build the Java project"
+You: I cannot run gradle, but I can analyze the build.gradle file.
+     [Reads build.gradle]
+     This project uses:
+     - Java 21
+     - Gradle 8.x
+     - Dependencies: Spring Boot, Jackson, etc.
+     
+     To build, exit OpenCode and run: gradle build
+```
+
 ## Maximum Attempts Rule
 
 **Maximum 3 attempts** at any single approach before you MUST:

@@ -12,6 +12,13 @@ NC='\033[0m' # No Color
 
 echo "🔧 Configuring Git credentials for SLAPENIR Agent..."
 
+# Create writable git config directory and mark all directories as safe
+echo "🔐 Setting up writable git config and safe directories..."
+mkdir -p ~/.config/git
+export GIT_CONFIG_GLOBAL=~/.config/git/config
+git config --global --add safe.directory '*' 2>/dev/null || true
+echo -e "${GREEN}✅ Safe directory configured for all locations${NC}"
+
 # Add GitHub's SSH host keys to known_hosts if using SSH
 if [ -d /home/agent/.ssh ]; then
     # Fix permissions if running as root

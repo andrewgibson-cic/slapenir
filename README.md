@@ -36,7 +36,7 @@ SLAPENIR sits between AI agents and external APIs, ensuring agents never see rea
 │    Agent     │ Wolfi Python Environment
 │  Python 3.11 │ • s6-overlay supervision
 │              │ • Network-isolated workspace
-│              │ • Local LLM support (Ollama/llama-server)
+│              │ • OpenCode AI assistant integration
 └──────────────┘
 ```
 
@@ -96,15 +96,11 @@ make test
 
 ## Local LLM Support
 
-SLAPENIR supports local LLMs (Ollama, llama-server) for air-gapped operation:
+SLAPENIR supports local LLMs (llama-server) for air-gapped operation:
 
 ```bash
 # Start llama-server on host (bind to 0.0.0.0 for Docker access)
 llama-server --host 0.0.0.0 --port 8080 --model ~/models/YourModel.gguf
-
-# Or use Ollama
-ollama serve
-ollama pull qwen2.5-coder:7b
 ```
 
 The agent connects via `host.docker.internal` - traffic stays local and never reaches the internet.

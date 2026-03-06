@@ -80,3 +80,4 @@ docs/*
 
 # Bug fix documentation (development)
 .claude/docs/fix-agent-log-directory-empty/
+.claude/docs/fix/

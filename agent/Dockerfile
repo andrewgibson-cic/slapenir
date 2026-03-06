@@ -26,8 +26,10 @@ RUN apk add --no-cache \
     gradle \
     maven \
     yarn \
-    pnpm \
-    cargo
+    pnpm
+
+# Install Rust/Cargo via rustup (cargo not available in Wolfi repos)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\
@@ -137,7 +139,7 @@ ENV PYTHON_VERSION=3.11 \
     HOME=/home/agent \
     JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
     JAVA_OPTS="-Xmx2g -Xms512m" \
-    PATH=/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
+    PATH=/root/.cargo/bin:/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
 
 # Configure s6-overlay to run user services as agent
 ENV S6_RUNASUSER=agent

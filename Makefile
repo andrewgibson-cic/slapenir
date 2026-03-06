@@ -32,7 +32,17 @@ logs:
 	docker-compose logs -f $(SERVICE)
 
 shell:
-	@exec docker-compose exec -u agent $(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
+	@exec docker-compose exec \
+		-u agent \
+		-e GRADLE_ALLOW_FROM_OPENCODE=1 \
+		-e MVN_ALLOW_FROM_OPENCODE=1 \
+		-e NPM_ALLOW_FROM_OPENCODE=1 \
+		-e YARN_ALLOW_FROM_OPENCODE=1 \
+		-e PNPM_ALLOW_FROM_OPENCODE=1 \
+		-e CARGO_ALLOW_FROM_OPENCODE=1 \
+		-e PIP_ALLOW_FROM_OPENCODE=1 \
+		-e PIP3_ALLOW_FROM_OPENCODE=1 \
+		$(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
 	exec docker-compose exec -u agent $(or $(SERVICE),agent) /bin/sh
 
 test:

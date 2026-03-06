@@ -23,7 +23,11 @@ RUN apk add --no-cache \
     iproute2 \
     gnupg \
     openjdk-21 \
-    gradle
+    gradle \
+    maven \
+    yarn \
+    pnpm \
+    cargo
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\
@@ -86,6 +90,32 @@ RUN chmod +x /etc/cont-init.d/* 2>/dev/null || true
 # Copy agent scripts
 COPY scripts/ /home/agent/scripts/
 RUN chmod +x /home/agent/scripts/*.sh
+
+# Install build tool wrappers for security
+# These intercept build tool commands and block execution during OpenCode sessions
+RUN mkdir -p /home/agent/scripts/lib && \
+    chmod +x /home/agent/scripts/*-wrapper 2>/dev/null || true
+
+# Shadow system binaries with security wrappers
+# Moves real binaries to .real suffix and creates symlinks to wrappers
+RUN for tool in gradle mvn npm yarn pnpm cargo pip pip3; do \
+        if command -v $tool >/dev/null 2>&1; then \
+            real_path=$(which $tool); \
+            # Only shadow if not already shadowed \
+            if [ ! -f "${real_path}.real" ]; then \
+                mv "$real_path" "${real_path}.real"; \
+                # Create symlink if wrapper exists \
+                if [ -f "/home/agent/scripts/${tool}-wrapper" ]; then \
+                    ln -s /home/agent/scripts/${tool}-wrapper "$real_path"; \
+                fi; \
+            fi; \
+        fi; \
+    done
+
+# Create gradlew symlink (catches ./gradlew)
+RUN if [ -f /home/agent/scripts/gradle-wrapper ]; then \
+        ln -sf /home/agent/scripts/gradle-wrapper /home/agent/scripts/gradlew; \
+    fi
 
 # Install Python dependencies (common AI/ML packages)
 RUN pip install --no-cache-dir --break-system-packages \

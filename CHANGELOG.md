@@ -1,3 +1,41 @@
+## [1.7.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.6.0...v1.7.0) (2026-03-06)
+
+
+### Features
+
+* add build tool override env vars to make shell ([43c487a](https://github.com/andrewgibson-cic/slapenir/commit/43c487a3bc2b27e6abbc566792cf4a5fc4e8bea3))
+* add build tool security validation to startup checks ([eb5543d](https://github.com/andrewgibson-cic/slapenir/commit/eb5543d6b791670a7cff40c4a1c8abfb724feffd))
+* Add host git/SSH/GPG config for agent container ([44e9a26](https://github.com/andrewgibson-cic/slapenir/commit/44e9a26ab3ca2a33e453189feea3247b1518f0c7))
+* Add host git/SSH/GPG config for agent container ([fc33650](https://github.com/andrewgibson-cic/slapenir/commit/fc3365059a87757565c74b1763509c494c8892b9))
+* add session lock file to opencode-wrapper ([c80f97d](https://github.com/andrewgibson-cic/slapenir/commit/c80f97df2c5cd910bb890180d6111b69c865c7f8))
+* add SSH config init and update agent setup scripts ([ceba86e](https://github.com/andrewgibson-cic/slapenir/commit/ceba86e2d4d37f37bf0c960bfe151352323cbad3))
+* implement build tool wrappers with OpenCode detection ([e5ba06b](https://github.com/andrewgibson-cic/slapenir/commit/e5ba06b0816303ded1562262cffe02d1190fe801))
+* implement session-based logging with rotation ([d193d40](https://github.com/andrewgibson-cic/slapenir/commit/d193d40eb016c5f863310a134279d2ad695135eb))
+* integrate build tool wrappers into Dockerfile ([fc835c8](https://github.com/andrewgibson-cic/slapenir/commit/fc835c8873566e76e80676cdaa87bf28d16a34ed))
+
+
+### Bug Fixes
+
+* Add loop-prevention instructions for OpenCode agent ([cb378cb](https://github.com/andrewgibson-cic/slapenir/commit/cb378cbeb252539b3596650d3822afe6eb913708))
+* Add loop-prevention instructions for OpenCode agent ([4fac6c2](https://github.com/andrewgibson-cic/slapenir/commit/4fac6c249248f299c87e95ba7cfa299136495bd6))
+* add opencode session logging to /var/log/slapenir ([2afa909](https://github.com/andrewgibson-cic/slapenir/commit/2afa90924d0b9a5ef716e7d018256b54b92a2bd1))
+* Agent container user and permissions improvements ([642b178](https://github.com/andrewgibson-cic/slapenir/commit/642b178c4efd6503567346058d25fd40103062df))
+* Enable bash access for OpenCode agent with permission prompt ([7c28219](https://github.com/andrewgibson-cic/slapenir/commit/7c28219819d097ddc34c347a283d51e87d49ffcb))
+* improve singleton pattern and add workspace permission fix ([1c4b47b](https://github.com/andrewgibson-cic/slapenir/commit/1c4b47b43cf42fc93de5d099a4a759970cb78cb0))
+* Use AGENTS.md for OpenCode instructions (correct mechanism) ([0a9e74e](https://github.com/andrewgibson-cic/slapenir/commit/0a9e74eea4a7f09c553b073996e232d5c92abe6e))
+
+
+### Code Refactoring
+
+* remove Ollama/Aider and improve git configuration ([d859755](https://github.com/andrewgibson-cic/slapenir/commit/d8597552ae5865e8e81a65c66a1e6f997c4e4fa7))
+
+
+### Documentation
+
+* add build tool restrictions to AGENTS.md for OpenCode ([8007e05](https://github.com/andrewgibson-cic/slapenir/commit/8007e05489ec660199dfa11d2dd275da8ec6243e))
+* add logging configuration documentation ([66b568a](https://github.com/andrewgibson-cic/slapenir/commit/66b568a723ad176e15d7c4bd8322a701ff283e4c))
+* Streamline README and remove redundant documentation ([97cc899](https://github.com/andrewgibson-cic/slapenir/commit/97cc899a3f2c155e6f5932bb4483b1c6c5e41a14))
+
 ## [1.8.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.7.0...v1.8.0) (2026-03-06)
 
 

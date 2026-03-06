@@ -46,7 +46,31 @@ LOG_FILE="${LOG_DIR}/opencode-session-${TIMESTAMP}.log"
     echo ""
 } > "$LOG_FILE"
 
+# Create session lock file for build tool detection
+LOCK_FILE="/tmp/opencode-session.lock"
+
+cat > "$LOCK_FILE" <<EOF
+session_id=${TIMESTAMP}
+pid=$$
+started=$(date -Iseconds)
+command=opencode $*
+working_directory=$(pwd)
+EOF
+
+# Cleanup function to remove lock file on exit
+cleanup_lock() {
+    rm -f "$LOCK_FILE" 2>/dev/null || true
+}
+
+# Set trap to clean up lock file on exit (normal exit, interrupt, termination, error)
+trap cleanup_lock EXIT INT TERM HUP
+
 # Run opencode with tee to capture output
 # Use --print-logs flag to get internal OpenCode logs
 # Capture both stdout and stderr
-exec /usr/local/bin/opencode --print-logs "$@" 2>&1 | tee -a "$LOG_FILE"
+# Note: We don't use exec here so the trap remains active
+/usr/local/bin/opencode --print-logs "$@" 2>&1 | tee -a "$LOG_FILE"
+EXIT_CODE=${PIPESTATUS[0]}
+
+# Exit with the same code as opencode (trap will clean up lock file)
+exit $EXIT_CODE

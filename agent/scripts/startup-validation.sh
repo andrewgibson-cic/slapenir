@@ -514,6 +514,135 @@ test_credentials() {
 }
 
 # ============================================================================
+# Test 8: Build Tool Security - Verify Wrapper Safety
+# ============================================================================
+
+test_build_tool_security() {
+    print_header "🛡️ Build Tool Security Validation"
+    
+    local wrapper_dir="/home/agent/scripts"
+    local issues_found=0
+    local wrappers_checked=0
+    
+    # Check if wrapper directory exists
+    if [ ! -d "$wrapper_dir" ]; then
+        test_warn "Wrapper directory not found: $wrapper_dir"
+        return
+    fi
+    
+    # Test 1: No Credential Exposure
+    echo -n "  Checking for credential access in wrappers... "
+    local cred_violations=0
+    for wrapper in "$wrapper_dir"/*-wrapper; do
+        if [ -f "$wrapper" ]; then
+            wrappers_checked=$((wrappers_checked + 1))
+            if grep -q "\.env\|OPENAI_API_KEY\|ANTHROPIC_API_KEY\|GITHUB_TOKEN" "$wrapper" 2>/dev/null; then
+                echo -e "\n    ${RED}✗${NC} $(basename "$wrapper") accesses credentials"
+                cred_violations=$((cred_violations + 1))
+            fi
+        fi
+    done
+    
+    if [ $cred_violations -eq 0 ]; then
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "No credential access in $wrappers_checked wrappers"
+    else
+        echo -e "${RED}FAILED ✗${NC}"
+        test_fail "$cred_violations wrappers access credentials (security violation)"
+        issues_found=$((issues_found + 1))
+    fi
+    
+    # Test 2: No iptables Bypass
+    echo -n "  Checking for iptables bypass attempts... "
+    local iptables_violations=0
+    for wrapper in "$wrapper_dir"/*-wrapper; do
+        if [ -f "$wrapper" ]; then
+            if grep -q "iptables\|ip6tables\|nft" "$wrapper" 2>/dev/null; then
+                echo -e "\n    ${RED}✗${NC} $(basename "$wrapper") attempts iptables bypass"
+                iptables_violations=$((iptables_violations + 1))
+            fi
+        fi
+    done
+    
+    if [ $iptables_violations -eq 0 ]; then
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "No iptables bypass attempts in wrappers"
+    else
+        echo -e "${RED}FAILED ✗${NC}"
+        test_fail "$iptables_violations wrappers attempt iptables bypass (security violation)"
+        issues_found=$((issues_found + 1))
+    fi
+    
+    # Test 3: No Privilege Escalation
+    echo -n "  Checking for privilege escalation attempts... "
+    local priv_violations=0
+    for wrapper in "$wrapper_dir"/*-wrapper; do
+        if [ -f "$wrapper" ]; then
+            if grep -q "sudo\|su\|setuid\|chmod.*[457]..\|chown.*root" "$wrapper" 2>/dev/null; then
+                echo -e "\n    ${RED}✗${NC} $(basename "$wrapper") attempts privilege escalation"
+                priv_violations=$((priv_violations + 1))
+            fi
+        fi
+    done
+    
+    if [ $priv_violations -eq 0 ]; then
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "No privilege escalation attempts in wrappers"
+    else
+        echo -e "${RED}FAILED ✗${NC}"
+        test_fail "$priv_violations wrappers attempt privilege escalation (security violation)"
+        issues_found=$((issues_found + 1))
+    fi
+    
+    # Test 4: Audit Logging Present
+    echo -n "  Checking for audit logging in wrappers... "
+    local logging_violations=0
+    for wrapper in "$wrapper_dir"/*-wrapper; do
+        if [ -f "$wrapper" ]; then
+            if ! grep -q "log_execution\|log_" "$wrapper" 2>/dev/null; then
+                echo -e "\n    ${YELLOW}⚠${NC} $(basename "$wrapper") missing audit logging"
+                logging_violations=$((logging_violations + 1))
+            fi
+        fi
+    done
+    
+    if [ $logging_violations -eq 0 ]; then
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "All wrappers have audit logging"
+    else
+        echo -e "${YELLOW}PARTIAL${NC}"
+        test_warn "$logging_violations wrappers missing audit logging (recommended)"
+    fi
+    
+    # Test 5: Wrappers Source Detection Library
+    echo -n "  Checking for detection library usage... "
+    local detection_violations=0
+    for wrapper in "$wrapper_dir"/*-wrapper; do
+        if [ -f "$wrapper" ]; then
+            if ! grep -q "source.*detection.sh\|\. detection.sh" "$wrapper" 2>/dev/null; then
+                echo -e "\n    ${YELLOW}⚠${NC} $(basename "$wrapper") doesn't use detection library"
+                detection_violations=$((detection_violations + 1))
+            fi
+        fi
+    done
+    
+    if [ $detection_violations -eq 0 ]; then
+        echo -e "${GREEN}OK ✓${NC}"
+        test_pass "All wrappers use detection library"
+    else
+        echo -e "${YELLOW}PARTIAL${NC}"
+        test_warn "$detection_violations wrappers don't use detection library (recommended)"
+    fi
+    
+    # Summary
+    if [ $issues_found -eq 0 ]; then
+        test_pass "Build tool security validation passed ($wrappers_checked wrappers checked)"
+    else
+        test_fail "Build tool security validation failed ($issues_found critical issues)"
+    fi
+}
+
+# ============================================================================
 # Main Execution
 # ============================================================================
 
@@ -531,6 +660,7 @@ test_traffic_enforcement
 test_network_isolation
 test_allowed_connectivity
 test_credentials
+test_build_tool_security
 
 # Print summary
 echo ""

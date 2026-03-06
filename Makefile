@@ -36,8 +36,8 @@ shell:
 	@docker-compose exec -u root $(or $(SERVICE),agent) /home/agent/scripts/disable-traffic-enforcement.sh 2>/dev/null || true
 	@exec docker-compose exec \
 		-u agent \
-		-e COLUMNS \
-		-e LINES \
+		-e COLUMNS=`tput cols 2>/dev/null || echo 80` \
+		-e LINES=`tput lines 2>/dev/null || echo 24` \
 		-e TERM \
 		-e TRAFFIC_ENFORCEMENT_ENABLED=false \
 		-e GRADLE_ALLOW_FROM_OPENCODE=1 \

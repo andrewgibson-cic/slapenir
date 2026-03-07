@@ -26,7 +26,8 @@ RUN apk add --no-cache \
     gradle \
     maven \
     yarn \
-    pnpm
+    pnpm \
+    ncurses-terminfo-base
 
 # Install Rust/Cargo via rustup (cargo not available in Wolfi repos)
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal

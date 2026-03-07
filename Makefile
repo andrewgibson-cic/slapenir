@@ -65,7 +65,7 @@ shell:
 	@docker-compose exec -u root $(or $(SERVICE),agent) /home/agent/scripts/disable-traffic-enforcement.sh 2>/dev/null || true
 	@echo "Starting shell with size $(TERM_WIDTH)x$(TERM_HEIGHT)..."
 	@echo "=========================================="
-	@exec docker-compose exec \
+	@exec docker-compose exec -it \
 		-u agent \
 		-e COLUMNS=$(TERM_WIDTH) \
 		-e LINES=$(TERM_HEIGHT) \

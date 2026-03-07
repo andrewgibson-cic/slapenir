@@ -7,6 +7,15 @@ set -e
 # Configuration
 LOG_DIR="${LOG_DIR:-/var/log/slapenir}"
 LOG_ENABLED="${LOG_ENABLED:-true}"
+TOOL_NAME="opencode"
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")" && pwd)"
+
+# Source detection library if available
+if [ -f "$SCRIPT_DIR/lib/detection.sh" ]; then
+    source "$SCRIPT_DIR/lib/detection.sh"
+fi
 
 # Check if logging is enabled
 if [ "$LOG_ENABLED" != "true" ]; then
@@ -46,6 +55,11 @@ LOG_FILE="${LOG_DIR}/opencode-session-${TIMESTAMP}.log"
     echo ""
 } > "$LOG_FILE"
 
+# Log session start (if detection library is available)
+if type log_execution >/dev/null 2>&1; then
+    log_execution "$TOOL_NAME" "SESSION_START" "OpenCode session started: $*"
+fi
+
 # Create session lock file for build tool detection
 LOCK_FILE="/tmp/opencode-session.lock"
 
@@ -59,6 +73,10 @@ EOF
 
 # Cleanup function to remove lock file on exit
 cleanup_lock() {
+    # Log session end (if detection library is available)
+    if type log_execution >/dev/null 2>&1; then
+        log_execution "$TOOL_NAME" "SESSION_END" "OpenCode session ended"
+    fi
     rm -f "$LOCK_FILE" 2>/dev/null || true
 }
 

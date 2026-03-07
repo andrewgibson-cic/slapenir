@@ -578,7 +578,7 @@ test_build_tool_security() {
     local priv_violations=0
     for wrapper in "$wrapper_dir"/*-wrapper; do
         if [ -f "$wrapper" ]; then
-            if grep -q "sudo\|su\|setuid\|chmod.*[457]..\|chown.*root" "$wrapper" 2>/dev/null; then
+            if grep -qE "\bsudo\b|\bsu\b|\bsetuid\b|chmod.*[457]..|chown.*root" "$wrapper" 2>/dev/null; then
                 echo -e "\n    ${RED}✗${NC} $(basename "$wrapper") attempts privilege escalation"
                 priv_violations=$((priv_violations + 1))
             fi

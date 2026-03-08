@@ -1,0 +1,14 @@
+#!/bin/bash
+# Configure git safe directories for all workspace subdirectories
+# This prevents "dubious ownership" errors when mounting host directories
+
+set -e
+
+# Configure git to trust all directories
+# This is needed because Docker mounts host directories with different ownership
+git config --global --add safe.directory '*' 2>/dev/null || true
+
+# Also add specific workspace directory
+git config --global --add safe.directory /home/agent/workspace 2>/dev/null || true
+
+echo "✅ Git safe.directory configured for all directories"

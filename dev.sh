@@ -51,4 +51,4 @@ docker-compose run \
     -v "${HOME}/.ssh/id_ed25519_ibm.pub:/home/agent/.ssh/id_ed25519_ibm.pub:ro" \
     -v "${HOME}/.ssh/id_ed25519_pythymcpyface:/home/agent/.ssh/id_ed25519_pythymcpyface:ro" \
     -v "${HOME}/.ssh/id_ed25519_pythymcpyface.pub:/home/agent/.ssh/id_ed25519_pythymcpyface.pub:ro" \
-    agent "$@"
+    agent /bin/bash -c "stty cols ${TERM_WIDTH} rows ${TERM_HEIGHT} 2>/dev/null || true; exec \"\$@\"" -- "$@"

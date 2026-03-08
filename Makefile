@@ -32,11 +32,15 @@ help:
 	@echo "  up       Start services"
 	@echo "  down     Stop services"
 	@echo "  logs     Follow logs (all or: make logs SERVICE=proxy)"
-	@echo "  shell    Open shell in agent (or: make shell SERVICE=proxy)"
+	@echo "  shell    Open shell in agent (recommended: use ./dev.sh bash)"
 	@echo "  diagnose Diagnose terminal size issues"
 	@echo "  test     Run all tests"
 	@echo "  rebuild  Rebuild from scratch"
 	@echo "  clean    Remove containers and volumes"
+	@echo ""
+	@echo "Recommended usage:"
+	@echo "  ./dev.sh bash      # Interactive shell with internet access"
+	@echo "  ./dev.sh opencode  # OpenCode with network isolation"
 	@echo ""
 
 up:
@@ -56,30 +60,11 @@ logs:
 
 shell:
 	@echo "=========================================="
-	@echo "Terminal Size Detection"
+	@echo "Opening SLAPENIR agent shell"
 	@echo "=========================================="
-	@echo "Host terminal size: $(TERM_WIDTH)x$(TERM_HEIGHT)"
-	@echo "Method used: $($(shell if stty size < /dev/tty 2>/dev/null; then echo 'stty'; elif tput cols 2>/dev/null; then echo 'tput'; else echo 'fallback'; fi))"
+	@echo "Using dev.sh for consistent terminal sizing and network access"
 	@echo ""
-	@echo "Disabling traffic enforcement for interactive shell..."
-	@docker-compose exec -u root $(or $(SERVICE),agent) /home/agent/scripts/disable-traffic-enforcement.sh 2>/dev/null || true
-	@echo "Starting shell with size $(TERM_WIDTH)x$(TERM_HEIGHT)..."
-	@echo "=========================================="
-	@exec docker-compose exec -it \
-		-u agent \
-		-e COLUMNS=$(TERM_WIDTH) \
-		-e LINES=$(TERM_HEIGHT) \
-		-e TERM \
-		-e TRAFFIC_ENFORCEMENT_ENABLED=false \
-		-e GRADLE_ALLOW_FROM_OPENCODE=1 \
-		-e MVN_ALLOW_FROM_OPENCODE=1 \
-		-e NPM_ALLOW_FROM_OPENCODE=1 \
-		-e YARN_ALLOW_FROM_OPENCODE=1 \
-		-e PNPM_ALLOW_FROM_OPENCODE=1 \
-		-e CARGO_ALLOW_FROM_OPENCODE=1 \
-		-e PIP_ALLOW_FROM_OPENCODE=1 \
-		-e PIP3_ALLOW_FROM_OPENCODE=1 \
-		$(or $(SERVICE),agent) /bin/bash -c "echo 'Container terminal size:'; stty size 2>/dev/null || echo 'stty failed'; echo 'Environment: COLUMNS=\$$COLUMNS LINES=\$$LINES'; echo ''; stty cols $(TERM_WIDTH) rows $(TERM_HEIGHT) 2>/dev/null; exec bash"
+	@exec ./dev.sh bash
 
 test:
 	cd proxy && cargo test --all

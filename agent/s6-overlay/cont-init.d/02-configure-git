@@ -4,11 +4,20 @@
 
 set -e
 
+# Set HOME if not set (needed for docker-compose run)
+export HOME="${HOME:-/root}"
+
 # Configure git to trust all directories
 # This is needed because Docker mounts host directories with different ownership
 git config --global --add safe.directory '*' 2>/dev/null || true
 
 # Also add specific workspace directory
 git config --global --add safe.directory /home/agent/workspace 2>/dev/null || true
+
+# Configure for agent user as well (if .gitconfig exists)
+if [ -f /home/agent/.gitconfig ]; then
+    sudo -u agent git config --global --add safe.directory '*' 2>/dev/null || true
+    sudo -u agent git config --global --add safe.directory /home/agent/workspace 2>/dev/null || true
+fi
 
 echo "✅ Git safe.directory configured for all directories"

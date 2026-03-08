@@ -43,6 +43,7 @@ echo "   Terminal: ${TERM_WIDTH}x${TERM_HEIGHT}"
 # SSH keys are mounted read-only for security
 docker-compose run \
     -e TERM \
+    -e HOME=/root \
     -e COLUMNS=${TERM_WIDTH} \
     -e LINES=${TERM_HEIGHT} \
     -v "${HOME}/.ssh/id_ed25519_ho:/home/agent/.ssh/id_ed25519_ho:ro" \
@@ -51,4 +52,4 @@ docker-compose run \
     -v "${HOME}/.ssh/id_ed25519_ibm.pub:/home/agent/.ssh/id_ed25519_ibm.pub:ro" \
     -v "${HOME}/.ssh/id_ed25519_pythymcpyface:/home/agent/.ssh/id_ed25519_pythymcpyface:ro" \
     -v "${HOME}/.ssh/id_ed25519_pythymcpyface.pub:/home/agent/.ssh/id_ed25519_pythymcpyface.pub:ro" \
-    agent /bin/bash -c "stty cols ${TERM_WIDTH} rows ${TERM_HEIGHT} 2>/dev/null || true; exec \"\$@\"" -- "$@"
+    agent /bin/bash -c "git config --global --add safe.directory '*' 2>/dev/null || true; stty cols ${TERM_WIDTH} rows ${TERM_HEIGHT} 2>/dev/null || true; exec \"\$@\"" -- "$@"

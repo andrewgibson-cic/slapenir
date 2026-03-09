@@ -67,7 +67,7 @@ echo "   Traffic enforcement: ${TRAFFIC_MODE}"
 # Build docker-compose command with SSH keys
 # SSH keys are mounted read-only for security
 docker-compose run \
-    -e TERM \
+    -e TERM="${TERM:-xterm-256color}" \
     -e HOME=/root \
     -e COLUMNS=${TERM_WIDTH} \
     -e LINES=${TERM_HEIGHT} \
@@ -86,4 +86,4 @@ docker-compose run \
     -v "${HOME}/.ssh/id_ed25519_ibm.pub:/home/agent/.ssh/id_ed25519_ibm.pub:ro" \
     -v "${HOME}/.ssh/id_ed25519_pythymcpyface:/home/agent/.ssh/id_ed25519_pythymcpyface:ro" \
     -v "${HOME}/.ssh/id_ed25519_pythymcpyface.pub:/home/agent/.ssh/id_ed25519_pythymcpyface.pub:ro" \
-    agent /bin/bash -c "git config --global --add safe.directory '*' 2>/dev/null || true; stty cols ${TERM_WIDTH} rows ${TERM_HEIGHT} 2>/dev/null || true; exec \"\$@\"" -- "$@"
+    agent /bin/bash -c "export TERM=xterm-256color; export COLUMNS=${TERM_WIDTH}; export LINES=${TERM_HEIGHT}; git config --global --add safe.directory '*' 2>/dev/null || true; stty cols ${TERM_WIDTH} rows ${TERM_HEIGHT} 2>/dev/null || true; exec \"\$@\"" -- "$@"

@@ -104,4 +104,10 @@ rebuild:
 	docker-compose up -d
 
 clean:
-	docker-compose down -v --rmi local
+	@echo "Cleaning all slapenir resources..."
+	docker-compose down --remove-orphans || true
+	@docker ps -a -q --filter "name=slapenir-" | xargs -r docker rm -f 2>/dev/null || true
+	docker network rm slape-net 2>/dev/null || true
+	@docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^slapenir-' | xargs -r docker rmi -f 2>/dev/null || true
+	@docker volume ls -q | grep -E '^slapenir-' | xargs -r docker volume rm 2>/dev/null || true
+	@echo "Clean complete."

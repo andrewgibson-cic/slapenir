@@ -438,4 +438,4 @@ volumes:
     name: slapenir-grafana-data
     labels:
       - "slapenir.volume=grafana-data"
-      - "slapenir.monitoring=enabled
+      - "slapenir.monitoring=enabled"

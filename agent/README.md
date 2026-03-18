@@ -851,3 +851,107 @@ touch /var/log/slapenir/test.log
 
 ---
 
+## Code-Graph-RAG Integration
+
+Air-gapped knowledge graph-based code analysis using the existing llama-server on the host machine.
+
+### Components
+
+- **Memgraph**: Graph database (port 7687)
+- **Memgraph Lab**: Visualization UI (http://localhost:7688)
+- **Code-Graph-RAG**: AST parsing and graph queries
+- **MCP Server**: IDE integration with OpenCode
+
+### Usage
+
+#### Index a Repository
+
+```bash
+cgr-index /home/agent/workspace/my-project
+```
+
+#### Query the Graph
+
+```bash
+cgr-query "What functions call the database?"
+```
+
+#### Visualize in Memgraph Lab
+
+Open http://localhost:7688 in browser.
+
+### Example Workflow
+
+```bash
+# 1. Index a repository
+cgr-index /home/agent/workspace/my-project
+
+# 2. Query the graph
+cgr-query "What functions call the database?"
+
+# 3. Visualize in Memgraph Lab
+# Open http://localhost:7688
+```
+
+### MCP Integration
+
+Code-Graph-RAG is available as an MCP server for IDE integration:
+
+- `query_code_graph` - Query code graph semantically
+- `index_repository` - Index a repository
+- `get_code_snippet` - Get code snippet by AST node
+- `surgical_replace_code` - Apply code changes surgically
+
+### Configuration
+
+Code-Graph-RAG is configured via environment variables:
+
+```bash
+CGR_ORCHESTRATOR_PROVIDER=openai
+CGR_ORCHESTRATOR_ENDPOINT=http://host.docker.internal:11434/v1
+CGR_ORCHESTRATOR_API_KEY=sk-local
+CGR_CYPHER_PROVIDER=openai
+CGR_CYPHER_ENDPOINT=http://host.docker.internal:11434/v1
+CGR_CYPHER_API_KEY=sk-local
+CGR_MEMGRAPH_HOST=memgraph
+CGR_MEMGRAPH_PORT=7687
+```
+
+### Prerequisites
+
+- llama-server running on host (port 11434 for Ollama, or port 8080 for llama.cpp)
+- Memgraph container running (auto-starts with docker compose)
+- Memgraph Lab accessible (auto-starts with docker compose)
+
+### Troubleshooting
+
+**"Cannot connect to Memgraph"**:
+```bash
+docker logs slapenir-agent 2>&1 | grep memgraph-verify
+docker compose ps memgraph
+```
+
+**"Code-Graph-RAG not installed"**:
+```bash
+docker exec slapenir-agent cgr --version
+docker exec slapenir-agent which cmake
+docker exec slapenir-agent which rg
+```
+
+**"Indexing fails"**:
+```bash
+docker logs slapenir-agent 2>&1 | grep "cgr start"
+# Check if repository exists
+# Check if Memgraph is running
+```
+
+### Model Recommendations
+
+| Hardware | Model | RAM Usage | Speed | Quality |
+|----------|-------|-----------|-------|---------|
+| M1 Pro 16GB | `qwen2.5-coder:7b` | ~6GB | Fast (25-40 t/s) | Good |
+| M1 Max 32GB | `qwen2.5-coder:14b` | ~12GB | Medium (10-20 t/s) | Excellent |
+| 64GB+ RAM | `qwen2.5-coder:32b` | ~24GB | Slow (5-10 t/s) | Outstanding |
+
+---
+

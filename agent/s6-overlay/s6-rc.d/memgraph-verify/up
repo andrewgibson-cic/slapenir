@@ -1,0 +1,13 @@
+#!/command/execlineb -P
+backtick -n TIMEOUT { s6-envdir /etc/s6/env/TIMEOUT }
+importas -u TIMEOUT TIMEOUT
+foreground {
+    s6-echo "[memgraph-verify] Checking Memgraph connectivity..."
+}
+foreground {
+    if curl -s --connect-timeout ${TIMEOUT:-5} http://memgraph:7687 > /dev/null 2>&1; then
+        s6-echo "[memgraph-verify] Memgraph is reachable!"
+    else
+        s6-echo "[memgraph-verify] WARNING: Memgraph not reachable, Code-Graph-RAG may not work"
+    fi
+}

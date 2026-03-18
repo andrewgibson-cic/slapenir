@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+REPO_PATH="${1:-/home/agent/workspace}"
+
+if [ ! -d "$REPO_PATH" ]; then
+    echo "Error: Directory $REPO_PATH does not exist"
+    exit 1
+fi
+
+echo "Indexing repository at $REPO_PATH..."
+cgr start --repo-path "$REPO_PATH" --update-graph --clean

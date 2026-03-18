@@ -1,0 +1,14 @@
+#!/bin/bash
+set -e
+
+if [ -z "$1" ]; then
+    echo "Usage: cgr-query \"your question about the code\""
+    echo "Example: cgr-query \"What functions call the database?\""
+    exit 1
+fi
+
+QUESTION="$1"
+REPO_PATH="${2:-/home/agent/workspace}"
+
+echo "Querying code graph..."
+cgr start --repo-path "$REPO_PATH" --query "$QUESTION"

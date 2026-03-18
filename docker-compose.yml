@@ -33,6 +33,61 @@ services:
       - "slapenir.phase=1"
 
   # ============================================================================
+  # Memgraph: Graph database for Code-Graph-RAG
+  # ============================================================================
+  memgraph:
+    image: memgraph/memgraph:latest
+    container_name: slapenir-memgraph
+    hostname: memgraph
+    networks:
+      - slape-net
+    ports:
+      - "7687:7687"  # Bolt protocol
+    volumes:
+      - memgraph-data:/var/lib/memgraph
+    environment:
+      - MEMGRAPH_LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7687"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "slapenir.service=memgraph"
+      - "slapenir.phase=graph-rag"
+    command: ["--log-level=INFO"]
+
+  # ============================================================================
+  # Memgraph Lab: Web UI for graph visualization
+  # ============================================================================
+  memgraph-lab:
+    image: memgraph/lab:latest
+    container_name: slapenir-memgraph-lab
+    hostname: memgraph-lab
+    networks:
+      - slape-net
+    ports:
+      - "7688:3000"  # Web UI on port 7688
+    environment:
+      - MEMGRAPH_HOST=memgraph
+      - MEMGRAPH_PORT=7687
+    depends_on:
+      memgraph:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "slapenir.service=memgraph-lab"
+      - "slapenir.phase=graph-rag"
+
+  # ============================================================================
   # PostgreSQL: Database for auto-detection API definitions
   # ============================================================================
   postgres:
@@ -367,6 +422,12 @@ volumes:
       - "slapenir.volume=prometheus-data"
       - "slapenir.monitoring=enabled"
   
+  memgraph-data:
+    name: slapenir-memgraph-data
+    labels:
+      - "slapenir.volume=memgraph-data"
+      - "slapenir.phase=graph-rag"
+
   grafana-data:
     name: slapenir-grafana-data
     labels:

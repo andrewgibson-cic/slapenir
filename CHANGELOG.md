@@ -1,4 +1,4 @@
-## [1.7.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.6.0...v1.7.0) (2026-03-18)
+## [1.7.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.6.0...v1.7.0) (2026-03-07)
 
 
 ### Features
@@ -21,17 +21,12 @@
 * Add loop-prevention instructions for OpenCode agent ([cb378cb](https://github.com/andrewgibson-cic/slapenir/commit/cb378cbeb252539b3596650d3822afe6eb913708))
 * Add loop-prevention instructions for OpenCode agent ([4fac6c2](https://github.com/andrewgibson-cic/slapenir/commit/4fac6c249248f299c87e95ba7cfa299136495bd6))
 * add opencode session logging to /var/log/slapenir ([2afa909](https://github.com/andrewgibson-cic/slapenir/commit/2afa90924d0b9a5ef716e7d018256b54b92a2bd1))
-* add TTY allocation for opencode terminal size detection ([e508cc5](https://github.com/andrewgibson-cic/slapenir/commit/e508cc50227d20109f82870b6b039988ff14f901))
 * Agent container user and permissions improvements ([642b178](https://github.com/andrewgibson-cic/slapenir/commit/642b178c4efd6503567346058d25fd40103062df))
-* consolidate shell access and fix terminal sizing ([33aaa53](https://github.com/andrewgibson-cic/slapenir/commit/33aaa53dfbbe486cdcecc3a8603343091b50502c))
-* dev.sh environment issues and false positive security tests ([047d635](https://github.com/andrewgibson-cic/slapenir/commit/047d6353d736f7ee0e6834a9ee7b347e4cf739c9))
 * disable traffic enforcement in make shell and add terminal size env vars ([f661d02](https://github.com/andrewgibson-cic/slapenir/commit/f661d02459541424da495c13ae0d811f5b175c6d))
 * Enable bash access for OpenCode agent with permission prompt ([7c28219](https://github.com/andrewgibson-cic/slapenir/commit/7c28219819d097ddc34c347a283d51e87d49ffcb))
 * improve singleton pattern and add workspace permission fix ([1c4b47b](https://github.com/andrewgibson-cic/slapenir/commit/1c4b47b43cf42fc93de5d099a4a759970cb78cb0))
 * opencode-window-size-not-maximized - pass terminal size env vars with explicit values ([8a6ad3a](https://github.com/andrewgibson-cic/slapenir/commit/8a6ad3a3018442e3e70e4e8ab469804c83839147))
 * opencode-window-visibility-on-maximize - pass explicit terminal size values ([68e972f](https://github.com/andrewgibson-cic/slapenir/commit/68e972ff070c0b57c5791bc740ddf3ac79c6d414))
-* set HOME for git config in dev.sh and startup script ([7672dc0](https://github.com/andrewgibson-cic/slapenir/commit/7672dc06626e0045205bdc98b5e6231510584769))
-* terminal size and git safe directory issues in dev.sh ([cebfdda](https://github.com/andrewgibson-cic/slapenir/commit/cebfdda516926a9069730b1ffb28291ba31115c1))
 * Use AGENTS.md for OpenCode instructions (correct mechanism) ([0a9e74e](https://github.com/andrewgibson-cic/slapenir/commit/0a9e74eea4a7f09c553b073996e232d5c92abe6e))
 
 

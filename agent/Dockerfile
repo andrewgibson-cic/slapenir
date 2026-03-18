@@ -8,7 +8,7 @@ LABEL maintainer="andrew.gibson-cic@ibm.com"
 LABEL description="SLAPENIR Agent: Secure Python execution environment with process supervision"
 LABEL version="0.1.0"
 
-# Install build tools, Python, bash, iptables for traffic enforcement, and Java 21
+# Install build tools, Python, bash, iptables for traffic enforcement, Java 21, and build tool wrappers
 RUN apk add --no-cache \
     python-3.11 \
     py3-pip \
@@ -27,10 +27,13 @@ RUN apk add --no-cache \
     maven \
     yarn \
     pnpm \
-    ncurses-terminfo-base
+    ncurses-terminfo-base \
+    cmake \
+    ripgrep
 
 # Install Rust/Cargo via rustup (cargo not available in Wolfi repos)
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+ENV PATH=/root/.cargo/bin:$PATH
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\
@@ -100,14 +103,14 @@ RUN mkdir -p /home/agent/scripts/lib && \
     chmod +x /home/agent/scripts/*-wrapper 2>/dev/null || true
 
 # Shadow system binaries with security wrappers
-# Moves real binaries to .real suffix and creates symlinks to wrappers
+# Moves real binaries to .real suffix, creates symlinks to wrappers
 RUN for tool in gradle mvn npm yarn pnpm cargo pip pip3; do \
         if command -v $tool >/dev/null 2>&1; then \
             real_path=$(which $tool); \
-            # Only shadow if not already shadowed \
+            # Only shadow if not already shadowed
             if [ ! -f "${real_path}.real" ]; then \
                 mv "$real_path" "${real_path}.real"; \
-                # Create symlink if wrapper exists \
+                # Create symlink if wrapper exists
                 if [ -f "/home/agent/scripts/${tool}-wrapper" ]; then \
                     ln -s /home/agent/scripts/${tool}-wrapper "$real_path"; \
                 fi; \
@@ -127,6 +130,23 @@ RUN pip install --no-cache-dir --break-system-packages \
     aiohttp \
     pydantic \
     python-dotenv
+
+# Install uv package manager for Code-Graph-RAG
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH=/root/.local/bin:$PATH
+RUN uv --version
+
+# Install Code-Graph-RAG with full Tree-sitter support
+# This clones the repo and compiles Tree-sitter grammars for multi-language AST analysis
+RUN git clone --depth 1 https://github.com/vitali87/code-graph-rag.git /tmp/code-graph-rag && \
+    cd /tmp/code-graph-rag && \
+    uv sync --extra treesitter-full && \
+    uv pip install --system . && \
+    rm -rf /tmp/code-graph-rag
+
+# Create Code-Graph-RAG config directory
+RUN mkdir -p /home/agent/.code-graph-rag && \
+    chown agent:agent /home/agent/.code-graph-rag
 
 # Set working directory
 WORKDIR /home/agent/workspace

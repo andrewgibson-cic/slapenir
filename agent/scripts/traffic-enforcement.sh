@@ -110,6 +110,11 @@ log "DNS filtered to trusted servers only (8.8.8.8, 8.8.4.4, 1.1.1.1)"
 iptables -A TRAFFIC_ENFORCE -p tcp --dport 22 -j ACCEPT
 log "SSH traffic allowed"
 
+# Allow HTTP/HTTPS outbound (for internet access)
+iptables -A TRAFFIC_ENFORCE -p tcp --dport 80 -j ACCEPT
+iptables -A TRAFFIC_ENFORCE -p tcp --dport 443 -j ACCEPT
+log "HTTP/HTTPS traffic allowed for internet access"
+
 # Allow connections to proxy
 iptables -A TRAFFIC_ENFORCE -d "$PROXY_IP" -p tcp --dport "$PROXY_PORT" -j ACCEPT
 log "Proxy connections allowed"
@@ -127,25 +132,22 @@ else
 fi
 
 # =============================================================================
-# REDIRECT RULES (in nat table - REDIRECT only works in nat)
+# ALLOW ADDITIONAL TRAFFIC (no redirection needed)
 # =============================================================================
 
-# Create nat table rules for traffic redirection
-# Note: REDIRECT target only works in nat table, not filter table
-iptables -t nat -F TRAFFIC_REDIRECT 2>/dev/null || true
-iptables -t nat -X TRAFFIC_REDIRECT 2>/dev/null || true
-iptables -t nat -N TRAFFIC_REDIRECT
+# Note: HTTP (port 80) and HTTPS (port 443) are allowed directly above
+# If you want to route all traffic through the proxy, uncomment the rules below
 
-# Redirect HTTP (port 80) to proxy
-iptables -t nat -A TRAFFIC_REDIRECT -p tcp --dport 80 -j REDIRECT --to-ports "$PROXY_PORT"
-log "HTTP traffic redirected to proxy"
+# # Redirect HTTP (port 80) to proxy
+# iptables -t nat -A TRAFFIC_REDIRECT -p tcp --dport 80 -j REDIRECT --to-ports "$PROXY_PORT"
+# log "HTTP traffic redirected to proxy"
 
-# Redirect HTTPS (port 443) to proxy for CONNECT tunneling
-iptables -t nat -A TRAFFIC_REDIRECT -p tcp --dport 443 -j REDIRECT --to-ports "$PROXY_PORT"
-log "HTTPS traffic redirected to proxy"
+# # Redirect HTTPS (port 443) to proxy for CONNECT tunneling
+# iptables -t nat -A TRAFFIC_REDIRECT -p tcp --dport 443 -j REDIRECT --to-ports "$PROXY_PORT"
+# log "HTTPS traffic redirected to proxy"
 
-# Apply nat rules to OUTPUT chain
-iptables -t nat -I OUTPUT 1 -j TRAFFIC_REDIRECT
+# # Apply nat rules to OUTPUT chain
+# iptables -t nat -I OUTPUT 1 -j TRAFFIC_REDIRECT
 
 # =============================================================================
 # BLOCK AND LOG RULES
@@ -167,10 +169,11 @@ iptables -I OUTPUT 1 -j TRAFFIC_ENFORCE
 
 log "Traffic enforcement active!"
 log "Summary:"
-log "  - HTTP/HTTPS: Redirected to proxy:$PROXY_PORT"
+log "  - HTTP/HTTPS (ports 80/443): Allowed directly to internet"
 log "  - SSH (port 22): Allowed directly"
 log "  - DNS: Filtered to trusted servers (8.8.8.8, 8.8.4.4, 1.1.1.1)"
 log "  - Llama server ($LLAMA_SERVER_HOST:$LLAMA_SERVER_PORT): Allowed"
+log "  - Internal Docker network (172.30.0.0/24): Allowed"
 log "  - All other traffic: Blocked and logged"
 
 # =============================================================================

@@ -77,3 +77,4 @@ docs/*
 # Explicitly exclude security audits
 *SECURITY_AUDIT*.md
 *.mdarxiv-cosci/
+.claude/docs/add-code-graph-rag-integration/

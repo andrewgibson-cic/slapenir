@@ -10,7 +10,6 @@ LABEL version="0.1.0"
 
 # Install build tools, Python, bash, iptables for traffic enforcement, and Java 21
 RUN apk add --no-cache \
-RUN apk add --no-cache \
     python-3.11 \
     py3-pip \
     build-base \
@@ -28,7 +27,7 @@ RUN apk add --no-cache \
     maven \
     yarn \
     pnpm \
-    cargo \
+    rust \
     cmake \
     ripgrep
 
@@ -128,11 +127,9 @@ RUN pip install --no-cache-dir --break-system-packages \
 
 # Install uv package manager for Code-Graph-RAG
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    uv --version
-
-# Install Code-Graph-RAG with full Tree-sitter support
-# This clones the repo and compiles Tree-sitter grammars for multi-language AST analysis
-RUN git clone --depth 1 https://github.com/vitali87/code-graph-rag.git /tmp/code-graph-rag && \
+    export PATH="$HOME/.local/bin:$PATH" && \
+    uv --version && \
+    git clone --depth 1 https://github.com/vitali87/code-graph-rag.git /tmp/code-graph-rag && \
     cd /tmp/code-graph-rag && \
     uv sync --extra treesitter-full && \
     uv pip install --system . && \
@@ -154,7 +151,7 @@ ENV PYTHON_VERSION=3.11 \
     HOME=/home/agent \
     JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
     JAVA_OPTS="-Xmx2g -Xms512m" \
-    PATH=/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
+    PATH=/root/.local/bin:/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
 
 # Configure s6-overlay to run user services as agent
 ENV S6_RUNASUSER=agent

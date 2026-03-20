@@ -1,0 +1,2 @@
+#!/bin/bash
+/home/agent/scripts/setup-build-config.sh

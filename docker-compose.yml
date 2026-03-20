@@ -48,7 +48,7 @@ services:
     environment:
       - MEMGRAPH_LOG_LEVEL=INFO
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7687"]
+      test: ["CMD-SHELL", "python3 -c 'import socket; s=socket.socket(); s.settimeout(2); s.connect((\"localhost\", 7687)); s.close()' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -193,9 +193,18 @@ services:
       # OpenCode Configuration
       - OPENCODE_DISABLE_CLAUDE_CODE=${OPENCODE_DISABLE_CLAUDE_CODE:-1}
       - LLAMA_SERVER_HOST=${LLAMA_SERVER_HOST:-host.docker.internal}
-      - LLAMA_SERVER_PORT=${LLAMA_SERVER_PORT:-8080}
+      - LLAMA_SERVER_PORT=${LLAMA_SERVER_PORT:-6666}
       - OPENCODE_CONFIG_PATH=/home/agent/.config/opencode/opencode.json
       - OPENCODE_YOLO=true
+      # Code-Graph-RAG Configuration
+      - ORCHESTRATOR_PROVIDER=openai
+      - ORCHESTRATOR_ENDPOINT=${ORCHESTRATOR_ENDPOINT:-http://host.docker.internal:6666/v1}
+      - ORCHESTRATOR_API_KEY=${ORCHESTRATOR_API_KEY:-sk-local}
+      - CYPHER_PROVIDER=openai
+      - CYPHER_ENDPOINT=${CYPHER_ENDPOINT:-http://host.docker.internal:6666/v1}
+      - CYPHER_API_KEY=${CYPHER_API_KEY:-sk-local}
+      - MEMGRAPH_HOST=memgraph
+      - MEMGRAPH_PORT=7687
       # SSH/GPG Agent forwarding for git operations
       - SSH_AUTH_SOCK=/home/agent/.ssh/agent.sock
       - GPG_KEY=${GPG_KEY:-164DA43B214F0144}

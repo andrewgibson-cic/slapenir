@@ -1,51 +1,14 @@
-## Code-Graph-RAG Integration
+#!/bin/bash
+set -e
 
-Air-gapped knowledge graph-based code analysis using the existing llama-server on the host machine.
+REPO_PATH="${1:-.}"
 
-### Components
-- **Memgraph**: Graph database (port 7687)
-- **Memgraph Lab**: Visualization UI (http://localhost:7688)
-- **Code-Graph-RAG**: AST parsing and graph queries
+if [ ! -d "$REPO_PATH" ]; then
+    echo "Error: Directory not found: $REPO_PATH"
+    exit 1
+fi
 
-- **MCP Server**: IDE integration with OpenCode
+REPO_PATH=$(cd "$REPO_PATH" && pwd)
 
-### Usage
-#### Index a Repository
-```bash
-cgr-index /home/agent/workspace/my-project
-```
-
-#### Query the Graph
-```bash
-cgr-query "What functions call the database?"
-```
-
-#### Visualize in Memgraph Lab
-Open http://localhost:7688 in browser.
-
-### Example Workflow
-```bash
-# 1. Index a repository
-cgr-index /home/agent/workspace/my-project
-
-# 2. Query the graph
-cgr-query "What functions call the database?"
-
-# 3. Visualize in Memgraph Lab
-Open http://localhost:7688 in browser.
-
-### MCP Integration
-Code-Graph-RAG is available as an MCP server for IDE integration:
-- `query_code_graph` - Query code graph semantically
-- `index_repository` - Index a repository
-- `get_code_snippet` - Get code snippet by AST node
-- `surgical_replace_code` - Apply code changes surgically
-
-- Tool: `cgr-index`
-  - Tool: `cgr-query`
-  - Tool: `query_code_graph`
-  - Tool: `index_repository`
-  - Tool: `get_code_snippet`
-  - Tool: `surgical_replace_code`
 echo "Indexing repository at $REPO_PATH..."
 cgr start --repo-path "$REPO_PATH" --update-graph --clean

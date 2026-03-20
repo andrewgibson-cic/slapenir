@@ -1,54 +1,11 @@
 #!/bin/bash
-# ============================================================================
-# Maven Execution Control Wrapper
-# ============================================================================
-# Prevents Maven execution during OpenCode sessions for security
-# Blocks: arbitrary code execution, supply chain attacks, data exfiltration
-# ============================================================================
+# mvn (Maven) wrapper - Enforces build control for isolated environment
+# BLOCKED BY DEFAULT - requires ALLOW_BUILD=1 or MVN_ALLOW_BUILD=1
+#
+# Old behavior: Block only during OpenCode sessions
+# New behavior: Block always unless explicit override
 
 set -euo pipefail
-
-# Configuration
-TOOL_NAME="mvn"
-OVERRIDE_VAR="MVN_ALLOW_FROM_OPENCODE"
-REAL_BINARY="/usr/bin/mvn.real"
-LOG_DIR="${LOG_DIR:-/var/log/slapenir}"
-
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-
-# Source detection library
-source "$SCRIPT_DIR/lib/detection.sh"
-
-# Check for emergency override
-if [ "${!OVERRIDE_VAR:-0}" = "1" ]; then
-    log_execution "$TOOL_NAME" "OVERRIDE" "User bypass via $OVERRIDE_VAR=1"
-    # Warning message
-    echo "WARNING: Build tool override active (security risk)" >&2
-    # Execute real binary
-    if [ -x "$REAL_BINARY" ]; then
-        exec "$REAL_BINARY" "$@"
-    else
-        echo "ERROR: Real binary not found: $REAL_BINARY" >&2
-        exit 127
-    fi
-fi
-
-# Check if OpenCode is active
-if is_opencode_active; then
-    log_execution "$TOOL_NAME" "BLOCKED" "OpenCode session detected"
-    show_block_message "$TOOL_NAME"
-    exit 1
-fi
-
-# Allow execution - log and run
-log_execution "$TOOL_NAME" "ALLOWED" "No OpenCode session detected"
-
-# Execute real binary
-if [ -x "$REAL_BINARY" ]; then
-    exec "$REAL_BINARY" "$@"
-else
-    echo "ERROR: Real binary not found: $REAL_BINARY" >&2
-    echo "This wrapper expects $REAL_BINARY to exist" >&2
-    exit 127
-fi
+export TOOL_NAME="mvn"
+source "/home/agent/scripts/lib/build-wrapper.sh"
+run_build_wrapper "$@"

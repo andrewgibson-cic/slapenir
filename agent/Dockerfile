@@ -10,7 +10,8 @@ LABEL version="0.1.0"
 
 # Install build tools, Python, bash, iptables for traffic enforcement, and Java 21
 RUN apk add --no-cache \
-    python-3.11 \
+    python-3.12 \
+    python-3.12-dev \
     py3-pip \
     build-base \
     git \
@@ -29,7 +30,9 @@ RUN apk add --no-cache \
     pnpm \
     rust \
     cmake \
-    ripgrep
+    ripgrep \
+    openssl-dev \
+    netcat-openbsd
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\
@@ -93,13 +96,62 @@ RUN chmod +x /etc/cont-init.d/* 2>/dev/null || true
 COPY scripts/ /home/agent/scripts/
 RUN chmod +x /home/agent/scripts/*.sh
 
+# Copy package manager configs for isolated builds
+COPY config/npm/ /home/agent/config/npm/
+COPY config/yarn/ /home/agent/config/yarn/
+COPY config/gradle/ /home/agent/config/gradle/
+COPY config/pip/ /home/agent/config/pip/
+
+# Create cache directories for package managers
+RUN mkdir -p /home/agent/.npm \
+             /home/agent/.gradle/caches \
+             /home/agent/.gradle/wrapper \
+             /home/agent/.cache/pip \
+             /home/agent/.cache/opencode \
+             /home/agent/.cache/codebase_rag \
+             /home/agent/.yarn/cache \
+             /home/agent/.yarn/global \
+             /home/agent/.config/pip
+
+# Fix cache directory ownership (created by root mkdir)
+RUN chown -R agent:agent /home/agent/.npm \
+             /home/agent/.gradle \
+             /home/agent/.cache \
+             /home/agent/.yarn \
+             /home/agent/.config && \
+    chown -R agent:agent /home/agent/.npm \
+                         /home/agent/.gradle \
+                         /home/agent/.cache \
+                         /home/agent/.yarn
+
+# Install Python dependencies BEFORE wrapper shadowing (so pip isn't blocked)
+RUN pip install --no-cache-dir --break-system-packages \
+    requests \
+    httpx \
+    aiohttp \
+    pydantic \
+    python-dotenv
+
+# Install Code-Graph-RAG with full tree-sitter support (before wrapper shadowing)
+# Note: pip installs to Python 3.13, and cgr uses Python 3.13 (correct)
+# Note: pip doesn't auto-discover all subpackages, so we copy missing dirs manually
+RUN git clone --depth 1 https://github.com/vitali87/code-graph-rag.git /tmp/code-graph-rag && \
+    cd /tmp/code-graph-rag && \
+    pip install --no-cache-dir --break-system-packages ".[treesitter-full]" && \
+    for dir in mcp parsers providers services tools utils; do \
+        cp -r codebase_rag/$dir /usr/lib/python3.13/site-packages/codebase_rag/$dir/; \
+    done && \
+    rm -rf /tmp/code-graph-rag
+
 # Install build tool wrappers for security
-# These intercept build tool commands and block execution during OpenCode sessions
+# These intercept build tool commands and block execution by default
 RUN mkdir -p /home/agent/scripts/lib && \
-    chmod +x /home/agent/scripts/*-wrapper 2>/dev/null || true
+    chmod +x /home/agent/scripts/*-wrapper 2>/dev/null || true && \
+    chmod +x /home/agent/scripts/lib/*.sh 2>/dev/null || true
 
 # Shadow system binaries with security wrappers
 # Moves real binaries to .real suffix and creates symlinks to wrappers
+# All builds blocked by default - requires ALLOW_BUILD=1 or <TOOL>_ALLOW_BUILD=1
 RUN for tool in gradle mvn npm yarn pnpm cargo pip pip3; do \
         if command -v $tool >/dev/null 2>&1; then \
             real_path=$(which $tool); \
@@ -117,24 +169,6 @@ RUN if [ -f /home/agent/scripts/gradle-wrapper ]; then \
         ln -sf /home/agent/scripts/gradle-wrapper /home/agent/scripts/gradlew; \
     fi
 
-# Install Python dependencies (common AI/ML packages)
-RUN pip install --no-cache-dir --break-system-packages \
-    requests \
-    httpx \
-    aiohttp \
-    pydantic \
-    python-dotenv
-
-# Install uv package manager for Code-Graph-RAG
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    export PATH="$HOME/.local/bin:$PATH" && \
-    uv --version && \
-    git clone --depth 1 https://github.com/vitali87/code-graph-rag.git /tmp/code-graph-rag && \
-    cd /tmp/code-graph-rag && \
-    uv sync --extra treesitter-full && \
-    uv pip install --system . && \
-    rm -rf /tmp/code-graph-rag
-
 # Create Code-Graph-RAG config directory
 RUN mkdir -p /home/agent/.code-graph-rag && \
     chown agent:agent /home/agent/.code-graph-rag
@@ -146,7 +180,7 @@ WORKDIR /home/agent/workspace
 # s6-overlay will drop privileges for user services via S6_RUNASUSER
 
 # Environment variables
-ENV PYTHON_VERSION=3.11 \
+ENV PYTHON_VERSION=3.12 \
     PYTHONUNBUFFERED=1 \
     HOME=/home/agent \
     JAVA_HOME=/usr/lib/jvm/java-21-openjdk \

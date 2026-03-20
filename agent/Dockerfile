@@ -143,6 +143,10 @@ RUN git clone --depth 1 https://github.com/vitali87/code-graph-rag.git /tmp/code
     done && \
     rm -rf /tmp/code-graph-rag
 
+# Patch code-graph-rag: fix missing tool descriptions for semantic_search and get_function_source
+# Upstream bug: Tool() calls don't pass description parameter
+RUN /home/agent/scripts/patch-codegraph-rag.sh
+
 # Install build tool wrappers for security
 # These intercept build tool commands and block execution by default
 RUN mkdir -p /home/agent/scripts/lib && \

@@ -145,8 +145,57 @@ python3 agent/tests/test_agent.py
 ## Documentation
 
 - [Architecture](docs/SLAPENIR_Architecture.md) - System design
-- [Local LLM Setup](docs/LOCAL_LLM_QUICKSTART.md) - Air-gapped operation
 - [mTLS Setup](docs/mTLS_Setup.md) - Certificate management
+- [Agent Environment](agent/README.md) - Agent configuration
+- [Contributing](CONTRIBUTING.md) - Development guidelines
+- [Security Policy](SECURITY.md) - Vulnerability reporting
+
+---
+
+## Stack Startup Sequence
+
+### Quick Start (All Services)
+
+```bash
+./slapenir start
+```
+
+### Sequential Startup (Debugging)
+
+| Step | Command | Wait For | Port |
+|------|---------|----------|------|
+| 1. Infrastructure | `docker compose up -d step-ca postgres memgraph` | `healthy` status | 9000, 5432, 7687 |
+| 2. Proxy | `docker compose up -d proxy` | Port 3000 responding | 3000 |
+| 3. Local LLM (optional) | `llama-server --host 0.0.0.0 --port 8080 --model model.gguf` | Server ready | 8080 |
+| 4. Agent | `docker compose up -d agent` | Container running | - |
+| 5. Monitoring (optional) | `docker compose --profile monitoring up -d` | Services healthy | 9090, 3001 |
+
+### Verify Stack
+
+```bash
+./slapenir status
+```
+
+### Service Ports
+
+| Service | Port | URL | Purpose |
+|---------|------|-----|---------|
+| Proxy | 3000 | http://localhost:3000 | API gateway, health, metrics |
+| Prometheus | 9090 | http://localhost:9090 | Metrics collection |
+| Grafana | 3001 | http://localhost:3001 | Dashboards (admin/admin) |
+| Memgraph | 7687 | bolt://localhost:7687 | Graph database |
+| Memgraph Lab | 7688 | http://localhost:7688 | Graph visualization |
+| Step-CA | 9000 | https://localhost:9000 | Certificate authority |
+
+### Dependency Graph
+
+```
+step-ca ─────┐
+             ├──> proxy ──> agent
+postgres ───┘
+
+memgraph ───> memgraph-lab (optional)
+```
 
 ## Status
 

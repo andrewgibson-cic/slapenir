@@ -68,7 +68,11 @@ temp/
 !readme*.md
 !Readme*.md
 # Keep CHANGELOG and similar important files
-!CHANGELOG*.md
+!changeLog*.md
+!CONTRIBUTING.md
+!SECURITY.md
+!LICENSE
+
 # Keep agent configuration instructions
 !agent/config/*.md
 

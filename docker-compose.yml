@@ -224,6 +224,8 @@ services:
       # OpenCode commands and skills (for slash commands in container)
       - ${HOME}/.config/opencode/commands:/home/agent/.config/opencode/commands:ro
       - ${HOME}/.config/opencode/skills:/home/agent/.config/opencode/skills:ro
+      # OpenCode config (overrides baked-in config from Dockerfile)
+      - ./agent/config/opencode.json:/home/agent/.config/opencode/opencode.json:ro
       # Claude Code global commands and skills (mounted to ~/.opencode for OpenCode discovery)
       - ${HOME}/.claude/commands:/home/agent/.opencode/commands:ro
       - ${HOME}/.claude/skills:/home/agent/.opencode/skills:ro

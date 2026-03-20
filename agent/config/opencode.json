@@ -14,6 +14,7 @@
       "type": "local",
       "command": ["code-graph-rag", "mcp-server"],
       "enabled": true,
+      "timeout": 900000,
       "environment": {
         "TARGET_REPO_PATH": "/home/agent/workspace",
         "ORCHESTRATOR_PROVIDER": "openai",
@@ -32,13 +33,13 @@
   "permission": {
     "*": "deny",
     "read": "allow",
-    "edit": "ask",
+    "edit": "allow",
     "grep": "allow",
     "glob": "allow",
     "list": "allow",
     "webfetch": "deny",
     "websearch": "deny",
-    "code-graph-rag": "allow",
+    "code-graph-rag_*": "allow",
     "mcp_*": "deny",
     "bash": {
       "*": "ask",

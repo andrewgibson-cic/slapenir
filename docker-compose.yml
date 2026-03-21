@@ -444,3 +444,18 @@ volumes:
     labels:
       - "slapenir.volume=grafana-data"
       - "slapenir.monitoring=enabled"
+
+  mcp-memory-data:
+    name: slapenir-mcp-memory
+    labels:
+      - "slapenir.volume=mcp-memory"
+      - "slapenir.persistence=memory-state"
+
+  mcp-knowledge-data:
+    name: slapenir-mcp-knowledge
+    labels:
+      - "slapenir.volume=mcp-knowledge"
+      - "slapenir.persistence=knowledge-state"
+
+      - "slapenir.persistence=knowledge-state"
+

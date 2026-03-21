@@ -28,6 +28,22 @@
         "MEMGRAPH_HOST": "memgraph",
         "MEMGRAPH_PORT": "7687"
       }
+    },
+    "memory": {
+      "type": "local",
+      "command": ["mcp-server-memory"],
+      "enabled": true,
+      "timeout": 3600000
+    },
+    "knowledge": {
+      "type": "local",
+      "command": ["mcp-local-rag"],
+      "enabled": true,
+      "timeout": 3600000,
+      "environment": {
+        "BASE_DIR": "/home/agent/workspace/docs",
+        "EMBEDDING_PROVIDER": "local"
+      }
     }
   },
   "permission": {
@@ -40,6 +56,8 @@
     "webfetch": "deny",
     "websearch": "deny",
     "code-graph-rag_*": "allow",
+    "memory_*": "allow",
+    "knowledge_*": "allow",
     "mcp_*": "deny",
     "bash": {
       "*": "ask",

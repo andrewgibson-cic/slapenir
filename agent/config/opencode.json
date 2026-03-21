@@ -14,7 +14,7 @@
       "type": "local",
       "command": ["code-graph-rag", "mcp-server"],
       "enabled": true,
-      "timeout": 900000,
+      "timeout": 9000000,
       "environment": {
         "TARGET_REPO_PATH": "/home/agent/workspace",
         "ORCHESTRATOR_PROVIDER": "openai",

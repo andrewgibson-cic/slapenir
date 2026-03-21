@@ -1,0 +1,2 @@
+#!/command/execlineb -P
+python3 /home/agent/scripts/metrics_exporter.py

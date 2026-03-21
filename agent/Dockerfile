@@ -125,12 +125,15 @@ RUN chown -R agent:agent /home/agent/.npm \
                          /home/agent/.yarn
 
 # Install Python dependencies BEFORE wrapper shadowing (so pip isn't blocked)
+# Install to Python 3.12 site-packages explicitly
 RUN pip install --no-cache-dir --break-system-packages \
+    --target /usr/lib/python3.12/site-packages \
     requests \
     httpx \
     aiohttp \
     pydantic \
-    python-dotenv
+    python-dotenv \
+    prometheus-client
 
 # Install Code-Graph-RAG with full tree-sitter support (before wrapper shadowing)
 # Note: pip installs to Python 3.13, and cgr uses Python 3.13 (correct)

@@ -165,9 +165,10 @@ RUN npm install -g mcp-local-rag
 # This caches the model during build so it's available offline at runtime
 # Using all-MiniLM-L6-v2: reliable, no auth required, works offline
 # Note: jina-embeddings-v2-base-code requires HuggingFace auth token
-RUN mkdir -p /home/agent/.cache/huggingface && \
-    export HF_HOME=/home/agent/.cache/huggingface && \
-    export TRANSFORMERS_CACHE=/home/agent/.cache/huggingface && \
+# Note: Download to /opt/huggingface-cache to avoid conflict with runtime volume
+RUN mkdir -p /opt/huggingface-cache && \
+    export HF_HOME=/opt/huggingface-cache && \
+    export TRANSFORMERS_CACHE=/opt/huggingface-cache && \
     cd /usr/local/lib/node_modules/mcp-local-rag && \
     node --experimental-vm-modules -e " \
       import('@huggingface/transformers').then(async ({ pipeline }) => { \
@@ -188,9 +189,7 @@ RUN mkdir -p /home/agent/.cache/huggingface && \
         process.exit(1); \
       }); \
     " && \
-    chown -R agent:agent /home/agent/.cache/huggingface && \
-    ln -sf /home/agent/.cache/huggingface /usr/local/lib/node_modules/mcp-local-rag/models && \
-    chown -h agent:agent /usr/local/lib/node_modules/mcp-local-rag/models
+    chown -R agent:agent /opt/huggingface-cache
 
 # Create MCP memory storage directories
 RUN mkdir -p /home/agent/.local/share/mcp-memory \

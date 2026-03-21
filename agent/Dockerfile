@@ -147,6 +147,23 @@ RUN git clone --depth 1 https://github.com/vitali87/code-graph-rag.git /tmp/code
 # Upstream bug: Tool() calls don't pass description parameter
 RUN /home/agent/scripts/patch-codegraph-rag.sh
 
+# ============================================================================
+# MCP Memory & Knowledge Tools
+# ============================================================================
+
+# Install official MCP memory server (SQLite-based knowledge graph)
+RUN npm install -g @modelcontextprotocol/server-memory
+
+# Install mcp-local-rag for markdown/document knowledge retrieval
+# Handles PDF, DOCX, MD with semantic chunking and keyword boosting
+RUN npm install -g mcp-local-rag
+
+# Create MCP memory storage directories
+RUN mkdir -p /home/agent/.local/share/mcp-memory \
+             /home/agent/.local/share/mcp-knowledge && \
+    chown -R agent:agent /home/agent/.local/share/mcp-memory \
+                                /home/agent/.local/share/mcp-knowledge
+
 # Install build tool wrappers for security
 # These intercept build tool commands and block execution by default
 RUN mkdir -p /home/agent/scripts/lib && \

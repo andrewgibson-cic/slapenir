@@ -82,5 +82,15 @@ docs/*
 *SECURITY_AUDIT*.md
 *.mdarxiv-cosci/
 
+# MCP Memory databases (local only, not committed)
+*.db
+mcp-memory/
+mcp-knowledge/
+
 # Bug fix documentation (development)
-.claude/docs/fix-agent-log-directory-empty/
+.claude/docs/fix-agent-log-directory-empty
+
+# Explicitly exclude security audits
+*security-audit*.md
+*.mdarxiv-cosci
+//

@@ -188,7 +188,9 @@ RUN mkdir -p /home/agent/.cache/huggingface && \
         process.exit(1); \
       }); \
     " && \
-    chown -R agent:agent /home/agent/.cache/huggingface
+    chown -R agent:agent /home/agent/.cache/huggingface && \
+    ln -sf /home/agent/.cache/huggingface /usr/local/lib/node_modules/mcp-local-rag/models && \
+    chown -h agent:agent /usr/local/lib/node_modules/mcp-local-rag/models
 
 # Create MCP memory storage directories
 RUN mkdir -p /home/agent/.local/share/mcp-memory \
@@ -238,6 +240,7 @@ ENV PYTHON_VERSION=3.12 \
     HOME=/home/agent \
     JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
     JAVA_OPTS="-Xmx2g -Xms512m" \
+    HF_HUB_OFFLINE=1 \
     PATH=/root/.local/bin:/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
 
 # Configure s6-overlay to run user services as agent

@@ -457,5 +457,3 @@ volumes:
       - "slapenir.volume=mcp-knowledge"
       - "slapenir.persistence=knowledge-state"
 
-      - "slapenir.persistence=knowledge-state"
-

@@ -161,6 +161,30 @@ RUN npm install -g @modelcontextprotocol/server-memory
 # Handles PDF, DOCX, MD with semantic chunking and keyword boosting
 RUN npm install -g mcp-local-rag
 
+# Pre-download Hugging Face embedding model for air-gapped operation
+# This caches the model during build so it's available offline at runtime
+# Using jina-embeddings-v2-base-code: optimized for code/technical docs, 8K context
+RUN mkdir -p /home/agent/.cache/huggingface && \
+    export HF_HOME=/home/agent/.cache/huggingface && \
+    export TRANSFORMERS_CACHE=/home/agent/.cache/huggingface && \
+    cd /tmp && \
+    node --experimental-vm-modules -e " \
+      import('@huggingface/transformers').then(async ({ pipeline }) => { \
+        console.log('Pre-downloading embedding model for offline use...'); \
+        const embedder = await pipeline('feature-extraction', 'Xenova/jina-embeddings-v2-base-code', { \
+          cache_dir: process.env.TRANSFORMERS_CACHE, \
+          quantized: false \
+        }); \
+        console.log('Testing model...'); \
+        const test = await embedder('test', { pooling: 'mean', normalize: true }); \
+        console.log('Model downloaded and cached. Dimensions:', test.dims); \
+      }).catch(err => { \
+        console.error('Failed to download model:', err); \
+        process.exit(1); \
+      }); \
+    " && \
+    chown -R agent:agent /home/agent/.cache/huggingface
+
 # Create MCP memory storage directories
 RUN mkdir -p /home/agent/.local/share/mcp-memory \
              /home/agent/.local/share/mcp-knowledge && \

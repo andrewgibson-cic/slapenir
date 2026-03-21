@@ -87,6 +87,9 @@ docs/*
 mcp-memory/
 mcp-knowledge/
 
+# HuggingFace model cache (downloaded during build)
+.cache/huggingface/
+
 # Bug fix documentation (development)
 .claude/docs/fix-agent-log-directory-empty
 

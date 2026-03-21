@@ -70,18 +70,27 @@ GPG commit signing using the host's GPG agent is **not supported** on macOS with
 
 ### 8. MCP Memory & Knowledge Tools
 
-AI agents can maintain context and query documentation:
+AI agents can maintain context and query documentation in a **completely air-gapped environment**.
 
 #### Memory Server (`@modelcontextprotocol/server-memory`)
-- SQLite-based knowledge graph storage
-- Tools: create_entities, search_nodes, read_graph, delete_nodes
-- Persists across sessions via Docker volume
+- **Storage**: SQLite-based knowledge graph
+- **Tools**: create_entities, search_nodes, read_graph, delete_nodes
+- **Persistence**: Docker volume `slapenir-mcp-memory`
+- **Use Case**: Remember facts, decisions, preferences across sessions
 
 #### Knowledge Server (`mcp-local-rag`)
-- LanceDB vector database for document retrieval
-- Supports PDF, DOCX, MD files
-- Tools: index_directory, search_documents, list_indexed, clear_index
-- Persists across container restarts
+- **Storage**: LanceDB vector database
+- **Model**: `jina-embeddings-v2-base-code` (pre-downloaded, 8K context)
+- **Supports**: PDF, MD, TXT files (⚠️ DOCX has bugs in v0.10.0)
+- **Tools**: index_directory, search_documents, list_indexed, clear_index
+- **Persistence**: Docker volume `slapenir-mcp-knowledge`
+- **Air-Gapped**: ✅ No internet required - model cached during Docker build
+
+**Why jina-embeddings-v2-base-code?**
+- Trained on 150M+ code-question-answer pairs
+- Optimized for technical documentation and code
+- Supports 30 programming languages
+- 8192 token context (handles full architecture documents)
 
 #### Usage
 
@@ -93,27 +102,77 @@ git clone <your-repo> myproject
 cd myproject
 mkdir -p docs
 # Add markdown files to docs/
+# (Avoid DOCX files due to mcp-local-rag bug)
 opencode
+```
+
+**Indexing documents:**
+```
+User: "Index the docs directory"
+Agent: [uses knowledge_index_directory tool]
+       "Indexed 15 markdown files (47 chunks created)"
+```
+
+**Searching documents:**
+```
+User: "What does the documentation say about authentication?"
+Agent: [searches indexed docs with embeddings]
+       "Based on docs/api/auth.md, authentication uses JWT tokens..."
 ```
 
 **Resetting memory:**
 ```bash
+# Clear both memory and knowledge databases
 ~/scripts/reset-memory.sh
 ```
 
 **Memory example:**
 ```
-User: "Remember that I prefer functional programming"
+User: "Remember that this project uses FastAPI with PostgreSQL"
 Agent: [stores in memory graph]
-Later: Agent recalls preference
+
+User: "What database are we using?"
+Agent: [recalls from memory] "You mentioned using PostgreSQL with FastAPI"
 ```
 
-**Knowledge example:**
+#### Supported File Types
+
+| Format | Support | Notes |
+|--------|---------|-------|
+| Markdown (.md) | ✅ Perfect | Best for technical docs |
+| Text (.txt) | ✅ Perfect | Simple text files |
+| PDF (.pdf) | ✅ Good | Extracted and chunked |
+| DOCX (.docx) | ⚠️ Buggy | Has file size check bug in v0.10.0 |
+| HTML | ✅ Via tool | Use ingest_data tool |
+
+#### Model Cache
+
+The embedding model is **pre-downloaded during Docker build** and cached at:
+- **Location**: `/home/agent/.cache/huggingface/`
+- **Size**: ~640MB
+- **Volume**: `slapenir-huggingface-cache`
+- **Air-Gapped**: No internet required at runtime
+
+#### Troubleshooting
+
+**"failed to initialize embedder"**
+```bash
+# Check model is cached
+docker exec slapenir-agent ls -la ~/.cache/huggingface/models--Xenova--jina-embeddings-v2-base-code/
+
+# If missing, rebuild container
+docker-compose build --no-cache agent
 ```
-User: "What does the docs say about authentication?"
-Agent: [searches indexed docs]
-Returns: Relevant sections from auth.md, security.md
-```
+
+**"failed to check file size of a docx"**
+- This is a known bug in mcp-local-rag v0.10.0
+- **Workaround**: Convert DOCX to Markdown or use PDF/text instead
+- Track issue: https://github.com/shinpr/mcp-local-rag/issues
+
+**Slow indexing**
+- Large documents (8K+ tokens) take longer
+- Model uses ~650MB memory
+- Check: `docker stats slapenir-agent`
 
 ### 9. Build Tool Security
 

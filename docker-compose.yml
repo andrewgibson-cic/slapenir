@@ -241,6 +241,11 @@ services:
       # GPG public data (agent socket mounted at runtime via dev.sh)
       - ~/.gnupg/pubring.kbx:/home/agent/.gnupg/pubring.kbx:ro
       - ~/.gnupg/trustdb.gpg:/home/agent/.gnupg/trustdb.gpg:ro
+      # MCP Memory & Knowledge persistent storage
+      - mcp-memory-data:/home/agent/.local/share/mcp-memory
+      - mcp-knowledge-data:/home/agent/.local/share/mcp-knowledge
+      # HuggingFace model cache (pre-downloaded embeddings for air-gapped operation)
+      - slapenir-huggingface-cache:/home/agent/.cache/huggingface
     healthcheck:
       test: |
         python3 -c "import sys; sys.exit(0)" && \
@@ -456,4 +461,10 @@ volumes:
     labels:
       - "slapenir.volume=mcp-knowledge"
       - "slapenir.persistence=knowledge-state"
+
+  slapenir-huggingface-cache:
+    name: slapenir-huggingface-cache
+    labels:
+      - "slapenir.volume=huggingface-cache"
+      - "slapenir.purpose=embedding-models"
 

@@ -163,23 +163,28 @@ RUN npm install -g mcp-local-rag
 
 # Pre-download Hugging Face embedding model for air-gapped operation
 # This caches the model during build so it's available offline at runtime
-# Using jina-embeddings-v2-base-code: optimized for code/technical docs, 8K context
+# Using all-MiniLM-L6-v2: reliable, no auth required, works offline
+# Note: jina-embeddings-v2-base-code requires HuggingFace auth token
 RUN mkdir -p /home/agent/.cache/huggingface && \
     export HF_HOME=/home/agent/.cache/huggingface && \
     export TRANSFORMERS_CACHE=/home/agent/.cache/huggingface && \
-    cd /tmp && \
+    cd /usr/local/lib/node_modules/mcp-local-rag && \
     node --experimental-vm-modules -e " \
       import('@huggingface/transformers').then(async ({ pipeline }) => { \
         console.log('Pre-downloading embedding model for offline use...'); \
-        const embedder = await pipeline('feature-extraction', 'Xenova/jina-embeddings-v2-base-code', { \
+        console.log('Model: Xenova/all-MiniLM-L6-v2 (default, no auth required)'); \
+        console.log('Cache dir: ' + process.env.TRANSFORMERS_CACHE); \
+        const embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { \
           cache_dir: process.env.TRANSFORMERS_CACHE, \
           quantized: false \
         }); \
         console.log('Testing model...'); \
-        const test = await embedder('test', { pooling: 'mean', normalize: true }); \
-        console.log('Model downloaded and cached. Dimensions:', test.dims); \
+        const test = await embedder('test embedding', { pooling: 'mean', normalize: true }); \
+        console.log('✅ Model downloaded and cached successfully'); \
+        console.log('Embedding dimensions:', test.dims); \
+        console.log('Model ready for air-gapped operation'); \
       }).catch(err => { \
-        console.error('Failed to download model:', err); \
+        console.error('❌ Failed to download model:', err); \
         process.exit(1); \
       }); \
     " && \

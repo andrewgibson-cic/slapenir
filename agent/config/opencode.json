@@ -42,8 +42,7 @@
       "timeout": 3600000,
       "environment": {
         "BASE_DIR": "/home/agent/workspace/docs",
-        "EMBEDDING_PROVIDER": "local",
-        "MODEL_NAME": "Xenova/jina-embeddings-v2-base-code",
+        "MODEL_NAME": "Xenova/all-MiniLM-L6-v2",
         "HF_HOME": "/home/agent/.cache/huggingface",
         "TRANSFORMERS_CACHE": "/home/agent/.cache/huggingface"
       }

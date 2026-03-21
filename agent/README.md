@@ -68,6 +68,83 @@ GPG commit signing using the host's GPG agent is **not supported** on macOS with
 - Disable GPG signing for this repo: `git config commit.gpgsign false`
 - Use SSH-based git URLs (no signing needed)
 
+### 8. MCP Memory & Knowledge Tools
+
+AI agents can maintain context and query documentation:
+
+#### Memory Server (`@modelcontextprotocol/server-memory`)
+- SQLite-based knowledge graph storage
+- Tools: create_entities, search_nodes, read_graph, delete_nodes
+- Persists across sessions via Docker volume
+
+#### Knowledge Server (`mcp-local-rag`)
+- LanceDB vector database for document retrieval
+- Supports PDF, DOCX, MD files
+- Tools: index_directory, search_documents, list_indexed, clear_index
+- Persists across container restarts
+
+#### Usage
+
+**Starting with a new project:**
+```bash
+make shell
+cd ~/workspace
+git clone <your-repo> myproject
+cd myproject
+mkdir -p docs
+# Add markdown files to docs/
+opencode
+```
+
+**Resetting memory:**
+```bash
+~/scripts/reset-memory.sh
+```
+
+**Memory example:**
+```
+User: "Remember that I prefer functional programming"
+Agent: [stores in memory graph]
+Later: Agent recalls preference
+```
+
+**Knowledge example:**
+```
+User: "What does the docs say about authentication?"
+Agent: [searches indexed docs]
+Returns: Relevant sections from auth.md, security.md
+```
+
+### 9. Build Tool Security
+
+Build tool execution is controlled by security wrappers that block execution by default. These wrappers intercept build commands and require explicit override.
+
+**Blocked tools:**
+- gradle / ./gradlew
+- mvn
+- npm
+- yarn
+- pnpm
+- cargo
+- pip / pip3
+
+**Security model:**
+- **Default**: Block execution (requires human override)
+- **Override**: `GRADLE_ALLOW_FROM_OPENCODE=1 gradle build`
+- **Audit trail**: All build attempts logged
+
+**Emergency override usage:**
+```bash
+GRADLE_ALLOW_FROM_OPENCODE=1 gradle build
+```
+
+**WARNING**: All override usage is logged for security audit.
+
+**Alternative approaches:**
+- **Analyze build files**: You CAN read `build.gradle`, `pom.xml`, `package.json`
+- **Explain build process**: Describe what the build would do
+- **Suggest improvements**: Recommend build configuration changes
+
 ## Building
 
 ```bash

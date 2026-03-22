@@ -33,6 +33,61 @@ services:
       - "slapenir.phase=1"
 
   # ============================================================================
+  # Memgraph: Graph database for Code-Graph-RAG
+  # ============================================================================
+  memgraph:
+    image: memgraph/memgraph:latest
+    container_name: slapenir-memgraph
+    hostname: memgraph
+    networks:
+      - slape-net
+    ports:
+      - "7687:7687"  # Bolt protocol
+    volumes:
+      - memgraph-data:/var/lib/memgraph
+    environment:
+      - MEMGRAPH_LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import socket; s=socket.socket(); s.settimeout(2); s.connect((\"localhost\", 7687)); s.close()' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "slapenir.service=memgraph"
+      - "slapenir.phase=graph-rag"
+    command: ["--log-level=INFO"]
+
+  # ============================================================================
+  # Memgraph Lab: Web UI for graph visualization
+  # ============================================================================
+  memgraph-lab:
+    image: memgraph/lab:latest
+    container_name: slapenir-memgraph-lab
+    hostname: memgraph-lab
+    networks:
+      - slape-net
+    ports:
+      - "7688:3000"  # Web UI on port 7688
+    environment:
+      - MEMGRAPH_HOST=memgraph
+      - MEMGRAPH_PORT=7687
+    depends_on:
+      memgraph:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "slapenir.service=memgraph-lab"
+      - "slapenir.phase=graph-rag"
+
+  # ============================================================================
   # PostgreSQL: Database for auto-detection API definitions
   # ============================================================================
   postgres:
@@ -70,7 +125,6 @@ services:
     hostname: proxy
     networks:
       - slape-net
-    # Enable host.docker.internal resolution for Ollama forwarding
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -86,8 +140,6 @@ services:
       - MTLS_CA_CERT=/certs/root_ca.crt
       - MTLS_SERVER_CERT=/certs/proxy.crt
       - MTLS_SERVER_KEY=/certs/proxy.key
-      # Ollama endpoint for proxy forwarding
-      - OLLAMA_HOST=${OLLAMA_HOST:-host.docker.internal:11434}
     volumes:
       - ./proxy/config.yaml:/app/config.yaml:ro
       - proxy-certs:/certs:ro
@@ -139,22 +191,28 @@ services:
       - MTLS_CLIENT_CERT=/certs/agent.crt
       - MTLS_CLIENT_KEY=/certs/agent.key
       - MTLS_VERIFY_HOSTNAME=${MTLS_VERIFY_HOSTNAME:-true}
-      # Ollama Local LLM Configuration (via proxy)
-      - OLLAMA_HOST=${OLLAMA_HOST:-host.docker.internal:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5-coder:7b}
       # OpenCode Configuration
       - OPENCODE_DISABLE_CLAUDE_CODE=${OPENCODE_DISABLE_CLAUDE_CODE:-1}
       - LLAMA_SERVER_HOST=${LLAMA_SERVER_HOST:-host.docker.internal}
-      - LLAMA_SERVER_PORT=${LLAMA_SERVER_PORT:-8080}
+      - LLAMA_SERVER_PORT=${LLAMA_SERVER_PORT:-6666}
       - OPENCODE_CONFIG_PATH=/home/agent/.config/opencode/opencode.json
       - OPENCODE_YOLO=true
+      # Code-Graph-RAG Configuration
+      - ORCHESTRATOR_PROVIDER=openai
+      - ORCHESTRATOR_ENDPOINT=${ORCHESTRATOR_ENDPOINT:-http://host.docker.internal:6666/v1}
+      - ORCHESTRATOR_API_KEY=${ORCHESTRATOR_API_KEY:-sk-local}
+      - CYPHER_PROVIDER=openai
+      - CYPHER_ENDPOINT=${CYPHER_ENDPOINT:-http://host.docker.internal:6666/v1}
+      - CYPHER_API_KEY=${CYPHER_API_KEY:-sk-local}
+      - MEMGRAPH_HOST=memgraph
+      - MEMGRAPH_PORT=7687
       # SSH/GPG Agent forwarding for git operations
       - SSH_AUTH_SOCK=/home/agent/.ssh/agent.sock
       - GPG_KEY=${GPG_KEY:-164DA43B214F0144}
-      # GIT
+      # GIT - Allow all workspace subdirectories as safe
       - GIT_CONFIG_COUNT=1
       - GIT_CONFIG_KEY_0=safe.directory
-      - GIT_CONFIG_VALUE_0=/home/agent/workspace/*
+      - GIT_CONFIG_VALUE_0=*
     volumes:
       - ./.env:/host-env/.env:ro  # Mount host .env read-only for processing
       - ${HOME}/.claude:/home/agent/.claude:ro  # Claude settings and memory
@@ -167,6 +225,8 @@ services:
       # OpenCode commands and skills (for slash commands in container)
       - ${HOME}/.config/opencode/commands:/home/agent/.config/opencode/commands:ro
       - ${HOME}/.config/opencode/skills:/home/agent/.config/opencode/skills:ro
+      # OpenCode config (overrides baked-in config from Dockerfile)
+      - ./agent/config/opencode.json:/home/agent/.config/opencode/opencode.json:ro
       # Claude Code global commands and skills (mounted to ~/.opencode for OpenCode discovery)
       - ${HOME}/.claude/commands:/home/agent/.opencode/commands:ro
       - ${HOME}/.claude/skills:/home/agent/.opencode/skills:ro
@@ -182,6 +242,11 @@ services:
       # GPG public data (agent socket mounted at runtime via dev.sh)
       - ~/.gnupg/pubring.kbx:/home/agent/.gnupg/pubring.kbx:ro
       - ~/.gnupg/trustdb.gpg:/home/agent/.gnupg/trustdb.gpg:ro
+      # MCP Memory & Knowledge persistent storage
+      - mcp-memory-data:/home/agent/.local/share/mcp-memory
+      - mcp-knowledge-data:/home/agent/.local/share/mcp-knowledge
+      # HuggingFace model cache (pre-downloaded embeddings for air-gapped operation)
+      - slapenir-huggingface-cache:/home/agent/.cache/huggingface
     healthcheck:
       test: |
         python3 -c "import sys; sys.exit(0)" && \
@@ -374,8 +439,33 @@ volumes:
       - "slapenir.volume=prometheus-data"
       - "slapenir.monitoring=enabled"
   
+  memgraph-data:
+    name: slapenir-memgraph-data
+    labels:
+      - "slapenir.volume=memgraph-data"
+      - "slapenir.phase=graph-rag"
+
   grafana-data:
     name: slapenir-grafana-data
     labels:
       - "slapenir.volume=grafana-data"
       - "slapenir.monitoring=enabled"
+
+  mcp-memory-data:
+    name: slapenir-mcp-memory
+    labels:
+      - "slapenir.volume=mcp-memory"
+      - "slapenir.persistence=memory-state"
+
+  mcp-knowledge-data:
+    name: slapenir-mcp-knowledge
+    labels:
+      - "slapenir.volume=mcp-knowledge"
+      - "slapenir.persistence=knowledge-state"
+
+  slapenir-huggingface-cache:
+    name: slapenir-huggingface-cache
+    labels:
+      - "slapenir.volume=huggingface-cache"
+      - "slapenir.purpose=embedding-models"
+

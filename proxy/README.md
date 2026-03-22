@@ -24,20 +24,16 @@ Agent (Untrusted) <--mTLS--> Proxy (Trusted) <--HTTPS--> External APIs
 
 ## Features
 
-### Current (v0.1.0)
+### Implemented
 - ✅ Basic HTTP server with Axum
 - ✅ Health check endpoint
 - ✅ Logging and tracing
 - ✅ **Aho-Corasick streaming sanitizer**
 - ✅ **Request/response interception middleware**
 - ✅ **Secure credential management (Zeroize trait)**
-- ✅ **15/15 tests passing (100% coverage)**
-
-### Planned (Phase 2 Completion)
-- ⏳ mTLS middleware
-- ⏳ Rate limiting
-- ⏳ Property-based testing
-- ⏳ Performance benchmarks
+- ✅ **mTLS middleware**
+- ✅ **Rate limiting**
+- ✅ **105+ tests passing (82% coverage)**
 
 ## Development
 
@@ -74,9 +70,15 @@ cargo test
 ```
 proxy/
 ├── src/
-│   └── main.rs          # Entry point, HTTP server
-├── Cargo.toml           # Dependencies
-└── README.md            # This file
+│   ├── main.rs           # Entry point, HTTP server
+│   ├── sanitizer.rs      # Aho-Corasick credential sanitizer
+│   ├── strategies/       # Authentication strategies (AWS SigV4, etc.)
+│   └── tls/              # mTLS implementation
+├── migrations/           # PostgreSQL migrations
+├── tests/                # Integration tests
+├── config.yaml           # Proxy configuration
+├── Cargo.toml            # Dependencies
+└── README.md             # This file
 ```
 
 ## Security Considerations

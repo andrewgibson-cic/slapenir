@@ -1,0 +1,52 @@
+#!/bin/bash
+# Populate HuggingFace cache volume from build-time data on first run
+# This ensures pre-downloaded models are available at runtime
+
+set -euo pipefail
+
+BUILD_CACHE="/opt/huggingface-cache"
+RUNTIME_CACHE="/home/agent/.cache/huggingface"
+MARKER_FILE="$RUNTIME_CACHE/.cache-populated"
+
+echo "[huggingface-cache] Checking cache initialization..."
+
+# Check if already populated
+if [ -f "$MARKER_FILE" ]; then
+    echo "[huggingface-cache] Cache already initialized, skipping"
+    exit 0
+fi
+
+# Check if build cache exists
+if [ ! -d "$BUILD_CACHE" ]; then
+    echo "[huggingface-cache] WARNING: Build cache not found at $BUILD_CACHE"
+    echo "[huggingface-cache] Models will need to be downloaded at runtime"
+    exit 0
+fi
+
+# Check if runtime cache is empty
+if [ -d "$RUNTIME_CACHE/models--Xenova--all-MiniLM-L6-v2" ]; then
+    echo "[huggingface-cache] Runtime cache already has models, skipping"
+    touch "$MARKER_FILE"
+    exit 0
+fi
+
+# Populate runtime cache from build cache
+echo "[huggingface-cache] Populating cache from build..."
+echo "[huggingface-cache] Source: $BUILD_CACHE"
+echo "[huggingface-cache] Target: $RUNTIME_CACHE"
+
+# Ensure runtime cache directory exists
+mkdir -p "$RUNTIME_CACHE"
+
+# Copy all model files
+cp -r "$BUILD_CACHE"/* "$RUNTIME_CACHE"/
+
+# Fix ownership (running as root during init)
+chown -R agent:agent "$RUNTIME_CACHE"
+
+# Create marker to prevent re-copying
+touch "$MARKER_FILE"
+chown agent:agent "$MARKER_FILE"
+
+echo "[huggingface-cache] ✅ Cache populated successfully"
+echo "[huggingface-cache] Models ready for offline operation"

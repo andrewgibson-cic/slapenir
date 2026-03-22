@@ -10,7 +10,8 @@ LABEL version="0.1.0"
 
 # Install build tools, Python, bash, iptables for traffic enforcement, Java 21, and build tool wrappers
 RUN apk add --no-cache \
-    python-3.11 \
+    python-3.12 \
+    python-3.12-dev \
     py3-pip \
     build-base \
     git \
@@ -29,11 +30,10 @@ RUN apk add --no-cache \
     pnpm \
     ncurses-terminfo-base \
     cmake \
-    ripgrep
-
-# Install Rust/Cargo via rustup (cargo not available in Wolfi repos)
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-ENV PATH=/root/.cargo/bin:$PATH
+    ripgrep \
+    openssl-dev \
+    netcat-openbsd \
+    rust
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\
@@ -97,6 +97,7 @@ RUN chmod +x /etc/cont-init.d/* 2>/dev/null || true
 COPY scripts/ /home/agent/scripts/
 RUN chmod +x /home/agent/scripts/*.sh
 
+<<<<<<< HEAD
 # Install build tool wrappers for security
 # These intercept build tool commands and block execution during OpenCode sessions
 RUN mkdir -p /home/agent/scripts/lib && \
@@ -124,12 +125,138 @@ RUN if [ -f /home/agent/scripts/gradle-wrapper ]; then \
     fi
 
 # Install Python dependencies (common AI/ML packages)
+=======
+# Copy package manager configs for isolated builds
+COPY config/npm/ /home/agent/config/npm/
+COPY config/yarn/ /home/agent/config/yarn/
+COPY config/gradle/ /home/agent/config/gradle/
+COPY config/pip/ /home/agent/config/pip/
+
+# Create cache directories for package managers
+RUN mkdir -p /home/agent/.npm \
+             /home/agent/.gradle/caches \
+             /home/agent/.gradle/wrapper \
+             /home/agent/.cache/pip \
+             /home/agent/.cache/opencode \
+             /home/agent/.cache/codebase_rag \
+             /home/agent/.yarn/cache \
+             /home/agent/.yarn/global \
+             /home/agent/.config/pip
+
+# Fix cache directory ownership (created by root mkdir)
+RUN chown -R agent:agent /home/agent/.npm \
+             /home/agent/.gradle \
+             /home/agent/.cache \
+             /home/agent/.yarn \
+             /home/agent/.config && \
+    chown -R agent:agent /home/agent/.npm \
+                         /home/agent/.gradle \
+                         /home/agent/.cache \
+                         /home/agent/.yarn
+
+# Install Python dependencies BEFORE wrapper shadowing (so pip isn't blocked)
+# Install to Python 3.12 site-packages explicitly
+>>>>>>> feat/graph-rag
 RUN pip install --no-cache-dir --break-system-packages \
+    --target /usr/lib/python3.12/site-packages \
     requests \
     httpx \
     aiohttp \
     pydantic \
-    python-dotenv
+    python-dotenv \
+    prometheus-client
+
+# Install Code-Graph-RAG with full tree-sitter support (before wrapper shadowing)
+# Note: pip installs to Python 3.13, and cgr uses Python 3.13 (correct)
+# Note: pip doesn't auto-discover all subpackages, so we copy missing dirs manually
+RUN git clone --depth 1 https://github.com/vitali87/code-graph-rag.git /tmp/code-graph-rag && \
+    cd /tmp/code-graph-rag && \
+    pip install --no-cache-dir --break-system-packages ".[treesitter-full]" && \
+    for dir in mcp parsers providers services tools utils; do \
+        cp -r codebase_rag/$dir /usr/lib/python3.13/site-packages/codebase_rag/$dir/; \
+    done && \
+    rm -rf /tmp/code-graph-rag
+
+# Patch code-graph-rag: fix missing tool descriptions for semantic_search and get_function_source
+# Upstream bug: Tool() calls don't pass description parameter
+RUN /home/agent/scripts/patch-codegraph-rag.sh
+
+# ============================================================================
+# MCP Memory & Knowledge Tools
+# ============================================================================
+
+# Install official MCP memory server (SQLite-based knowledge graph)
+RUN npm install -g @modelcontextprotocol/server-memory
+
+# Install mcp-local-rag for markdown/document knowledge retrieval
+# Handles PDF, DOCX, MD with semantic chunking and keyword boosting
+RUN npm install -g mcp-local-rag
+
+# Pre-download Hugging Face embedding model for air-gapped operation
+# This caches the model during build so it's available offline at runtime
+# Using all-MiniLM-L6-v2: reliable, no auth required, works offline
+# Note: jina-embeddings-v2-base-code requires HuggingFace auth token
+# Note: Download to /opt/huggingface-cache to avoid conflict with runtime volume
+RUN mkdir -p /opt/huggingface-cache && \
+    export HF_HOME=/opt/huggingface-cache && \
+    export TRANSFORMERS_CACHE=/opt/huggingface-cache && \
+    cd /usr/local/lib/node_modules/mcp-local-rag && \
+    node --experimental-vm-modules -e " \
+      import('@huggingface/transformers').then(async ({ pipeline }) => { \
+        console.log('Pre-downloading embedding model for offline use...'); \
+        console.log('Model: Xenova/all-MiniLM-L6-v2 (default, no auth required)'); \
+        console.log('Cache dir: ' + process.env.TRANSFORMERS_CACHE); \
+        const embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { \
+          cache_dir: process.env.TRANSFORMERS_CACHE, \
+          quantized: false \
+        }); \
+        console.log('Testing model...'); \
+        const test = await embedder('test embedding', { pooling: 'mean', normalize: true }); \
+        console.log('✅ Model downloaded and cached successfully'); \
+        console.log('Embedding dimensions:', test.dims); \
+        console.log('Model ready for air-gapped operation'); \
+      }).catch(err => { \
+        console.error('❌ Failed to download model:', err); \
+        process.exit(1); \
+      }); \
+    " && \
+    chown -R agent:agent /opt/huggingface-cache
+
+# Create MCP memory storage directories
+RUN mkdir -p /home/agent/.local/share/mcp-memory \
+             /home/agent/.local/share/mcp-knowledge && \
+    chown -R agent:agent /home/agent/.local/share/mcp-memory \
+                                /home/agent/.local/share/mcp-knowledge
+
+# Install build tool wrappers for security
+# These intercept build tool commands and block execution by default
+RUN mkdir -p /home/agent/scripts/lib && \
+    chmod +x /home/agent/scripts/*-wrapper 2>/dev/null || true && \
+    chmod +x /home/agent/scripts/lib/*.sh 2>/dev/null || true
+
+# Shadow system binaries with security wrappers
+# Moves real binaries to .real suffix and creates symlinks to wrappers
+# All builds blocked by default - requires ALLOW_BUILD=1 or <TOOL>_ALLOW_BUILD=1
+RUN for tool in gradle mvn npm yarn pnpm cargo pip pip3; do \
+        if command -v $tool >/dev/null 2>&1; then \
+            real_path=$(which $tool); \
+            if [ ! -f "${real_path}.real" ]; then \
+                mv "$real_path" "${real_path}.real"; \
+                if [ -f "/home/agent/scripts/${tool}-wrapper" ]; then \
+                    ln -s /home/agent/scripts/${tool}-wrapper "$real_path"; \
+                fi; \
+            fi; \
+        fi; \
+    done
+
+# Create gradlew symlink (catches ./gradlew)
+RUN if [ -f /home/agent/scripts/gradle-wrapper ]; then \
+        ln -sf /home/agent/scripts/gradle-wrapper /home/agent/scripts/gradlew; \
+    fi
+
+# Create Code-Graph-RAG config directory
+RUN mkdir -p /home/agent/.code-graph-rag && \
+    chown agent:agent /home/agent/.code-graph-rag
 
 # Install uv package manager for Code-Graph-RAG
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -155,12 +282,17 @@ WORKDIR /home/agent/workspace
 # s6-overlay will drop privileges for user services via S6_RUNASUSER
 
 # Environment variables
-ENV PYTHON_VERSION=3.11 \
+ENV PYTHON_VERSION=3.12 \
     PYTHONUNBUFFERED=1 \
     HOME=/home/agent \
     JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
     JAVA_OPTS="-Xmx2g -Xms512m" \
+<<<<<<< HEAD
     PATH=/root/.cargo/bin:/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
+=======
+    HF_HUB_OFFLINE=1 \
+    PATH=/root/.local/bin:/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
+>>>>>>> feat/graph-rag
 
 # Configure s6-overlay to run user services as agent
 ENV S6_RUNASUSER=agent

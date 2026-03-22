@@ -68,6 +68,142 @@ GPG commit signing using the host's GPG agent is **not supported** on macOS with
 - Disable GPG signing for this repo: `git config commit.gpgsign false`
 - Use SSH-based git URLs (no signing needed)
 
+### 8. MCP Memory & Knowledge Tools
+
+AI agents can maintain context and query documentation in a **completely air-gapped environment**.
+
+#### Memory Server (`@modelcontextprotocol/server-memory`)
+- **Storage**: SQLite-based knowledge graph
+- **Tools**: create_entities, search_nodes, read_graph, delete_nodes
+- **Persistence**: Docker volume `slapenir-mcp-memory`
+- **Use Case**: Remember facts, decisions, preferences across sessions
+
+#### Knowledge Server (`mcp-local-rag`)
+- **Storage**: LanceDB vector database
+- **Model**: `jina-embeddings-v2-base-code` (pre-downloaded, 8K context)
+- **Supports**: PDF, MD, TXT files (⚠️ DOCX has bugs in v0.10.0)
+- **Tools**: index_directory, search_documents, list_indexed, clear_index
+- **Persistence**: Docker volume `slapenir-mcp-knowledge`
+- **Air-Gapped**: ✅ No internet required - model cached during Docker build
+
+**Why jina-embeddings-v2-base-code?**
+- Trained on 150M+ code-question-answer pairs
+- Optimized for technical documentation and code
+- Supports 30 programming languages
+- 8192 token context (handles full architecture documents)
+
+#### Usage
+
+**Starting with a new project:**
+```bash
+make shell
+cd ~/workspace
+git clone <your-repo> myproject
+cd myproject
+mkdir -p docs
+# Add markdown files to docs/
+# (Avoid DOCX files due to mcp-local-rag bug)
+opencode
+```
+
+**Indexing documents:**
+```
+User: "Index the docs directory"
+Agent: [uses knowledge_index_directory tool]
+       "Indexed 15 markdown files (47 chunks created)"
+```
+
+**Searching documents:**
+```
+User: "What does the documentation say about authentication?"
+Agent: [searches indexed docs with embeddings]
+       "Based on docs/api/auth.md, authentication uses JWT tokens..."
+```
+
+**Resetting memory:**
+```bash
+# Clear both memory and knowledge databases
+~/scripts/reset-memory.sh
+```
+
+**Memory example:**
+```
+User: "Remember that this project uses FastAPI with PostgreSQL"
+Agent: [stores in memory graph]
+
+User: "What database are we using?"
+Agent: [recalls from memory] "You mentioned using PostgreSQL with FastAPI"
+```
+
+#### Supported File Types
+
+| Format | Support | Notes |
+|--------|---------|-------|
+| Markdown (.md) | ✅ Perfect | Best for technical docs |
+| Text (.txt) | ✅ Perfect | Simple text files |
+| PDF (.pdf) | ✅ Good | Extracted and chunked |
+| DOCX (.docx) | ⚠️ Buggy | Has file size check bug in v0.10.0 |
+| HTML | ✅ Via tool | Use ingest_data tool |
+
+#### Model Cache
+
+The embedding model is **pre-downloaded during Docker build** and cached at:
+- **Location**: `/home/agent/.cache/huggingface/`
+- **Size**: ~640MB
+- **Volume**: `slapenir-huggingface-cache`
+- **Air-Gapped**: No internet required at runtime
+
+#### Troubleshooting
+
+**"failed to initialize embedder"**
+```bash
+# Check model is cached
+docker exec slapenir-agent ls -la ~/.cache/huggingface/models--Xenova--jina-embeddings-v2-base-code/
+
+# If missing, rebuild container
+docker-compose build --no-cache agent
+```
+
+**"failed to check file size of a docx"**
+- This is a known bug in mcp-local-rag v0.10.0
+- **Workaround**: Convert DOCX to Markdown or use PDF/text instead
+- Track issue: https://github.com/shinpr/mcp-local-rag/issues
+
+**Slow indexing**
+- Large documents (8K+ tokens) take longer
+- Model uses ~650MB memory
+- Check: `docker stats slapenir-agent`
+
+### 9. Build Tool Security
+
+Build tool execution is controlled by security wrappers that block execution by default. These wrappers intercept build commands and require explicit override.
+
+**Blocked tools:**
+- gradle / ./gradlew
+- mvn
+- npm
+- yarn
+- pnpm
+- cargo
+- pip / pip3
+
+**Security model:**
+- **Default**: Block execution (requires human override)
+- **Override**: `GRADLE_ALLOW_FROM_OPENCODE=1 gradle build`
+- **Audit trail**: All build attempts logged
+
+**Emergency override usage:**
+```bash
+GRADLE_ALLOW_FROM_OPENCODE=1 gradle build
+```
+
+**WARNING**: All override usage is logged for security audit.
+
+**Alternative approaches:**
+- **Analyze build files**: You CAN read `build.gradle`, `pom.xml`, `package.json`
+- **Explain build process**: Describe what the build would do
+- **Suggest improvements**: Recommend build configuration changes
+
 ## Building
 
 ```bash
@@ -260,131 +396,6 @@ gpg-connect-agent /bye
 
 ---
 
-## Apple Silicon M1 Pro Optimization
-
-Ollama is **automatically optimized** for Apple Silicon using Metal GPU acceleration. Here's how to get the best performance:
-
-### Metal GPU Acceleration (Automatic)
-
-✅ **Metal is enabled by default** on Apple Silicon - no manual configuration needed.
-
-The Metal API uses your Mac's GPU for inference, which is significantly faster than CPU-only. Apple Silicon's **Unified Memory Architecture** allows the GPU to access all system RAM without copying data.
-
-### Verify Metal is Working
-
-```bash
-# Check if Ollama is using ARM64 (native Apple Silicon)
-file $(which ollama)
-# Should show: Mach-O 64-bit executable arm64
-
-# Monitor GPU usage while running
-# Open Activity Monitor → GPU tab
-# You should see GPU activity when Ollama is generating
-```
-
-### Optimize GPU Layers
-
-Ollama automatically offloads model layers to the GPU. For maximum performance on M1 Pro 16GB:
-
-```bash
-# Create a custom model with maximum GPU offload
-ollama create qwen2.5-coder-7b-optimized -f - << 'EOF'
-FROM qwen2.5-coder:7b
-PARAMETER num_gpu 99
-PARAMETER num_ctx 16384
-PARAMETER temperature 0.7
-EOF
-
-# Run the optimized model
-ollama run qwen2.5-coder-7b-optimized
-```
-
-**`num_gpu` explained:**
-- `99` = offload all layers to GPU (recommended for Apple Silicon)
-- Apple Silicon has unified memory, so no VRAM limit like discrete GPUs
-- M1 Pro 16GB can handle full GPU offload for 7B models
-
-### Performance Expectations
-
-| Metric | M1 Pro 16GB (7B Q4) |
-|--------|---------------------|
-| **Tokens/sec** | 25-40 t/s |
-| **Time to first token** | ~0.5-1s |
-| **Memory usage** | ~6GB |
-| **GPU utilization** | 80-100% |
-
-### Memory Optimization
-
-For 16GB M1 Pro, optimize memory usage:
-
-```bash
-# Limit context window to save memory
-OLLAMA_CONTEXT_LENGTH=16384 ollama run qwen2.5-coder:7b
-
-# Or set environment variable permanently
-echo 'export OLLAMA_CONTEXT_LENGTH=16384' >> ~/.zshrc
-```
-
-### M1 Pro Specific Settings
-
-```bash
-# Environment variables for M1 Pro optimization
-export OLLAMA_NUM_GPU=99           # Max GPU layers
-export OLLAMA_CONTEXT_LENGTH=16384 # 16K context (fits in 16GB)
-export OLLAMA_FLASH_ATTENTION=1    # Faster attention (if supported)
-```
-
-### Performance Tuning Checklist
-
-| Setting | M1 Pro 16GB Recommended |
-|---------|------------------------|
-| Model | `qwen2.5-coder:7b` |
-| `num_gpu` | 99 (all layers) |
-| `num_ctx` | 16384 (16K) |
-| Quantization | Q4_K_M (default) |
-
-### Troubleshooting Slow Performance
-
-| Issue | Solution |
-|-------|----------|
-| Only 2-5 t/s | Check Metal is enabled (Activity Monitor → GPU) |
-| High fan noise | Normal for sustained inference; ensure good ventilation |
-| Battery drain | Plug in power adapter for best performance |
-| Slow first token | Model loading; subsequent calls are faster |
-| Out of memory | Use smaller context or 3B model |
-
-### Check Metal Status
-
-```bash
-# Check Metal support
-system_profiler SPDisplaysDataType | grep -i metal
-
-# Should show: Metal: Supported, Metal GPUFamily...
-```
-
-### Recommended Ollama Version
-
-```bash
-# Update to latest version for best Apple Silicon support
-brew upgrade ollama
-
-# Verify version (v0.1.30+ has best Metal support)
-ollama --version
-```
-
----
-
-### Available Aider Commands
-
-Inside Aider, you can use:
-- `/add <file>` - Add files to the session
-- `/ask <question>` - Ask questions without editing
-- `/code <request>` - Request code modifications
-- `/diff` - Show changes since last message
-- `/commit` - Commit changes
-- `/clear` - Clear chat history
-- `/help` - Show all commands
-
 ## Directory Structure
 
 ```
@@ -563,7 +574,6 @@ docker exec slapenir-agent iptables -L TRAFFIC_ENFORCE -n
 
 **OpenCode permission errors:**
 ```bash
-docker exec slapenir-agent python3 /home/agent/tests/test_opencode_permissions.py
 docker exec slapenir-agent cat /home/agent/.opencode/config.json
 ```
 

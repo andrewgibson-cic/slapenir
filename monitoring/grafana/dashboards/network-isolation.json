@@ -1,0 +1,318 @@
+{
+  "dashboard": {
+    "title": "Network Isolation & Security",
+    "tags": ["slapenir", "security", "isolation"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Network Isolation Status",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "agent_network_isolation_status",
+            "legendFormat": "Isolation",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "graphMode": "none"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"value": 1, "text": "ENABLED", "color": "green"},
+              {"value": 0, "text": "DISABLED", "color": "red"}
+            ],
+            "thresholds": {"mode": "absolute", "steps": [
+              {"value": 0, "color": "red"},
+              {"value": 1, "color": "green"}
+            ]},
+            "unit": "none"
+          }
+        },
+        "description": "Firewall traffic enforcement status"
+      },
+      {
+        "id": 2,
+        "title": "Internet Bypass Attempts Blocked",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "agent_bypass_attempts_total{type=\"internet\"}",
+            "legendFormat": "Blocked",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {"mode": "absolute", "steps": [
+              {"value": 0, "color": "green"},
+              {"value": 1, "color": "red"}
+            ]},
+            "unit": "none"
+          }
+        },
+        "description": "Direct internet access attempts blocked by firewall (should be 0)"
+      },
+      {
+        "id": 3,
+        "title": "DNS Bypass Attempts Blocked",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "agent_dns_bypass_attempts_total",
+            "legendFormat": "Blocked",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {"mode": "absolute", "steps": [
+              {"value": 0, "color": "green"},
+              {"value": 1, "color": "red"}
+            ]},
+            "unit": "none"
+          }
+        },
+        "description": "Direct DNS requests blocked (should be 0)"
+      },
+      {
+        "id": 4,
+        "title": "Allowed Destinations",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "agent_allowed_destinations",
+            "legendFormat": "Rules",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "graphMode": "none"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {"mode": "absolute", "steps": [
+              {"value": 0, "color": "yellow"}
+            ]},
+            "unit": "none"
+          }
+        },
+        "description": "Number of firewall rules allowing outbound traffic"
+      },
+      {
+        "id": 5,
+        "title": "Traffic by Firewall Rule (packets)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+        "targets": [
+          {
+            "expr": "rate(agent_traffic_enforce_packets[1m])",
+            "legendFormat": "{{rule}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "pps"
+          }
+        },
+        "description": "Packets per second processed by each firewall rule"
+      },
+      {
+        "id": 6,
+        "title": "Traffic Bytes by Rule",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+        "targets": [
+          {
+            "expr": "rate(agent_traffic_enforce_bytes[1m])",
+            "legendFormat": "{{rule}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "Bps"
+          }
+        },
+        "description": "Bytes per second processed by each firewall rule"
+      },
+      {
+        "id": 7,
+        "title": "Active Connections by State",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+        "targets": [
+          {
+            "expr": "agent_active_connections",
+            "legendFormat": "{{state}}",
+            "refId": "A"
+          }
+        ],
+        "description": "TCP connection states"
+      },
+      {
+        "id": 8,
+        "title": "Proxy Traffic (All Outbound)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+        "targets": [
+          {
+            "expr": "rate(slapenir_proxy_http_requests_total[1m])",
+            "legendFormat": "{{method}} {{status}}",
+            "refId": "A"
+          }
+        ],
+        "description": "All outbound requests through proxy"
+      },
+      {
+        "id": 9,
+        "title": "Security Summary",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 22},
+        "targets": [
+          {
+            "expr": "agent_network_isolation_status",
+            "legendFormat": "Network Isolation",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "agent_bypass_attempts_total or vector(0)",
+            "legendFormat": "Bypass Attempts",
+            "refId": "B",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "agent_dns_bypass_attempts_total or vector(0)",
+            "legendFormat": "DNS Bypass Attempts",
+            "refId": "C",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "agent_allowed_destinations or vector(0)",
+            "legendFormat": "Allowed Destinations",
+            "refId": "D",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "seriesToColumns",
+            "options": {"byField": "Time"}
+          }
+        ],
+        "description": "Security metrics summary"
+      },
+      {
+        "id": 10,
+        "title": "Default Drop Counter",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 30},
+        "targets": [
+          {
+            "expr": "agent_traffic_enforce_packets{rule=\"default_drop\"} or vector(0)",
+            "legendFormat": "Dropped",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {"mode": "absolute", "steps": [
+              {"value": 0, "color": "green"},
+              {"value": 1, "color": "red"}
+            ]},
+            "unit": "none"
+          }
+        },
+        "description": "Packets dropped by default firewall rule (should be 0)"
+      },
+      {
+        "id": 11,
+        "title": "Proxy Response Time",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 30},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(slapenir_proxy_http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(slapenir_proxy_http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "p50",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "Traffic to Proxy (rule=proxy)",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 30},
+        "targets": [
+          {
+            "expr": "agent_traffic_enforce_packets{rule=\"proxy\"}",
+            "legendFormat": "Packets",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {"mode": "absolute", "steps": [
+              {"value": 0, "color": "green"}
+            ]},
+            "unit": "none"
+          }
+        },
+        "description": "Packets sent through proxy (allowed)"
+      },
+      {
+        "id": 13,
+        "title": "Network Isolation Guarantee",
+        "type": "text",
+        "gridPos": {"h": 6, "w": 24, "x": 0, "y": 36},
+        "options": {
+          "mode": "markdown",
+          "content": "## Network Isolation Verification\n\nThis dashboard proves that:\n\n1. **All outbound traffic goes through the proxy** - The `proxy` rule shows traffic to 172.30.0.2:3000\n2. **No direct internet access** - The `default_drop` counter should be 0\n3. **No DNS bypass** - The `dns_block` counter should be 0\n4. **Firewall is active** - Network Isolation Status should be 1 (ENABLED)\n\n### What this means:\n- The agent CANNOT send requests directly to the internet\n- All HTTP/HTTPS requests must go through the proxy\n- The proxy sanitizes secrets before forwarding requests\n- No inbound connections from the internet are possible"
+        }
+      }
+    ]
+  }
+}

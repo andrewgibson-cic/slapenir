@@ -5,8 +5,4 @@ chown -R agent:agent /home/agent/workspace
 # Fix any git directories that might have been copied in
 find /home/agent/workspace -name '.git' -type d -exec chown -R agent:agent {} \; 2>/dev/null || true
 
-# Remove stale git lock files from interrupted operations
-find /home/agent/workspace -name 'index.lock' -path '*/.git/*' -delete 2>/dev/null || true
-find /home/agent/workspace -name '*.lock' -path '*/.git/refs/*' -delete 2>/dev/null || true
-
 echo "✅ Fixed workspace and git directory permissions"

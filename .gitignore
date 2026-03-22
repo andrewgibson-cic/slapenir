@@ -68,7 +68,11 @@ temp/
 !readme*.md
 !Readme*.md
 # Keep CHANGELOG and similar important files
-!CHANGELOG*.md
+!changeLog*.md
+!CONTRIBUTING.md
+!SECURITY.md
+!LICENSE
+
 # Keep agent configuration instructions
 !agent/config/*.md
 
@@ -77,4 +81,19 @@ docs/*
 # Explicitly exclude security audits
 *SECURITY_AUDIT*.md
 *.mdarxiv-cosci/
-.claude/docs/add-code-graph-rag-integration/
+
+# MCP Memory databases (local only, not committed)
+*.db
+mcp-memory/
+mcp-knowledge/
+
+# HuggingFace model cache (downloaded during build)
+.cache/huggingface/
+
+# Bug fix documentation (development)
+.claude/docs/fix-agent-log-directory-empty
+
+# Explicitly exclude security audits
+*security-audit*.md
+*.mdarxiv-cosci
+//

@@ -40,17 +40,8 @@ if [ -f /home/agent/.env ]; then
     # Export to s6 environment (makes variables available to all processes)
     /home/agent/scripts/export-dummy-env.sh
     
-    # Also add to .bashrc for interactive shells
-    if [ ! -f /home/agent/.env_exported ]; then
-        echo "" >> /home/agent/.bashrc
-        echo "# Auto-generated: Load dummy credentials for interactive shells" >> /home/agent/.bashrc
-        echo "if [ -f /home/agent/.env ]; then" >> /home/agent/.bashrc
-        echo "    set -a" >> /home/agent/.bashrc
-        echo "    source /home/agent/.env" >> /home/agent/.bashrc
-        echo "    set +a" >> /home/agent/.bashrc
-        echo "fi" >> /home/agent/.bashrc
-        touch /home/agent/.env_exported
-    fi
+    # Note: .bashrc already sources .env via setup-bashrc.sh with ALLOW_BUILD support
+    # No need to add duplicate sourcing here
     
     echo -e "${GREEN}✅ Dummy credentials exported to container environment${NC}"
     echo ""

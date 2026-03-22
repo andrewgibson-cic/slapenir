@@ -97,3 +97,4 @@ mcp-knowledge/
 *security-audit*.md
 *.mdarxiv-cosci
 //
+.claude/docs/fix-agent-container-network-access/

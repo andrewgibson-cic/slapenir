@@ -20,12 +20,13 @@ hyper = { version = "1.1", features = ["client", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", "http2", "tokio"] }
 
 # TLS support
-rustls = "0.22"
-tokio-rustls = "0.25"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
 rustls-pemfile = "2.2"
-rcgen = "0.12"  # Certificate generation for MITM
-x509-parser = "0.16"  # Certificate parsing
-pem = "3.0"  # PEM file handling
+rustls-pki-types = "1"
+rcgen = "0.12"
+x509-parser = "0.16"
+pem = "3.0"
 
 # Streaming pattern matching (Aho-Corasick)
 aho-corasick = "1.1"

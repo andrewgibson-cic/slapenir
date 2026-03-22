@@ -41,7 +41,7 @@
       "enabled": true,
       "timeout": 3600000,
       "environment": {
-        "BASE_DIR": "/home/agent/workspace",
+        "BASE_DIR": "/home/agent/workspace/docs",
         "DB_PATH": "/home/agent/.local/share/mcp-knowledge/lancedb",
         "MODEL_NAME": "Xenova/all-MiniLM-L6-v2",
         "CACHE_DIR": "/home/agent/.cache/huggingface",

@@ -60,8 +60,8 @@ shell-unrestricted:
 		-e HTTP_PROXY= \
 		-e HTTPS_PROXY= \
 		-e NO_PROXY= \
-		-e GRADLE_OPTS= \
-		-e JAVA_OPTS= \
+		-e 'GRADLE_OPTS=-DsystemProp.http.proxyHost= -DsystemProp.http.proxyPort= -DsystemProp.https.proxyHost= -DsystemProp.https.proxyPort=' \
+		-e 'JAVA_OPTS=-Dhttp.proxyHost= -Dhttp.proxyPort= -Dhttps.proxyHost= -Dhttps.proxyPort=' \
 		$(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
 	exec docker-compose exec -u agent $(or $(SERVICE),agent) /bin/sh
 

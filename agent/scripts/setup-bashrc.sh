@@ -12,26 +12,11 @@ if [ "${ALLOW_BUILD:-}" = "1" ] || [ "${ALLOW_BUILD:-}" = "true" ]; then
     export ALLOW_BUILD=1
     # Comment out proxy settings in gradle.properties
     if [ -f /home/agent/.gradle/gradle.properties ]; then
-        sed -i 's|^\(systemProp\.http\.proxy.*\)|#\1|' /home/agent/.gradle/gradle.properties
-        sed -i 's|^\(systemProp\.https\.proxy.*\)|#\1|' /home/agent/.gradle/gradle.properties
+        sed -i 's|^\(systemProp\.http\.proxyHost=\)|#\1|' /home/agent/.gradle/gradle.properties
+        sed -i 's|^\(systemProp\.http\.proxyPort=\)|#\1|' /home/agent/.gradle/gradle.properties
+        sed -i 's|^\(systemProp\.https\.proxyHost=\)|#\1|' /home/agent/.gradle/gradle.properties
+        sed -i 's|^\(systemProp\.https\.proxyPort=\)|#\1|' /home/agent/.gradle/gradle.properties
     fi
-fi
-
-# Source .env if it exists
-if [ -f /home/agent/.env ]; then
-    set -a
-    source /home/agent/.env
-    set +a
-fi
-# Re-check ALLOW_BUILD after sourcing .env (in case it was set there)
-if [ "${ALLOW_BUILD:-}" = "1" ] || [ "${ALLOW_BUILD:-}" = "true" ]; then
-    unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy
-    # Comment out proxy settings in gradle.properties
-    if [ -f /home/agent/.gradle/gradle.properties ]; then
-        sed -i 's|^\(systemProp\.http\.proxy.*\)|#\1|' /home/agent/.gradle/gradle.properties
-        sed -i 's|^\(systemProp\.https\.proxy.*\)|#\1|' /home/agent/.gradle/gradle.properties
-    fi
-fi
 fi
 
 # Source .env if it exists
@@ -46,8 +31,10 @@ if [ "${ALLOW_BUILD:-}" = "1" ] || [ "${ALLOW_BUILD:-}" = "true" ]; then
     unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy
     # Comment out proxy settings in gradle.properties
     if [ -f /home/agent/.gradle/gradle.properties ]; then
-        sed -i 's/^systemProp\.http\.proxy/^/#/' /home/agent/.gradle/gradle.properties
-        sed -i 's/^systemProp\.https\.proxy/^/#/' /home/agent/.gradle/gradle.properties
+        sed -i 's|^\(systemProp\.http\.proxyHost=\)|#\1|' /home/agent/.gradle/gradle.properties
+        sed -i 's|^\(systemProp\.http\.proxyPort=\)|#\1|' /home/agent/.gradle/gradle.properties
+        sed -i 's|^\(systemProp\.https\.proxyHost=\)|#\1|' /home/agent/.gradle/gradle.properties
+        sed -i 's|^\(systemProp\.https\.proxyPort=\)|#\1|' /home/agent/.gradle/gradle.properties
     fi
 fi
 

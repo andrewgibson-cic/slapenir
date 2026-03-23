@@ -113,16 +113,30 @@ RUN mkdir -p /home/agent/.npm \
              /home/agent/.yarn/global \
              /home/agent/.config/pip
 
+# Pre-cache Gradle distribution for gradlew wrapper (air-gapped runtime support)
+# During build we have direct internet access; runtime uses proxy
+# Gradle uses MD5 hash of URL encoded as base36 for cache directory name
+ARG GRADLE_VERSION=8.10.2
+RUN GRADLE_DIST_URL="https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" && \
+    GRADLE_HASH=$(python3 -c "import hashlib; h=hashlib.md5('$GRADLE_DIST_URL'.encode()).hexdigest(); n=int(h,16); chars='0123456789abcdefghijklmnopqrstuvwxyz'; r=''; exec('while n>0: n,rem=divmod(n,36); r=chars[rem]+r'); print(r)") && \
+    GRADLE_DIST_DIR="/home/agent/.gradle/wrapper/dists/gradle-${GRADLE_VERSION}-bin/${GRADLE_HASH}" && \
+    mkdir -p "$GRADLE_DIST_DIR" && \
+    curl -fsSL "$GRADLE_DIST_URL" -o "${GRADLE_DIST_DIR}/gradle-${GRADLE_VERSION}-bin.zip" && \
+    cd "$GRADLE_DIST_DIR" && \
+    unzip -q "gradle-${GRADLE_VERSION}-bin.zip" && \
+    touch "${GRADLE_DIST_DIR}/gradle-${GRADLE_VERSION}-bin.zip.ok" && \
+    rm -rf /tmp/*
+
+# Copy gradle.properties to ~/.gradle/ so Gradle uses proxy for dependencies
+RUN cp /home/agent/config/gradle/gradle.properties /home/agent/.gradle/gradle.properties && \
+    chown agent:agent /home/agent/.gradle/gradle.properties
+
 # Fix cache directory ownership (created by root mkdir)
 RUN chown -R agent:agent /home/agent/.npm \
              /home/agent/.gradle \
              /home/agent/.cache \
              /home/agent/.yarn \
-             /home/agent/.config && \
-    chown -R agent:agent /home/agent/.npm \
-                         /home/agent/.gradle \
-                         /home/agent/.cache \
-                         /home/agent/.yarn
+             /home/agent/.config
 
 # Install Python dependencies BEFORE wrapper shadowing (so pip isn't blocked)
 # Install to Python 3.12 site-packages explicitly
@@ -238,8 +252,12 @@ ENV PYTHON_VERSION=3.12 \
     PYTHONUNBUFFERED=1 \
     HOME=/home/agent \
     JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
-    JAVA_OPTS="-Xmx2g -Xms512m" \
+    JAVA_OPTS="-Xmx2g -Xms512m -Dhttp.proxyHost=proxy -Dhttp.proxyPort=3000 -Dhttps.proxyHost=proxy -Dhttps.proxyPort=3000 -Dhttp.nonProxyHosts=localhost|127.0.0.1|proxy" \
+    GRADLE_OPTS="-Dhttp.proxyHost=proxy -Dhttp.proxyPort=3000 -Dhttps.proxyHost=proxy -Dhttps.proxyPort=3000 -Dhttp.nonProxyHosts=localhost|127.0.0.1|proxy" \
     HF_HUB_OFFLINE=1 \
+    HTTP_PROXY=http://proxy:3000 \
+    HTTPS_PROXY=http://proxy:3000 \
+    NO_PROXY=localhost,127.0.0.1,proxy,postgres,memgraph,host.docker.internal \
     PATH=/root/.local/bin:/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
 
 # Configure s6-overlay to run user services as agent

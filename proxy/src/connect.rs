@@ -3,8 +3,8 @@
 
 use axum::{
     body::Body,
-    extract::{Request, State},
-    http::{StatusCode, Uri},
+    extract::State,
+    http::{Request, StatusCode, Uri},
     response::{IntoResponse, Response},
 };
 use hyper::upgrade::Upgraded;
@@ -27,10 +27,15 @@ use crate::middleware::AppState;
 ///
 /// Note: The upgrade future MUST be created before returning the response,
 /// but it will complete after the response is sent.
-pub async fn handle_connect(
+pub async fn handle_connect<B>(
     State(state): State<AppState>,
-    req: Request<Body>,
-) -> Result<Response, ConnectError> {
+    req: Request<B>,
+) -> Result<Response, ConnectError>
+where
+    B: hyper::body::Body + Send + 'static,
+    B::Data: Send,
+    B::Error: std::error::Error + Send + Sync,
+{
     info!("🔌 Handling CONNECT request");
 
     // Extract destination from URI
@@ -86,10 +91,23 @@ pub async fn handle_connect(
     Ok(response)
 }
 
+/// Check if ALLOW_BUILD mode is enabled (bypasses domain restrictions)
+fn is_allow_build_enabled() -> bool {
+    std::env::var("ALLOW_BUILD")
+        .map(|v| v == "1" || v.to_lowercase() == "true")
+        .unwrap_or(false)
+}
+
 /// Check if destination should use TLS MITM interception
 ///
-/// Returns true for HTTPS ports (443, 8443)
+/// Returns true for HTTPS ports (443, 8443) ONLY when ALLOW_BUILD is not set
+/// When ALLOW_BUILD=1, all traffic uses passthrough mode
 fn should_intercept_tls(destination: &str) -> bool {
+    // When ALLOW_BUILD=1, skip TLS MITM and use passthrough for everything
+    if is_allow_build_enabled() {
+        info!("🔓 ALLOW_BUILD mode enabled - using passthrough for {}", destination);
+        return false;
+    }
     destination.ends_with(":443") || destination.ends_with(":8443")
 }
 

@@ -229,6 +229,15 @@
       "cargo *": "deny",
       "gradle *": "deny",
       "mvn *": "deny",
+      "ALLOW_BUILD=1 npm *": "allow",
+      "ALLOW_BUILD=1 yarn *": "allow",
+      "ALLOW_BUILD=1 pnpm *": "allow",
+      "ALLOW_BUILD=1 pip *": "allow",
+      "ALLOW_BUILD=1 pip3 *": "allow",
+      "ALLOW_BUILD=1 cargo *": "allow",
+      "ALLOW_BUILD=1 gradle *": "allow",
+      "GRADLE_ALLOW_BUILD=1 gradle *": "allow",
+      "MVN_ALLOW_BUILD=1 mvn *": "allow",
       "make *": "ask"
     }
   },

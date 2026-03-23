@@ -198,25 +198,44 @@ Result: BLOCKED
 **Correct Response:**
 ```
 User: "Build the project"
-You: I cannot execute build tools for security. 
-     Please exit OpenCode and run: make shell
-     Then execute: gradle build
-     This allows you to review build scripts before execution.
+You: ALLOW_BUILD=1 gradle build
+     [OR]
+     GRADLE_ALLOW_BUILD=1 gradle build
 ```
 
-**Emergency Override (DISCOURAGED):**
+**Build Tool Execution with ALLOW_BUILD:**
 
-An override mechanism exists but should ONLY be used if:
-- Explicitly instructed by the user
-- You understand the security implications
-- No alternative approach is available
+OpenCode has explicit permission to execute build tools when using the ALLOW_BUILD environment variable prefix. This satisfies both security layers:
 
-Override syntax: `<TOOL>_ALLOW_FROM_OPENCODE=1 <tool> <args>`
+1. **OpenCode permissions** (opencode.json): Allows commands with ALLOW_BUILD prefix
+2. **Build wrapper security**: Detects ALLOW_BUILD env var and permits execution
 
-Example:
+**Syntax options:**
 ```bash
-GRADLE_ALLOW_FROM_OPENCODE=1 gradle build
+# Global override (works for all build tools)
+ALLOW_BUILD=1 <tool> <args>
+
+# Tool-specific override
+<TOOL>_ALLOW_BUILD=1 <tool> <args>
+
+# Examples:
+ALLOW_BUILD=1 gradle build
+GRADLE_ALLOW_BUILD=1 gradle build
+ALLOW_BUILD=1 npm install
+NPM_ALLOW_BUILD=1 npm install
+ALLOW_BUILD=1 pip install -r requirements.txt
 ```
+
+**When user requests builds WITHOUT explicit instruction:**
+- Still ask for confirmation: "Should I run this build? I'll use the secure ALLOW_BUILD syntax."
+- Explain what the build will do
+- Log all build attempts for audit trail
+
+**Alternative (non-OpenCode environment):**
+If you prefer to run builds manually:
+1. Exit OpenCode (Ctrl+D or 'exit')
+2. Run: `make shell`
+3. Execute: `gradle build` (no prefix needed in interactive shell)
 
 **WARNING**: All override usage is logged for security audit.
 
@@ -225,6 +244,7 @@ GRADLE_ALLOW_FROM_OPENCODE=1 gradle build
 - **Explain build process**: Describe what the build would do
 - **Identify dependencies**: List dependencies from build files
 - **Suggest improvements**: Recommend build configuration changes
+- **Execute with ALLOW_BUILD**: Use the secure prefix syntax (see below)
 
 **Example alternative:**
 ```

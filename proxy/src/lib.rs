@@ -5,6 +5,7 @@ pub mod auto_detect;
 pub mod builder;
 pub mod config;
 pub mod connect;
+pub mod connect_middleware;
 pub mod http_parser;
 pub mod metrics;
 pub mod middleware;

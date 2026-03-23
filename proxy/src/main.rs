@@ -16,6 +16,7 @@ use slapenir_proxy::{
     auto_detect::{AutoDetectConfig, AutoDetector},
     build_strategies_from_config,
     config::Config,
+    connect_middleware::ConnectLayer,
     metrics::{gather_metrics, init_metrics},
     middleware::AppState,
     mtls::MtlsConfig,
@@ -52,6 +53,16 @@ async fn main() -> anyhow::Result<()> {
 
     let app_state = AppState::new(std::sync::Arc::new(secret_map), proxy::create_http_client());
 
+    // Check if ALLOW_BUILD mode is enabled
+    let allow_build = std::env::var("ALLOW_BUILD")
+        .map(|v| v == "1" || v.to_lowercase() == "true")
+        .unwrap_or(false);
+    
+    if allow_build {
+        tracing::warn!("⚠️  ALLOW_BUILD mode enabled - proxy bypassing domain restrictions");
+        tracing::warn!("⚠️  All outbound traffic will be allowed (build/test mode)");
+    }
+
     // Build our application with routes
     let mut app = Router::new()
         // Health and info endpoints
@@ -60,7 +71,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/metrics", get(metrics_handler))
         // Proxy routes - handle all HTTP methods
         .route("/v1/*path", any(proxy::proxy_handler))
-        .with_state(app_state)
+        .with_state(app_state.clone())
+        // Add CONNECT middleware BEFORE TraceLayer to intercept HTTPS tunneling
+        .layer(ConnectLayer::new(app_state))
         .layer(TraceLayer::new_for_http());
 
     // Add mTLS layer if configured

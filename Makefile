@@ -49,7 +49,7 @@ shell:
 
 shell-unrestricted:
 	@echo "🔓 Flushing iptables rules for unrestricted network access..."
-	@docker-compose exec -T agent bash -c 'iptables -F TRAFFIC_ENFORCE 2>/dev/null; iptables -F OUTPUT 2>/dev/null; iptables -X TRAFFIC_ENFORCE 2>/dev/null' || true
+	@docker-compose exec -T -u root agent bash -c 'iptables -F TRAFFIC_ENFORCE 2>/dev/null; iptables -X TRAFFIC_ENFORCE 2>/dev/null; iptables -t nat -F TRAFFIC_REDIRECT 2>/dev/null; iptables -t nat -D OUTPUT -j TRAFFIC_REDIRECT 2>/dev/null || true' || true
 	@exec docker-compose exec \
 		-u agent \
 		-e ALLOW_BUILD=1 \
@@ -75,7 +75,7 @@ shell-unrestricted:
 shell-raw:
 	@echo "⚠️  This will flush iptables rules and disable network restrictions"
 	@echo "⚠️  Container will have direct internet access"
-	@docker-compose exec -T agent bash -c 'iptables -F TRAFFIC_ENFORCE 2>/dev/null; iptables -F OUTPUT 2>/dev/null; iptables -X TRAFFIC_ENFORCE 2>/dev/null' || true
+	@docker-compose exec -T -u root agent bash -c 'iptables -F TRAFFIC_ENFORCE 2>/dev/null; iptables -X TRAFFIC_ENFORCE 2>/dev/null; iptables -t nat -F TRAFFIC_REDIRECT 2>/dev/null; iptables -t nat -D OUTPUT -j TRAFFIC_REDIRECT 2>/dev/null || true' || true
 	@exec docker-compose exec \
 		-u agent \
 		-e ALLOW_BUILD=1 \

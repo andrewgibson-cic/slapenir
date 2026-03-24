@@ -237,6 +237,8 @@
       "ALLOW_BUILD=1 cargo *": "allow",
       "ALLOW_BUILD=1 gradle *": "allow",
       "GRADLE_ALLOW_BUILD=1 gradle *": "allow",
+      "ALLOW_BUILD=1 ./gradlew *": "allow",
+      "GRADLE_ALLOW_BUILD=1 ./gradlew *": "allow",
       "MVN_ALLOW_BUILD=1 mvn *": "allow",
       "make *": "ask"
     }

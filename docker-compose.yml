@@ -77,7 +77,7 @@ services:
       memgraph:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -199,9 +199,11 @@ services:
       - OPENCODE_YOLO=true
       # Code-Graph-RAG Configuration
       - ORCHESTRATOR_PROVIDER=openai
+      - ORCHESTRATOR_MODEL=${ORCHESTRATOR_MODEL:-qwen3.5-35b-a3b-ud-q4_k_xl}
       - ORCHESTRATOR_ENDPOINT=${ORCHESTRATOR_ENDPOINT:-http://host.docker.internal:6666/v1}
       - ORCHESTRATOR_API_KEY=${ORCHESTRATOR_API_KEY:-sk-local}
       - CYPHER_PROVIDER=openai
+      - CYPHER_MODEL=${CYPHER_MODEL:-qwen3.5-35b-a3b-ud-q4_k_xl}
       - CYPHER_ENDPOINT=${CYPHER_ENDPOINT:-http://host.docker.internal:6666/v1}
       - CYPHER_API_KEY=${CYPHER_API_KEY:-sk-local}
       - MEMGRAPH_HOST=memgraph

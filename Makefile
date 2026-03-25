@@ -10,7 +10,7 @@ help:
 	@echo "  up                Start services"
 	@echo "  down              Stop services"
 	@echo "  logs              Follow logs (all or: make logs SERVICE=proxy)"
-	@echo "  shell              Open shell in agent (or: make shell SERVICE=proxy)"
+	@echo "  shell              Open shell in agent (builds blocked - use ALLOW_BUILD=1)"
 	@echo "  shell-unrestricted Open shell with direct internet access (bypasses proxy)"
 	@echo "  shell-raw          Open raw shell bypassing all config (for debugging)"
 	@echo "  test              Run all tests"
@@ -34,16 +34,10 @@ logs:
 	docker-compose logs -f $(SERVICE)
 
 shell:
+	@echo "🔒 Secure shell - builds blocked by default"
+	@echo "   To run builds: ALLOW_BUILD=1 <command> or make shell-unrestricted"
 	@exec docker-compose exec \
 		-u agent \
-		-e GRADLE_ALLOW_FROM_OPENCODE=1 \
-		-e MVN_ALLOW_FROM_OPENCODE=1 \
-		-e NPM_ALLOW_FROM_OPENCODE=1 \
-		-e YARN_ALLOW_FROM_OPENCODE=1 \
-		-e PNPM_ALLOW_FROM_OPENCODE=1 \
-		-e CARGO_ALLOW_FROM_OPENCODE=1 \
-		-e PIP_ALLOW_FROM_OPENCODE=1 \
-		-e PIP3_ALLOW_FROM_OPENCODE=1 \
 		$(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
 	exec docker-compose exec -u agent $(or $(SERVICE),agent) /bin/sh
 

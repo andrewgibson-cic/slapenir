@@ -9,7 +9,7 @@ Thank you for your interest in contributing to SLAPENIR!
 - Docker Desktop v27+
 - Docker Compose v2.24+
 - Rust 1.93+ (for proxy development)
-- Python 3.11+ (for agent development)
+- Python 3.12+ (for agent development)
 
 ### Quick Start
 

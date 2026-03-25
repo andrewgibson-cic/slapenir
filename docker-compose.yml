@@ -249,6 +249,8 @@ services:
       - mcp-knowledge-data:/home/agent/.local/share/mcp-knowledge
       # HuggingFace model cache (pre-downloaded embeddings for air-gapped operation)
       - slapenir-huggingface-cache:/home/agent/.cache/huggingface
+      # Gradle cache (persist dependencies for air-gapped operation)
+      - slapenir-gradle-cache:/home/agent/.gradle/caches
     healthcheck:
       test: |
         python3 -c "import sys; sys.exit(0)" && \
@@ -470,4 +472,10 @@ volumes:
     labels:
       - "slapenir.volume=huggingface-cache"
       - "slapenir.purpose=embedding-models"
+
+  slapenir-gradle-cache:
+    name: slapenir-gradle-cache
+    labels:
+      - "slapenir.volume=gradle-cache"
+      - "slapenir.purpose=gradle-dependencies"
 

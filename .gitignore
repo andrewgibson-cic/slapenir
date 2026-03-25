@@ -98,3 +98,4 @@ mcp-knowledge/
 *.mdarxiv-cosci
 //
 .claude/docs/fix-agent-container-network-access/
+.claude/docs/fix-semantic-release-version-stuck/

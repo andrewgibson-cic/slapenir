@@ -36,7 +36,7 @@ All HTTP/HTTPS traffic routed through SLAPENIR proxy
 
 - Non-root execution (user: agent, uid: 1000)
 - Minimal attack surface (Wolfi base)
-- Memory-safe Python 3.11
+- Memory-safe Python 3.12
 - Certificate-based authentication
 
 ### 5. Zero-Leak Local AI (OpenCode)
@@ -188,16 +188,23 @@ Build tool execution is controlled by security wrappers that block execution by 
 - pip / pip3
 
 **Security model:**
-- **Default**: Block execution (requires human override)
-- **Override**: `GRADLE_ALLOW_FROM_OPENCODE=1 gradle build`
-- **Audit trail**: All build attempts logged
+- **Default**: Block execution (requires explicit override)
+- **Override methods**:
+  1. `ALLOW_BUILD=1 <command>` - Allow all builds
+  2. `<TOOL>_ALLOW_BUILD=1 <command>` - Allow specific tool (e.g., `NPM_ALLOW_BUILD=1 npm install`)
+- **Audit trail**: All build attempts logged to `/var/log/slapenir/build-control.log`
 
-**Emergency override usage:**
+**Usage examples:**
 ```bash
-GRADLE_ALLOW_FROM_OPENCODE=1 gradle build
-```
+# Allow all builds in this command
+ALLOW_BUILD=1 gradle build
 
-**WARNING**: All override usage is logged for security audit.
+# Allow only npm builds
+NPM_ALLOW_BUILD=1 npm install
+
+# Use make shell-unrestricted for full access
+make shell-unrestricted
+```
 
 **Alternative approaches:**
 - **Analyze build files**: You CAN read `build.gradle`, `pom.xml`, `package.json`

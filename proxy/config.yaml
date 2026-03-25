@@ -136,6 +136,18 @@ bypass_rules:
   - name: internal_network
     domain_regex: "^proxy$|^step-ca$|^postgres$"
     priority: 2
+  
+  - name: maven-central
+    domain_regex: "^(.*\\.)?maven\\.apache\\.org$|^(.*\\.)?repo\\.maven\\.apache\\.org$"
+    priority: 3
+  
+  - name: maven-repos
+    domain_regex: "^(.*\\.)?repo1\\.maven\\.org$|^(.*\\.)?repo\\.gradle\\.org$|^(.*\\.)?services\\.gradle\\.org$|^(.*\\.)?jcenter\\.io$"
+    priority: 4
+  
+  - name: homeoffice-artifactory
+    domain_regex: "^(.*\\.)?artifactory\\.digital\\.homeoffice\\.gov\\.uk$"
+    priority: 5
 
 # Global Settings
 settings:

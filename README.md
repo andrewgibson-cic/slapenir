@@ -34,7 +34,7 @@ SLAPENIR sits between AI agents and external APIs, ensuring agents never see rea
        ↓
 ┌──────────────┐     ┌──────────────┐
 │    Agent     │────▶│   Memgraph   │ Graph Database
-│  Python 3.11 │     │     :7687    │ • Code-Graph-RAG
+│  Python 3.12 │     │     :7687    │ • Code-Graph-RAG
 │              │     └──────────────┘ • Knowledge Graphs
 │ • s6-overlay │            │
 │ • OpenCode   │            ↓
@@ -86,7 +86,7 @@ This automatically:
 
 ```bash
 ./slapenir status          # Check service health
-./slapenir shell           # Open shell in agent (as agent user)
+./slapenir shell           # Open shell in agent (builds blocked)
 ./slapenir logs [service]  # View logs
 ./slapenir restart         # Restart all services
 ./slapenir stop            # Stop services
@@ -94,9 +94,14 @@ This automatically:
 
 # Or use make
 make help
-make shell
+make shell                  # Secure shell (builds blocked)
+make shell-unrestricted     # Full access shell (builds allowed)
 make test
 ```
+
+**Shell Security:**
+- `make shell` - Builds blocked by default. Use `ALLOW_BUILD=1 <command>` for each build.
+- `make shell-unrestricted` - Full network and build access (use with caution).
 
 ## Local LLM Support
 
@@ -208,7 +213,7 @@ open http://localhost:7688
 - 82% test coverage
 
 ### Agent (Wolfi OS)
-- Python 3.11 + build tools
+- Python 3.12 + build tools
 - s6-overlay process supervision
 - mTLS client
 - Git credential management
@@ -246,7 +251,7 @@ python3 agent/tests/test_agent.py
 - [Agent Environment](agent/README.md) - Agent configuration and MCP tools
 - [Proxy Configuration](proxy/README.md) - Proxy setup and usage
 - [Monitoring Stack](monitoring/README.md) - Prometheus and Grafana setup
-- [MCP Implementation Plan](MCP-MEMORY-IMPLEMENTATION-PLAN.md) - MCP tools implementation
+- [MCP Embeddings](docs/mcp-knowledge-server-embeddings.md) - Embedding model configuration
 - [Contributing](CONTRIBUTING.md) - Development guidelines
 - [Security Policy](SECURITY.md) - Vulnerability reporting
 

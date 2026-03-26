@@ -59,10 +59,10 @@ where
         if req.method() == Method::CONNECT {
             // Handle CONNECT immediately, bypassing Axum router
             let state = self.state.clone();
-            
+
             Box::pin(async move {
                 tracing::debug!("CONNECT middleware intercepting request");
-                
+
                 match handle_connect(axum::extract::State(state), req).await {
                     Ok(response) => Ok(response),
                     Err(e) => {
@@ -73,8 +73,7 @@ where
             })
         } else {
             // Pass through to Axum router for non-CONNECT requests
-            let future = self.inner.call(req);
-            Box::pin(async move { future.await })
+            Box::pin(self.inner.call(req))
         }
     }
 }

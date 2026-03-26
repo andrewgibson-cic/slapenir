@@ -8,8 +8,11 @@ import os
 import re
 import time
 import subprocess
+import logging
 
 METRICS_PORT = int(os.environ.get("METRICS_PORT", 8000))
+
+logger = logging.getLogger(__name__)
 
 from prometheus_client import Counter, Gauge, start_http_server
 
@@ -57,7 +60,7 @@ last_bypass_log = Gauge(
 )
 
 
-def parse_iptables_counters():
+def parse_iptables_counters() -> None:
     """Parse iptables -L -n -v output for packet/byte counters."""
     try:
         result = subprocess.run(
@@ -123,7 +126,7 @@ def parse_iptables_counters():
         print(f"Error parsing iptables: {e}")
 
 
-def check_isolation_enabled():
+def check_isolation_enabled() -> None:
     """Check if traffic enforcement is enabled."""
     try:
         result = subprocess.run(
@@ -139,7 +142,7 @@ def check_isolation_enabled():
         print(f"Error checking isolation: {e}")
 
 
-def count_connections():
+def count_connections() -> None:
     """Count TCP connections by state."""
     try:
         with open("/proc/net/tcp", "r") as f:
@@ -176,7 +179,7 @@ def count_connections():
         print(f"Error counting connections: {e}")
 
 
-def check_kernel_log_for_bypass():
+def check_kernel_log_for_bypass() -> None:
     """Check kernel log for bypass attempts."""
     try:
         result = subprocess.run(["dmesg"], capture_output=True, text=True, timeout=5)
@@ -193,7 +196,7 @@ def check_kernel_log_for_bypass():
         print(f"Error checking kernel log: {e}")
 
 
-def main():
+def main() -> None:
     """Main metrics collection loop."""
     print(f"Starting metrics exporter on port {METRICS_PORT}")
     start_http_server(METRICS_PORT)

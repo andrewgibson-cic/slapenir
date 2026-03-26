@@ -105,7 +105,10 @@ fn is_allow_build_enabled() -> bool {
 fn should_intercept_tls(destination: &str) -> bool {
     // When ALLOW_BUILD=1, skip TLS MITM and use passthrough for everything
     if is_allow_build_enabled() {
-        info!("🔓 ALLOW_BUILD mode enabled - using passthrough for {}", destination);
+        info!(
+            "🔓 ALLOW_BUILD mode enabled - using passthrough for {}",
+            destination
+        );
         return false;
     }
     destination.ends_with(":443") || destination.ends_with(":8443")

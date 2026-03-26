@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
     let allow_build = std::env::var("ALLOW_BUILD")
         .map(|v| v == "1" || v.to_lowercase() == "true")
         .unwrap_or(false);
-    
+
     if allow_build {
         tracing::warn!("⚠️  ALLOW_BUILD mode enabled - proxy bypassing domain restrictions");
         tracing::warn!("⚠️  All outbound traffic will be allowed (build/test mode)");

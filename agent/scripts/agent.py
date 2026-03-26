@@ -10,6 +10,7 @@ import sys
 import time
 import signal
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 # Configure logging using LoggingConfig
 sys.path.insert(0, str(Path(__file__).parent))
@@ -23,9 +24,9 @@ logger = LoggingConfig.get_logger(
 
 
 # Load environment variables
-def load_env_vars():
+def load_env_vars() -> Dict[str, Optional[str]]:
     """Load and log important environment variables"""
-    env_vars = {
+    env_vars: Dict[str, Optional[str]] = {
         "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
         "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY"),
         "IBM_API_KEY": os.getenv("IBM_API_KEY"),
@@ -46,17 +47,17 @@ def load_env_vars():
 
 
 # Global flag for graceful shutdown
-shutdown_requested = False
+shutdown_requested: bool = False
 
 
-def signal_handler(signum, frame):
+def signal_handler(signum: int, frame: Any) -> None:
     """Handle shutdown signals gracefully"""
     global shutdown_requested
     logger.info(f"Received signal {signum}, initiating graceful shutdown...")
     shutdown_requested = True
 
 
-def check_environment():
+def check_environment() -> bool:
     """Verify the agent environment is properly configured"""
     logger.info("Checking agent environment...")
 
@@ -101,7 +102,7 @@ def check_environment():
     return True
 
 
-def test_proxy_health():
+def test_proxy_health() -> bool:
     """Test proxy health endpoint"""
     try:
         import requests
@@ -129,7 +130,7 @@ def test_proxy_health():
         return False
 
 
-def main():
+def main() -> int:
     """Main agent loop"""
     global shutdown_requested
 

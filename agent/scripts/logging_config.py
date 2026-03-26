@@ -53,7 +53,7 @@ class LoggingConfig:
             cls._instance = instance
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize configuration from environment variables."""
         if self._initialized:
             return
@@ -126,7 +126,7 @@ class LoggingConfig:
         instance._setup_logging(service_name, log_dir, log_level)
         return logging.getLogger(service_name)
 
-    def _setup_logging(self, service_name: str, log_dir: str, log_level: str):
+    def _setup_logging(self, service_name: str, log_dir: str, log_level: str) -> None:
         """Setup logging with dual handlers and fallback."""
         # Get root logger
         logger = logging.getLogger()

@@ -382,12 +382,7 @@ fn determine_target_url(headers: &HeaderMap, uri: &Uri) -> Result<String, ProxyE
             let scheme = "http"; // HTTP_PROXY typically uses http
             let path_and_query = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("/");
 
-            return Ok(format!(
-                "{}://{}{}",
-                scheme,
-                host_str,
-                path_and_query
-            ));
+            return Ok(format!("{}://{}{}", scheme, host_str, path_and_query));
         }
     }
 
@@ -548,11 +543,17 @@ mod tests {
     #[test]
     fn test_determine_target_url_with_host_header() {
         let mut headers = HeaderMap::new();
-        headers.insert("host", HeaderValue::from_static("host.docker.internal:8080"));
+        headers.insert(
+            "host",
+            HeaderValue::from_static("host.docker.internal:8080"),
+        );
         let uri: Uri = "/v1/chat/completions".parse().unwrap();
 
         let result = determine_target_url(&headers, &uri).unwrap();
-        assert_eq!(result, "http://host.docker.internal:8080/v1/chat/completions");
+        assert_eq!(
+            result,
+            "http://host.docker.internal:8080/v1/chat/completions"
+        );
     }
 
     #[test]
@@ -579,7 +580,10 @@ mod tests {
     #[test]
     fn test_should_bypass_proxy_with_local_host_header() {
         let mut headers = HeaderMap::new();
-        headers.insert("host", HeaderValue::from_static("host.docker.internal:8080"));
+        headers.insert(
+            "host",
+            HeaderValue::from_static("host.docker.internal:8080"),
+        );
         let uri: Uri = "/v1/chat/completions".parse().unwrap();
 
         assert!(should_bypass_proxy(&uri, &headers));

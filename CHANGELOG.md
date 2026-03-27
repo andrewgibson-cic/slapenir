@@ -1,3 +1,10 @@
+## [1.8.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.1...v1.8.2) (2026-03-27)
+
+
+### Bug Fixes
+
+* build only binary in Docker, skip benchmarks ([668c389](https://github.com/andrewgibson-cic/slapenir/commit/668c38968f604a6190a1639a4b0c0d1d628d35ac))
+
 ## [1.8.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.0...v1.8.1) (2026-03-27)
 
 

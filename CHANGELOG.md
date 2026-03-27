@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.0...v1.8.1) (2026-03-27)
+
+
+### Bug Fixes
+
+* correct .env.example comment syntax for docker compose ([dd849cb](https://github.com/andrewgibson-cic/slapenir/commit/dd849cbfc799777f51c802828375441279111ca5))
+
 ## [1.7.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.6.0...v1.7.0) (2026-03-27)
 
 

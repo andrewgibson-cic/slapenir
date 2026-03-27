@@ -15,8 +15,8 @@ COPY Cargo.toml Cargo.lock ./
 # Copy source code
 COPY src ./src
 
-# Build release binary
-RUN cargo build --release
+# Build release binary (skip benchmarks for production build)
+RUN cargo build --release --bin slapenir-proxy
 
 # Runtime stage
 FROM alpine:latest

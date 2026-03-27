@@ -94,7 +94,7 @@ fn build_strategy(config: &StrategyConfig) -> Result<Box<dyn AuthStrategy>, Stra
         }
 
         "hmac" => {
-            // TODO: Implement HMAC strategy in future phase
+            // TODO(#6): Implement HMAC signing strategy for credential injection
             Err(StrategyError::InvalidCredential(
                 "HMAC strategy not yet implemented".to_string(),
             ))

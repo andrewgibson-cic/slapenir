@@ -10,7 +10,11 @@ import time
 import subprocess
 import logging
 
-METRICS_PORT = int(os.environ.get("METRICS_PORT", 8000))
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +127,7 @@ def parse_iptables_counters() -> None:
         allowed_destinations.set(allowed_rules)
 
     except Exception as e:
-        print(f"Error parsing iptables: {e}")
+        logger.error(f"Error parsing iptables: {e}")
 
 
 def check_isolation_enabled() -> None:
@@ -139,7 +143,7 @@ def check_isolation_enabled() -> None:
         network_isolation_status.set(enabled)
     except Exception as e:
         network_isolation_status.set(0)
-        print(f"Error checking isolation: {e}")
+        logger.error(f"Error checking isolation: {e}")
 
 
 def count_connections() -> None:
@@ -176,7 +180,7 @@ def count_connections() -> None:
             )
 
     except Exception as e:
-        print(f"Error counting connections: {e}")
+        logger.error(f"Error counting connections: {e}")
 
 
 def check_kernel_log_for_bypass() -> None:
@@ -193,12 +197,12 @@ def check_kernel_log_for_bypass() -> None:
             dns_bypass_attempts_total.labels(protocol="udp").inc(len(dns_lines))
 
     except Exception as e:
-        print(f"Error checking kernel log: {e}")
+        logger.error(f"Error checking kernel log: {e}")
 
 
 def main() -> None:
     """Main metrics collection loop."""
-    print(f"Starting metrics exporter on port {METRICS_PORT}")
+        logger.info(f"Starting metrics exporter on port {METRICS_PORT}")
     start_http_server(METRICS_PORT)
 
     while True:

@@ -1,3 +1,10 @@
+## [1.8.4](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.3...v1.8.4) (2026-03-27)
+
+
+### Bug Fixes
+
+* **ci:** add required passwords for docker compose in CI ([a19e225](https://github.com/andrewgibson-cic/slapenir/commit/a19e2253e2459540d3771a0a8e25ed9330b1aff4))
+
 ## [1.8.3](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.2...v1.8.3) (2026-03-27)
 
 

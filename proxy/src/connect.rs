@@ -284,24 +284,24 @@ async fn tunnel_with_tls_mitm(
     let hostname = extract_hostname(destination)?;
     info!("🔐 Starting TLS MITM for hostname: {}", hostname);
 
-    // TODO: Phase 3B - TLS Handshake
+    // TODO(#1): Implement TLS handshake for upstream connections
     // 1. Load or generate CA certificate
     // 2. Create MitmAcceptor with CA
     // 3. Generate certificate for hostname
     // 4. Accept TLS connection from client
     // 5. Establish TLS connection to upstream server
 
-    // TODO: Phase 3C - HTTP Processing
+    // TODO(#2): Implement HTTP request/response processing
     // 6. Read HTTP request from decrypted client stream
     // 7. Buffer until complete request received
     // 8. Parse using http_parser
 
-    // TODO: Phase 3D - Credential Injection
+    // TODO(#3): Implement just-in-time credential injection
     // 9. Detect if any strategy matches the request
     // 10. Inject credentials if match found
     // 11. Serialize modified request
 
-    // TODO: Phase 3E - Response Sanitization
+    // TODO(#4): Implement response sanitization
     // 12. Read HTTP response from server
     // 13. Parse response
     // 14. Sanitize using secret_map

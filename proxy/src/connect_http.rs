@@ -20,9 +20,9 @@ use super::{ConnectError, extract_hostname};
 ///
 /// Phase 3C Implementation: HTTP Request/Response Parsing
 /// - Phase 3B: TLS handshake (client + server) ✅
-/// - Phase 3C: HTTP message parsing and forwarding ✅
-/// - TODO Phase 3D: Credential injection
-/// - TODO Phase 3E: Response sanitization
+/// - Phase 3C: HTTP message parsing & forwarding ✅
+/// - TODO(#3): Implement credential injection
+/// - TODO(#4): Implement response sanitization
 pub async fn tunnel_with_tls_mitm_http(
     client_stream: Upgraded,
     server_stream: TcpStream,
@@ -110,7 +110,7 @@ pub async fn tunnel_with_tls_mitm_http(
             }
         };
 
-        // TODO Phase 3D: Inject credentials here
+        // TODO(#3): Implement just-in-time credential injection
         // For now, forward request as-is
         
         // Serialize and send request to server
@@ -140,7 +140,7 @@ pub async fn tunnel_with_tls_mitm_http(
             }
         };
 
-        // TODO Phase 3E: Sanitize response here
+        // TODO(#4): Implement response sanitization
         // For now, forward response as-is
         
         // Serialize and send response to client

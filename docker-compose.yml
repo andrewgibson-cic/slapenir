@@ -19,7 +19,7 @@ services:
       - DOCKER_STEPCA_INIT_NAME=SLAPENIR-CA
       - DOCKER_STEPCA_INIT_DNS_NAMES=ca,step-ca,localhost
       - DOCKER_STEPCA_INIT_PROVISIONER_NAME=admin
-      - DOCKER_STEPCA_INIT_PASSWORD=${STEPCA_PASSWORD:-slapenir-dev-password-CHANGE-ME}
+      - DOCKER_STEPCA_INIT_PASSWORD=${STEPCA_PASSWORD:?STEPCA_PASSWORD must be set in .env file}
       - DOCKER_STEPCA_INIT_ADDRESS=:9000
     healthcheck:
       test: ["CMD", "step", "ca", "health"]
@@ -100,7 +100,7 @@ services:
       - "5432:5432"
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-slapenir}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-slapenir-dev-password}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}
       - POSTGRES_DB=${POSTGRES_DB:-slapenir}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -133,7 +133,7 @@ services:
       - .env  # Load REAL credentials from host .env
     environment:
       - RUST_LOG=info
-      - DATABASE_URL=postgres://${POSTGRES_USER:-slapenir}:${POSTGRES_PASSWORD:-slapenir-dev-password}@postgres:5432/${POSTGRES_DB:-slapenir}
+      - DATABASE_URL=postgres://${POSTGRES_USER:-slapenir}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}@postgres:5432/${POSTGRES_DB:-slapenir}
       - AUTO_DETECT_ENABLED=${AUTO_DETECT_ENABLED:-true}
       - ALLOW_BUILD=${ALLOW_BUILD:-false}
       - MTLS_ENABLED=${MTLS_ENABLED:-false}
@@ -347,7 +347,7 @@ services:
       - grafana-data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-slapenir-dev-password-CHANGE-ME}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set in .env file}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3001
       - GF_INSTALL_PLUGINS=

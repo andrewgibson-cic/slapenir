@@ -123,7 +123,7 @@ pub async fn verify_client_cert(
     // In a real implementation, we would extract the client certificate from the TLS session
     // For now, we'll check if enforcement is enabled
     if mtls_config.enforce {
-        // TODO: Extract actual client certificate from TLS connection
+        // TODO(#5): Extract client certificate from TLS connection for enhanced validation
         // This requires deeper integration with the TLS layer
         debug!("Client certificate verification requested");
 

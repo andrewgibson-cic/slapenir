@@ -1,0 +1,32 @@
+# Mutation testing configuration for cargo-mutants
+
+# Exclude test files and generated code
+exclude_globs = [
+    "*/tests/*",
+    "*/benches/*",
+    "*/target/*",
+]
+
+# Timeout for each mutation test (prevents infinite loops)
+timeout_secs = 60
+
+# Number of parallel jobs
+jobs = 4
+
+# Mutant operators to use
+operators = [
+    "arithmetic",
+    "boolean",
+    "comparison", 
+    "conditional",
+    "function_call",
+    "literal",
+    "logical",
+    "relational",
+    "return",
+]
+
+# Additional cargo-mutants arguments
+[extra]
+# Show colors in output
+colors = true

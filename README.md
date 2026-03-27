@@ -240,9 +240,113 @@ open http://localhost:7688
 
 ```bash
 make test          # All tests (105 tests, 82% coverage)
-cd proxy && cargo test
-python3 agent/tests/test_agent.py
-```
+
+# Run Rust tests
+cargo test --all
+
+cargo test --all -- --nocapture
+cargo bench
+
+# Run Python tests
+pytest agent/tests/ -v
+
+# Run load tests (requires running services)
+cd proxy/tests/load
+./run_all_load_tests.sh
+
+# Run security tests
+cargo test --test security
+
+# Run chaos/fault injection tests  
+cargo test --test chaos
+
+## Test Coverage
+
+- **Unit Tests**: 346 tests (Rust)
+- **Integration Tests**: Comprehensive integration suite
+- **Property Tests**: Proptest for generative testing
+- **Security Tests**: Authorization boundary tests
+- **Chaos Tests**: Fault injection and resilience tests
+- **Benchmarks**: Criterion performance tests
+- **Load Tests**: k6 load testing suite
+  - API Load Test (100 RPS, 2min)
+  - Proxy Sanitization Test (8min)
+  - Stress Test (14min)
+  - Soak Test (30min)
+
+## Performance Targets
+
+Based on `proxy/PERFORMANCE.md`:
+- p95 latency: <200ms for sanitization
+- p99 latency: <500ms for sanitization
+- Throughput: >1000 req/s
+- Error rate: <0.1%
+- Concurrent connections: >1000
+- Memory leak detection: No increasing latency over 30 minutes
+
+## New Test Suites
+
+### 1. Criterion Benchmarks (`proxy/benches/`)
+Comprehensive performance benchmarks for:
+- Sanitization performance (small/medium/large payloads)
+- Injection performance (small/medium/large payloads)
+- Secret map creation (10/100/500 secrets)
+- Byte sanitization (binary data)
+- No-match paths (optimization)
+- Multiple secrets scenarios
+
+### 2. k6 Load Tests (`proxy/tests/load/`)
+Four load test scenarios:
+
+#### API Load Test (`api_load.js`)
+- 100 RPS constant load
+- Ramping from 10 → 100 → 500 → 10 users
+- p95 latency: <500ms, p99: <1000ms
+- Error rate: <1%
+
+#### Proxy Sanitization Test (`proxy_sanitization.js`)
+- Tests sanitization under load
+- 8-minute duration
+- p95 latency: <200ms, p99: <500ms
+- Error rate: <0.1%
+
+#### Stress Test (`stress_test.js`)
+- Progressive load: 100 → 250 → 500 → 750 → 1000 VUs
+- Identifies breaking point
+- 14-minute duration
+
+#### Soak Test (`soak_test.js`)
+- 100 constant VUs for 30 minutes
+- Detects memory leaks
+- p95 latency: <300ms
+- Error rate: <0.1%
+
+### 3. Authorization Tests (`proxy/tests/security/`)
+- Null/missing roles
+- Cross-tenant isolation
+- Permission inheritance
+- Privilege escalation prevention
+- Resource ownership validation
+- Public vs private resources
+- Admin/superuser bypass
+- Tenant-isolated secrets
+
+### 4. Chaos Tests (`proxy/tests/chaos/`)
+- Network failures (timeouts, connection refused)
+- Malformed inputs (null bytes, unicode, deep nesting)
+- Resource exhaustion (connections, memory, CPU)
+- Edge cases (zero-width chars, case sensitivity)
+- Timeout scenarios
+
+## CI/CD Integration
+
+All tests run in GitHub Actions:
+
+- **Test Workflow**: `.github/workflows/test.yml`
+- Runs on every push/PR to main/develop branches
+- **Mutation Testing**: Weekly scheduled run
+
+View test results in GitHub Actions → Test Summary
 
 ## Documentation
 

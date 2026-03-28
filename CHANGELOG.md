@@ -1,3 +1,11 @@
+## [1.8.7](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.6...v1.8.7) (2026-03-28)
+
+
+### Bug Fixes
+
+* **ci:** add proxy logging for debugging ([dca4a67](https://github.com/andrewgibson-cic/slapenir/commit/dca4a67f012df1cd9bfee0b5410a38120db1dfae))
+* **ci:** create dummy certificates for proxy in CI ([2825959](https://github.com/andrewgibson-cic/slapenir/commit/28259596312148fbca56f8437231671994dbbb8b))
+
 ## [1.8.6](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.5...v1.8.6) (2026-03-28)
 
 

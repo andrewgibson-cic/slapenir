@@ -1,3 +1,10 @@
+## [1.8.10](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.9...v1.8.10) (2026-03-28)
+
+
+### Bug Fixes
+
+* **sanitizer:** support N:1 dummy-to-real credential mapping ([02430b1](https://github.com/andrewgibson-cic/slapenir/commit/02430b1060b7764a054c02c950ba3ee1fd66e799))
+
 ## [1.8.9](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.8...v1.8.9) (2026-03-28)
 
 

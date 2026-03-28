@@ -1,3 +1,10 @@
+## [1.8.6](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.5...v1.8.6) (2026-03-28)
+
+
+### Bug Fixes
+
+* **ci:** disable proxy for Docker image pulls in CI ([6aaa705](https://github.com/andrewgibson-cic/slapenir/commit/6aaa7051261187b670a1c61d77b280b5eb2b846d))
+
 ## [1.8.5](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.4...v1.8.5) (2026-03-28)
 
 

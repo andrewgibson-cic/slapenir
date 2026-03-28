@@ -369,12 +369,22 @@ jobs:
     
     - name: Start services
       run: docker compose up -d
+      continue-on-error: true
     
     - name: Wait for services
       run: |
         echo "Waiting for services to be ready..."
         sleep 10
         docker compose ps
+    
+    - name: Check proxy logs
+      if: always()
+      run: |
+        echo "=== Proxy Container Logs ==="
+        docker compose logs proxy || echo "Proxy container not running"
+        echo ""
+        echo "=== Proxy Container Status ==="
+        docker compose ps proxy || echo "Proxy container not found"
     
     - name: Test proxy health
       run: |

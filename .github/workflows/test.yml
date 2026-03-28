@@ -311,6 +311,20 @@ jobs:
         echo "HTTP_PROXY=" >> .env
         echo "HTTPS_PROXY=" >> .env
         echo "NO_PROXY=" >> .env
+    
+    - name: Create dummy certificates
+      run: |
+        # Create dummy certificate volume and files for proxy
+        docker volume create slapenir-proxy-certs
+        docker run --rm -v slapenir-proxy-certs:/certs alpine sh -c "
+          # Generate self-signed dummy certificates
+          apk add --no-cache openssl && \
+          openssl req -x509 -newkey rsa:2048 -keyout /certs/proxy.key -out /certs/proxy.crt -days 365 -nodes -subj '/CN=localhost' && \
+          openssl req -x509 -newkey rsa:2048 -keyout /certs/root_ca.key -out /certs/root_ca.crt -days 365 -nodes -subj '/CN=SLAPENIR-CA' && \
+          chmod 644 /certs/*.crt && \
+          chmod 600 /certs/*.key && \
+          ls -lh /certs/
+        "
 
     - name: Generate coverage report
       run: |
@@ -358,6 +372,20 @@ jobs:
         echo "HTTP_PROXY=" >> .env
         echo "HTTPS_PROXY=" >> .env
         echo "NO_PROXY=" >> .env
+    
+    - name: Create dummy certificates
+      run: |
+        # Create dummy certificate volume and files for proxy
+        docker volume create slapenir-proxy-certs
+        docker run --rm -v slapenir-proxy-certs:/certs alpine sh -c "
+          # Generate self-signed dummy certificates
+          apk add --no-cache openssl && \
+          openssl req -x509 -newkey rsa:2048 -keyout /certs/proxy.key -out /certs/proxy.crt -days 365 -nodes -subj '/CN=localhost' && \
+          openssl req -x509 -newkey rsa:2048 -keyout /certs/root_ca.key -out /certs/root_ca.crt -days 365 -nodes -subj '/CN=SLAPENIR-CA' && \
+          chmod 644 /certs/*.crt && \
+          chmod 600 /certs/*.key && \
+          ls -lh /certs/
+        "
 
     
     - name: Validate docker-compose
@@ -368,7 +396,9 @@ jobs:
       timeout-minutes: 10
     
     - name: Start services
-      run: docker compose up -d
+      run: |
+        echo "Starting core services only (no monitoring for CI)..."
+        docker compose up -d step-ca postgres memgraph proxy
       continue-on-error: true
     
     - name: Wait for services

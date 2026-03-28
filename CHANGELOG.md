@@ -1,3 +1,10 @@
+## [1.8.11](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.10...v1.8.11) (2026-03-28)
+
+
+### Bug Fixes
+
+* **ci:** allow dependency-review to continue on error ([c265ab5](https://github.com/andrewgibson-cic/slapenir/commit/c265ab527cbca11a857b4eac8ae9b8c000dc8a6e))
+
 ## [1.8.10](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.9...v1.8.10) (2026-03-28)
 
 

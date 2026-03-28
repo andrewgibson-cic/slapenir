@@ -209,12 +209,12 @@ impl SecretMap {
         let mut real_secrets = Vec::new();
 
         for strategy in strategies {
-            // Get real credential from strategy first
             if let Some(real_cred) = strategy.real_credential() {
-                // Only include dummy patterns for strategies with real credentials
                 let dummies = strategy.dummy_patterns();
+                for _ in &dummies {
+                    real_secrets.push(real_cred.clone());
+                }
                 dummy_secrets.extend(dummies);
-                real_secrets.push(real_cred);
             } else {
                 tracing::debug!(
                     "Strategy '{}' has no real credential loaded (skipping)",

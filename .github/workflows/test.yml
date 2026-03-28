@@ -496,12 +496,15 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+    
     - name: Install k6
       run: |
         curl https://github.com/grafana/k6/releases/download/v0.47.0/k6-v0.47.0-linux-amd64.tar.gz -L | tar xvz
         sudo mv k6-*/k6 /usr/local/bin/
     
-    - name: Start services
+    - name: Create .env file for CI
       run: |
         cp .env.example .env
         echo "" >> .env
@@ -521,8 +524,48 @@ jobs:
         echo "HTTP_PROXY=" >> .env
         echo "HTTPS_PROXY=" >> .env
         echo "NO_PROXY=" >> .env
-        docker compose up -d
+    
+    - name: Create dummy certificates
+      run: |
+        docker volume create slapenir-proxy-certs
+        docker run --rm -v slapenir-proxy-certs:/certs alpine sh -c "
+          apk add --no-cache openssl && \
+          openssl req -x509 -newkey rsa:2048 -keyout /certs/proxy.key -out /certs/proxy.crt -days 365 -nodes -subj '/CN=localhost' && \
+          openssl req -x509 -newkey rsa:2048 -keyout /certs/root_ca.key -out /certs/root_ca.crt -days 365 -nodes -subj '/CN=SLAPENIR-CA' && \
+          chmod 644 /certs/*.crt && \
+          chmod 600 /certs/*.key && \
+          ls -lh /certs/
+        "
+    
+    - name: Build services
+      run: docker compose build proxy
+      timeout-minutes: 10
+    
+    - name: Start services
+      run: |
+        docker compose up -d step-ca postgres memgraph proxy
         sleep 10
+    
+    - name: Check services
+      run: docker compose ps
+    
+    - name: Check proxy logs
+      if: always()
+      run: docker compose logs proxy || true
+    
+    - name: Wait for proxy health
+      run: |
+        for i in {1..30}; do
+          if curl -sf http://localhost:3000/health; then
+            echo "Proxy is healthy"
+            exit 0
+          fi
+          echo "Waiting for proxy... ($i/30)"
+          sleep 2
+        done
+        echo "Proxy failed to become healthy"
+        docker compose logs proxy
+        exit 1
     
     - name: Run API load tests
       working-directory: ./proxy/tests/load

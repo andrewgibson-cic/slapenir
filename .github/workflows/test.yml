@@ -301,6 +301,11 @@ jobs:
         echo "POSTGRES_PASSWORD=ci-dummy-password" >> .env
         echo "GRAFANA_ADMIN_PASSWORD=ci-dummy-password" >> .env
         echo "STEPCA_PASSWORD=ci-dummy-password" >> .env
+        echo "" >> .env
+        echo "# SSH agent socket (dummy for CI)" >> .env
+        echo "SSH_AUTH_SOCK=/tmp/dummy-ssh-agent.sock" >> .env
+        # Create dummy socket file so docker compose doesn't fail
+        touch /tmp/dummy-ssh-agent.sock
 
     - name: Generate coverage report
       run: |
@@ -338,6 +343,11 @@ jobs:
         echo "POSTGRES_PASSWORD=ci-dummy-password" >> .env
         echo "GRAFANA_ADMIN_PASSWORD=ci-dummy-password" >> .env
         echo "STEPCA_PASSWORD=ci-dummy-password" >> .env
+        echo "" >> .env
+        echo "# SSH agent socket (dummy for CI)" >> .env
+        echo "SSH_AUTH_SOCK=/tmp/dummy-ssh-agent.sock" >> .env
+        # Create dummy socket file so docker compose doesn't fail
+        touch /tmp/dummy-ssh-agent.sock
 
     
     - name: Validate docker-compose

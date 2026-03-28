@@ -504,7 +504,23 @@ jobs:
     - name: Start services
       run: |
         cp .env.example .env
+        echo "" >> .env
+        echo "# CI environment - dummy credentials only" >> .env
         echo "ENVIRONMENT=ci" >> .env
+        echo "" >> .env
+        echo "# Required passwords for CI (not production secrets)" >> .env
+        echo "POSTGRES_PASSWORD=ci-dummy-password" >> .env
+        echo "GRAFANA_ADMIN_PASSWORD=ci-dummy-password" >> .env
+        echo "STEPCA_PASSWORD=ci-dummy-password" >> .env
+        echo "" >> .env
+        echo "# SSH agent socket (dummy for CI)" >> .env
+        echo "SSH_AUTH_SOCK=/tmp/dummy-ssh-agent.sock" >> .env
+        touch /tmp/dummy-ssh-agent.sock
+        echo "" >> .env
+        echo "# Disable proxy for Docker image pulls (CI has direct internet)" >> .env
+        echo "HTTP_PROXY=" >> .env
+        echo "HTTPS_PROXY=" >> .env
+        echo "NO_PROXY=" >> .env
         docker compose up -d
         sleep 10
     

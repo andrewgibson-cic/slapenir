@@ -306,6 +306,11 @@ jobs:
         echo "SSH_AUTH_SOCK=/tmp/dummy-ssh-agent.sock" >> .env
         # Create dummy socket file so docker compose doesn't fail
         touch /tmp/dummy-ssh-agent.sock
+        echo "" >> .env
+        echo "# Disable proxy for Docker image pulls (CI has direct internet)" >> .env
+        echo "HTTP_PROXY=" >> .env
+        echo "HTTPS_PROXY=" >> .env
+        echo "NO_PROXY=" >> .env
 
     - name: Generate coverage report
       run: |
@@ -348,6 +353,11 @@ jobs:
         echo "SSH_AUTH_SOCK=/tmp/dummy-ssh-agent.sock" >> .env
         # Create dummy socket file so docker compose doesn't fail
         touch /tmp/dummy-ssh-agent.sock
+        echo "" >> .env
+        echo "# Disable proxy for Docker image pulls (CI has direct internet)" >> .env
+        echo "HTTP_PROXY=" >> .env
+        echo "HTTPS_PROXY=" >> .env
+        echo "NO_PROXY=" >> .env
 
     
     - name: Validate docker-compose

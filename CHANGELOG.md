@@ -1,3 +1,10 @@
+## [1.8.9](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.8...v1.8.9) (2026-03-28)
+
+
+### Bug Fixes
+
+* **ci:** add certificate creation and health checks to load-tests job ([c771009](https://github.com/andrewgibson-cic/slapenir/commit/c771009e2e1082c82954ba5e562f5d44191ba936))
+
 ## [1.8.8](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.7...v1.8.8) (2026-03-28)
 
 

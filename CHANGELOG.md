@@ -1,3 +1,15 @@
+## [1.8.5](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.4...v1.8.5) (2026-03-28)
+
+
+### Bug Fixes
+
+* **ci:** add dummy SSH_AUTH_SOCK for docker compose validation ([5e67e94](https://github.com/andrewgibson-cic/slapenir/commit/5e67e9475915d17d34e7bfe6dd34a0a0a7c19c9b))
+
+
+### Documentation
+
+* update README and security documentation with comprehensive setup instructions ([ee6a921](https://github.com/andrewgibson-cic/slapenir/commit/ee6a92172dd3ee7ab2628a118a99318e54a29ebf))
+
 ## [1.8.4](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.3...v1.8.4) (2026-03-27)
 
 

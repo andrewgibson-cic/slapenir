@@ -1,3 +1,10 @@
+## [1.8.8](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.7...v1.8.8) (2026-03-28)
+
+
+### Bug Fixes
+
+* **ci:** add missing POSTGRES_PASSWORD to load-tests job ([3244431](https://github.com/andrewgibson-cic/slapenir/commit/3244431f558b8644a1497f3c03d69a9e6b748829))
+
 ## [1.8.7](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.6...v1.8.7) (2026-03-28)
 
 

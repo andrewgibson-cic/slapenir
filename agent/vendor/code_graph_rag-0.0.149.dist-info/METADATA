@@ -1,0 +1,221 @@
+Metadata-Version: 2.4
+Name: code-graph-rag
+Version: 0.0.149
+Summary: The ultimate RAG for your monorepo. Query, understand, and edit multi-language codebases with the power of AI and knowledge graphs
+License-Expression: MIT
+Keywords: rag,retrieval-augmented-generation,knowledge-graph,code-analysis,tree-sitter,mcp,mcp-server,llm,graph-database,semantic-search,codebase,memgraph,developer-tools,monorepo
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: Software Development :: Code Generators
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: loguru>=0.7.3
+Requires-Dist: mcp>=1.21.1
+Requires-Dist: pydantic-ai>=1.70.0
+Requires-Dist: pydantic-settings>=2.0.0
+Requires-Dist: pymgclient>=1.4.0
+Requires-Dist: python-dotenv>=1.1.0
+Requires-Dist: tiktoken>=0.12.0
+Requires-Dist: toml>=0.10.2
+Requires-Dist: tree-sitter-python>=0.23.6
+Requires-Dist: tree-sitter==0.25.2
+Requires-Dist: watchdog>=6.0.0
+Requires-Dist: typer>=0.12.5
+Requires-Dist: rich>=13.7.1
+Requires-Dist: prompt-toolkit>=3.0.0
+Requires-Dist: diff-match-patch>=20241021
+Requires-Dist: click>=8.0.0
+Requires-Dist: protobuf>=5.27.0
+Requires-Dist: defusedxml>=0.7.1
+Requires-Dist: huggingface-hub[hf-xet]>=0.36.0
+Provides-Extra: test
+Requires-Dist: pytest>=8.4.1; extra == "test"
+Requires-Dist: pytest-asyncio>=1.0.0; extra == "test"
+Requires-Dist: pytest-cov>=4.0.0; extra == "test"
+Requires-Dist: pytest-xdist>=3.8.0; extra == "test"
+Requires-Dist: testcontainers>=4.9.0; extra == "test"
+Provides-Extra: treesitter-full
+Requires-Dist: tree-sitter-python>=0.23.6; extra == "treesitter-full"
+Requires-Dist: tree-sitter-javascript>=0.23.1; extra == "treesitter-full"
+Requires-Dist: tree-sitter-typescript>=0.23.2; extra == "treesitter-full"
+Requires-Dist: tree-sitter-rust>=0.24.0; extra == "treesitter-full"
+Requires-Dist: tree-sitter-go>=0.23.4; extra == "treesitter-full"
+Requires-Dist: tree-sitter-scala>=0.24.0; extra == "treesitter-full"
+Requires-Dist: tree-sitter-java>=0.23.5; extra == "treesitter-full"
+Requires-Dist: tree-sitter-c>=0.24.1; extra == "treesitter-full"
+Requires-Dist: tree-sitter-cpp>=0.23.0; extra == "treesitter-full"
+Requires-Dist: tree-sitter-lua>=0.0.19; extra == "treesitter-full"
+Provides-Extra: semantic
+Requires-Dist: qdrant-client>=1.9.0; extra == "semantic"
+Requires-Dist: torch>=2.6.0; extra == "semantic"
+Requires-Dist: transformers>=4.0.0; extra == "semantic"
+Dynamic: license-file
+
+# Code-Graph-RAG
+
+A graph-based RAG system that parses multi-language codebases with Tree-sitter, builds knowledge graphs in Memgraph, and enables natural language querying, editing, and optimization.
+
+## Install
+
+```bash
+pip install code-graph-rag
+```
+
+With all Tree-sitter grammars (Python, JS, TS, Rust, Go, Java, Scala, C++, Lua):
+
+```bash
+pip install 'code-graph-rag[treesitter-full]'
+```
+
+With semantic code search (UniXcoder embeddings):
+
+```bash
+pip install 'code-graph-rag[semantic]'
+```
+
+### Prerequisites
+
+- Python 3.12+
+- Docker (for Memgraph)
+- `cmake` (for building pymgclient)
+- `ripgrep` (`rg`) (for shell command text searching)
+
+## CLI Quick Start
+
+The package installs a `cgr` command.
+
+**Start Memgraph, parse a repo, and query it:**
+
+```bash
+docker compose up -d                       # start Memgraph
+cgr start --repo-path ./my-project \
+          --update-graph --clean           # parse & launch interactive chat
+```
+
+**Index to protobuf for offline use:**
+
+```bash
+cgr index -o ./index-output --repo-path ./my-project
+```
+
+**Export knowledge graph to JSON:**
+
+```bash
+cgr export -o graph.json
+```
+
+**AI-guided optimization:**
+
+```bash
+cgr optimize python --repo-path ./my-project
+```
+
+**Run as an MCP server (for Claude Code):**
+
+```bash
+cgr mcp-server
+```
+
+**Check your setup:**
+
+```bash
+cgr doctor
+```
+
+## Python SDK
+
+The `cgr` package provides short imports for programmatic use.
+
+### Load and query an exported graph
+
+```python
+from cgr import load_graph
+
+graph = load_graph("graph.json")
+print(graph.summary())
+
+functions = graph.find_nodes_by_label("Function")
+for fn in functions[:5]:
+    rels = graph.get_relationships_for_node(fn.node_id)
+    print(f"{fn.properties['name']}: {len(rels)} relationships")
+```
+
+### Query Memgraph with Cypher
+
+```python
+from cgr import MemgraphIngestor
+
+with MemgraphIngestor(host="localhost", port=7687) as db:
+    rows = db.fetch_all("MATCH (f:Function) RETURN f.name LIMIT 10")
+    for row in rows:
+        print(row)
+```
+
+### Generate Cypher from natural language
+
+```python
+import asyncio
+from cgr import CypherGenerator
+
+async def main():
+    gen = CypherGenerator()
+    cypher = await gen.generate("Find all classes that inherit from BaseModel")
+    print(cypher)
+
+asyncio.run(main())
+```
+
+### Semantic code search
+
+Requires the `semantic` extra.
+
+```python
+from cgr import embed_code
+
+embedding = embed_code("def authenticate(user, password): ...")
+print(f"Embedding dimension: {len(embedding)}")
+```
+
+### Configuration
+
+```python
+from cgr import settings
+
+settings.set_orchestrator("openai", "gpt-4o", api_key="sk-...")
+settings.set_cypher("google", "gemini-2.5-flash", api_key="your-key")
+```
+
+## Environment Variables
+
+Configure via `.env` or environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MEMGRAPH_HOST` | `localhost` | Memgraph hostname |
+| `MEMGRAPH_PORT` | `7687` | Memgraph port |
+| `ORCHESTRATOR_PROVIDER` | | Provider: `google`, `openai`, `ollama` |
+| `ORCHESTRATOR_MODEL` | | Model ID (e.g. `gpt-4o`, `gemini-2.5-pro`) |
+| `ORCHESTRATOR_API_KEY` | | API key for the provider (not needed for `ollama`) |
+| `CYPHER_PROVIDER` | | Provider for Cypher generation |
+| `CYPHER_MODEL` | | Model ID for Cypher generation (e.g. `codellama`, `gpt-4o-mini`) |
+| `CYPHER_API_KEY` | | API key for Cypher provider (not needed for `ollama`) |
+| `TARGET_REPO_PATH` | `.` | Default repository path |
+
+## Documentation
+
+Full documentation, architecture details, and contribution guide:
+[docs.code-graph-rag.com](https://docs.code-graph-rag.com)
+
+## License
+
+MIT
+
+<!-- mcp-name: io.github.vitali87/code-graph-rag -->

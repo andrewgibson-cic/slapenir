@@ -149,16 +149,25 @@ RUN pip install --no-cache-dir --break-system-packages \
     python-dotenv \
     prometheus-client
 
-# Install Code-Graph-RAG with full tree-sitter support (before wrapper shadowing)
-# Note: pip installs to Python 3.13, and cgr uses Python 3.13 (correct)
-# Note: pip doesn't auto-discover all subpackages, so we copy missing dirs manually
-RUN git clone --depth 1 https://github.com/vitali87/code-graph-rag.git /tmp/code-graph-rag && \
-    cd /tmp/code-graph-rag && \
-    pip install --no-cache-dir --break-system-packages ".[treesitter-full]" && \
-    for dir in mcp parsers providers services tools utils; do \
-        cp -r codebase_rag/$dir /usr/lib/python3.13/site-packages/codebase_rag/$dir/; \
-    done && \
-    rm -rf /tmp/code-graph-rag
+# Install Code-Graph-RAG from vendored source (upstream repo went private)
+# Vendored from code-graph-rag 0.0.149, extracted from previous Docker build
+# Tree-sitter grammars installed separately from PyPI (they're still public)
+COPY vendor/ /tmp/code-graph-rag-vendor/
+RUN pip install --no-cache-dir --break-system-packages --target /usr/lib/python3.13/site-packages \
+    tree-sitter==0.25.2 \
+    tree-sitter-c==0.24.1 \
+    tree-sitter-cpp==0.23.4 \
+    tree-sitter-go==0.25.0 \
+    tree-sitter-java==0.23.5 \
+    tree-sitter-javascript==0.25.0 \
+    tree-sitter-lua==0.5.0 \
+    tree-sitter-python==0.25.0 \
+    tree-sitter-rust==0.24.1 \
+    tree-sitter-scala==0.24.0 \
+    tree-sitter-typescript==0.23.2 && \
+    cp -r /tmp/code-graph-rag-vendor/codebase_rag /usr/lib/python3.13/site-packages/codebase_rag && \
+    cp -r /tmp/code-graph-rag-vendor/code_graph_rag-0.0.149.dist-info /usr/lib/python3.13/site-packages/code_graph_rag-0.0.149.dist-info && \
+    rm -rf /tmp/code-graph-rag-vendor
 
 # Patch code-graph-rag: fix missing tool descriptions for semantic_search and get_function_source
 # Upstream bug: Tool() calls don't pass description parameter

@@ -1,3 +1,10 @@
+## [1.9.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.0...v1.9.1) (2026-03-29)
+
+
+### Bug Fixes
+
+* **ci:** vendor code-graph-rag 0.0.149 to resolve private repo clone failure ([db1c2e8](https://github.com/andrewgibson-cic/slapenir/commit/db1c2e88e1b698702913a2e470907e286a1c27a6))
+
 ## [1.9.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.13...v1.9.0) (2026-03-29)
 
 

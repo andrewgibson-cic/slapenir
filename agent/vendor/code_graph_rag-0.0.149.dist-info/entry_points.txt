@@ -1,0 +1,3 @@
+[console_scripts]
+cgr = codebase_rag.cli:app
+code-graph-rag = codebase_rag.cli:app

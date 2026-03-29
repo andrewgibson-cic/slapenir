@@ -1,3 +1,10 @@
+## [1.8.13](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.12...v1.8.13) (2026-03-29)
+
+
+### Bug Fixes
+
+* **axum:** update wildcard route syntax for axum 0.8 ([c2b6327](https://github.com/andrewgibson-cic/slapenir/commit/c2b6327fed5ddc2e9f3d0d8d30bf1e882e013b45))
+
 ## [1.8.12](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.11...v1.8.12) (2026-03-29)
 
 

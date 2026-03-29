@@ -1,7 +1,7 @@
 # SLAPENIR Makefile
 # Minimal commands for essential operations
 
-.PHONY: up down restart status logs shell shell-unrestricted shell-raw test rebuild clean
+.PHONY: up down restart status logs shell shell-unrestricted shell-raw copy-in copy-out copy-out-safe session-reset verify test rebuild clean
 
 # Default: show available commands
 help:
@@ -13,6 +13,11 @@ help:
 	@echo "  shell              Open shell in agent (builds blocked - use ALLOW_BUILD=1)"
 	@echo "  shell-unrestricted Open shell with direct internet access (bypasses proxy)"
 	@echo "  shell-raw          Open raw shell bypassing all config (for debugging)"
+	@echo "  copy-in           Copy repo + tickets into container (REPO= TICKETS=)"
+	@echo "  copy-out          Copy repo out with integrity check (REPO=)"
+	@echo "  copy-out-safe     Copy repo out with backup of host copy first (REPO=)"
+	@echo "  session-reset     Clear workspace, MCP memory, and knowledge for fresh session"
+	@echo "  verify            Run pre-flight security verification (zero-knowledge + network)"
 	@echo "  test              Run all tests"
 	@echo "  rebuild           Rebuild from scratch"
 	@echo "  clean             Remove containers and volumes"
@@ -91,6 +96,52 @@ shell-raw:
 		-e JAVA_OPTS= \
 		$(or $(SERVICE),agent) /bin/bash --norc --noprofile 2>/dev/null || \
 	exec docker-compose exec -u agent $(or $(SERVICE),agent) /bin/sh
+
+copy-in:
+ifndef REPO
+	$(error REPO is required - usage: make copy-in REPO=/path/to/repo TICKETS=/path/to/tickets)
+endif
+	@echo "Copying repo into container..."
+	docker-compose exec -T agent mkdir -p /home/agent/workspace/$(notdir $(REPO))
+	docker cp "$(REPO)" slapenir-agent:/home/agent/workspace/$(notdir $(REPO))
+ifdef TICKETS
+	@echo "Copying tickets into container..."
+	docker-compose exec -T agent mkdir -p /home/agent/workspace/tickets
+	docker cp "$(TICKETS)/." slapenir-agent:/home/agent/workspace/tickets/
+endif
+	@echo "Copy-in complete"
+
+copy-out:
+ifndef REPO
+	$(error REPO is required - usage: make copy-out REPO=/path/to/repo)
+endif
+	@echo "Running integrity check..."
+	@docker-compose exec -T -u agent agent bash -c 'cd /home/agent/workspace/$(notdir $(REPO)) && echo "=== Changed files ===" && git status --porcelain && echo "=== Diff stat ===" && git diff --stat'
+	@echo "Copying repo out of container..."
+	docker cp slapenir-agent:/home/agent/workspace/$(notdir $(REPO)) "$(dir $(REPO))"
+	@echo "Copy-out complete"
+
+copy-out-safe:
+ifndef REPO
+	$(error REPO is required - usage: make copy-out-safe REPO=/path/to/repo)
+endif
+	@echo "Backing up host repo..."
+	@cp -r "$(REPO)" "$(REPO).backup.$(shell date +%Y%m%d%H%M%S)"
+	@echo "Backup created at $(REPO).backup.*"
+	@$(MAKE) copy-out REPO=$(REPO)
+
+session-reset:
+	@echo "Clearing workspace for fresh session..."
+	docker-compose exec -T agent bash -c 'rm -rf /home/agent/workspace/*'
+	docker-compose exec -T agent bash -c 'rm -rf /home/agent/.local/share/mcp-memory/*'
+	docker-compose exec -T agent bash -c 'rm -rf /home/agent/.local/share/mcp-knowledge/*'
+	@echo "Session reset complete - workspace and MCP data cleared"
+
+verify:
+	@echo "Running pre-flight security verification..."
+	@./scripts/verify-zero-knowledge.sh
+	@./scripts/verify-local-llm-security.sh
+	@echo "Pre-flight verification complete"
 
 test:
 	cd proxy && cargo test --all

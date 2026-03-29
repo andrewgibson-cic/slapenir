@@ -1090,6 +1090,129 @@ For more details, see [Security_layers.md](docs/security_layers.md)
 
 ---
 
+## Secure Work Process
+
+This is the recommended workflow for using SLAPENIR to do development work securely. The process ensures code never leaks to the internet, credentials are never exposed to the AI agent, and changes are fully auditable before merging.
+
+### Phase 1: Preparation (on host)
+
+```bash
+# 1. Clone the target repository on your host
+git clone https://github.com/org/repo.git ~/Projects/repo
+
+# 2. Export tickets to markdown files
+mkdir -p ~/Projects/tickets
+# Place ticket markdown files in this directory
+
+# 3. Ensure clean host state
+cd ~/Projects/repo && git stash
+
+# 4. Start llama-server on host
+llama-server --host 0.0.0.0 --port 8080 --model ~/models/YourModel.gguf
+```
+
+### Phase 2: Environment Setup
+
+```bash
+# 5. Start SLAPENIR services
+make up
+
+# 6. Copy repo and tickets into container
+make copy-in REPO=/path/to/repo TICKETS=/path/to/tickets
+
+# 7. Verify connectivity
+make shell
+# Inside container:
+ls workspace/ && curl http://host.docker.internal:8080/health
+
+# 8. Run pre-flight security verification
+make verify
+```
+
+### Phase 3: Session Isolation
+
+Run this between tickets to prevent state leakage:
+
+```bash
+# 9. Reset workspace for a fresh session (skip on first ticket)
+make session-reset
+```
+
+### Phase 4: AI Work (inside container)
+
+```bash
+# 10. Open agent shell
+make shell
+
+# 11. Start Code-Graph-RAG and wait for indexing
+cgr start
+
+# 12. Create a feature branch (handles existing branch gracefully)
+git checkout -b fix/TICKET-123 2>/dev/null || git checkout fix/TICKET-123
+
+# 13. Start OpenCode (YOLO mode disabled by default for security)
+opencode
+# Or enable auto-approve if desired: OPENCODE_YOLO=true opencode
+
+# 14. Provide structured prompt with context file and specific ticket
+```
+
+### Phase 5: Extraction and Review
+
+```bash
+# 15. Exit OpenCode when done
+# Review changes inside container
+git diff && git log --oneline
+
+# 16. Scan for accidentally injected secrets (inside container)
+grep -rnE "(sk-|ghp_|AKIA|-----BEGIN)" --include="*.py" --include="*.ts" --include="*.js" --include="*.go" --include="*.rs" .
+
+# 17. Copy repo back to host with backup (prevents data loss on failure)
+make copy-out-safe REPO=/path/to/repo
+
+# 18. On host: scan for secrets and review diff
+cd /path/to/repo
+gitleaks detect --source=. --no-git  # or: trufflehog filesystem .
+git diff HEAD
+git log --oneline
+
+# 19. Push or reject
+git push origin fix/TICKET-123
+# If rejected, retry: make copy-in REPO=/path/to/repo and repeat from Phase 4
+```
+
+### Safety Features in This Process
+
+| Feature | Command | Purpose |
+|---------|---------|---------|
+| Backup before copy-out | `make copy-out-safe` | Prevents data loss if transfer fails mid-way |
+| Pre-flight security check | `make verify` | Validates zero-knowledge arch + network isolation |
+| Session isolation | `make session-reset` | Clears workspace/MCP between tickets |
+| YOLO mode gated | `OPENCODE_YOLO` env var | Auto-approve disabled by default; opt-in |
+| Branch safety | `\|\| git checkout` fallback | Handles existing branches on retry |
+| Secret scanning | `grep` + `gitleaks` | Catches credential leakage before push |
+
+### Make Commands Reference
+
+| Command | Description |
+|---------|-------------|
+| `make up` | Start all services |
+| `make down` | Stop all services |
+| `make status` | Show service status |
+| `make shell` | Open agent shell (builds blocked) |
+| `make shell-unrestricted` | Open shell with builds + direct internet |
+| `make copy-in REPO=... TICKETS=...` | Copy repo and tickets into container |
+| `make copy-out REPO=...` | Copy repo out with integrity check |
+| `make copy-out-safe REPO=...` | Same as copy-out but backs up host copy first |
+| `make session-reset` | Clear workspace, MCP memory, and knowledge |
+| `make verify` | Run pre-flight security verification |
+| `make test` | Run all tests |
+| `make rebuild` | Rebuild from scratch |
+| `make clean` | Remove containers and volumes |
+| `make logs [SERVICE=proxy]` | Follow service logs |
+
+---
+
 ## Testing
 
 ### Running Tests

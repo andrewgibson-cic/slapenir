@@ -1,3 +1,11 @@
+## [1.8.12](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.11...v1.8.12) (2026-03-29)
+
+
+### Bug Fixes
+
+* **deps)(deps:** bump the production-dependencies group across 1 directory with 8 updates ([a73c457](https://github.com/andrewgibson-cic/slapenir/commit/a73c457f4019a65d8e08c77f4e7238e52e987ccf))
+* **deps:** pin rcgen to 0.12 to avoid breaking API changes ([89def6d](https://github.com/andrewgibson-cic/slapenir/commit/89def6dfa790afb1477621049aabcbc781950c77))
+
 ## [1.8.11](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.10...v1.8.11) (2026-03-28)
 
 

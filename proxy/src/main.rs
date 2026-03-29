@@ -70,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health))
         .route("/metrics", get(metrics_handler))
         // Proxy routes - handle all HTTP methods
-        .route("/v1/*path", any(proxy::proxy_handler))
+        .route("/v1/{*path}", any(proxy::proxy_handler))
         .with_state(app_state.clone())
         // Add CONNECT middleware BEFORE TraceLayer to intercept HTTPS tunneling
         .layer(ConnectLayer::new(app_state))
@@ -91,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::info!("🚀 Proxy listening on {}", addr);
     tracing::info!("📡 Ready to proxy LLM API requests");
-    tracing::info!("💡 Send requests to http://localhost:3000/v1/*");
+    tracing::info!("💡 Send requests to http://localhost:3000/v1/*path");
     tracing::info!("📊 Metrics available at http://localhost:3000/metrics");
 
     // Run server

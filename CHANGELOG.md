@@ -1,3 +1,10 @@
+## [1.9.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.13...v1.9.0) (2026-03-29)
+
+
+### Features
+
+* add secure work process workflow with safety guardrails ([b41ec51](https://github.com/andrewgibson-cic/slapenir/commit/b41ec51c8319a60c948596baf2fe58ea9cf32da7))
+
 ## [1.8.13](https://github.com/andrewgibson-cic/slapenir/compare/v1.8.12...v1.8.13) (2026-03-29)
 
 

@@ -1086,7 +1086,7 @@ docker compose exec proxy --help
 - Certificate events logged
 - Structured JSON logging
 
-For more details, see [Security_layers.md](docs/security_layers.md)
+For more details, see [Security Layers](docs/SECURITY_LAYERS.md)
 
 ---
 
@@ -1218,7 +1218,7 @@ git push origin fix/TICKET-123
 ### Running Tests
 
 ```bash
-# All tests (105+ tests, 82% coverage)
+# All tests (381+ tests, 82% coverage)
 make test
 
 # Rust tests
@@ -1237,18 +1237,18 @@ cd proxy/tests/load
 
 ### Test Coverage
 
-- **Unit tests**: 346 tests (Rust)
-- **integration tests**: Comprehensive suite
-- **property tests**: Proptest for generative testing
-- **security tests**: Authorization boundary tests
-- **chaos tests**: Fault injection
-- **benchmarks**: Criterion performance tests
-- **load tests**: k6 load testing suite
-
+- **Unit tests**: 381 tests (Rust)
+- **Integration tests**: Comprehensive suite across all modules
+- **Property tests**: Proptest for generative testing
+- **Security tests**: Authorization boundary tests, bypass prevention
+- **Chaos tests**: Fault injection and resilience validation
+- **Benchmarks**: Criterion performance tests
+- **Load tests**: k6 load testing suite
   - API Load Test (100 rps, 2min)
   - Proxy Sanitization Test (8min)
   - Stress Test (14min)
   - Soak Test (30min)
+- **Mutation testing**: cargo-mutants weekly analysis
 
 ---
 
@@ -1256,39 +1256,40 @@ cd proxy/tests/load
 
 ### Architecture and Design
 
-- [Architecture Overview](docs/SLAPenIR_Architecture.md) - System design
-- [Security Layers](docs/security_layers.md) - Defense-in-depth analysis
-- [mTLS Setup](docs/mTLS_setup.md) - Certificate management
-
+- [Architecture Overview](docs/SLAPENIR_Architecture.md) - System design
+- [Security Layers](docs/SECURITY_LAYERS.md) - Defense-in-depth analysis
+- [mTLS Setup](docs/mTLS_Setup.md) - Certificate management
 - [MCP Knowledge Server](docs/mcp-knowledge-server-embeddings.md) - Embedding configuration
-
+- [Backup Strategy](docs/BACKUP-STRATEGY.md) - Backup and disaster recovery
 - [Monitoring Stack](monitoring/README.md) - Prometheus and Grafana
-
 - [Agent Environment](agent/README.md) - Agent configuration
 - [Proxy Configuration](proxy/README.md) - Proxy setup
-
-- [Performance targets](proxy/PERFORMANCE.md) - SLAs and metrics
+- [Performance Targets](proxy/PERFORMANCE.md) - SLAs and metrics
+- [Load Testing](proxy/tests/load/README.md) - k6 load testing suite
+- [Mutation Testing](proxy/MUTATION_TESTING.md) - Mutation testing guide
 
 ### Contributing
 
-- [Contributing guide](contribution.md) - Development guidelines
-- [security policy](security.md) - Vulnerability reporting
-- [code of conduct](CODE_of_conduction.md) - Community standards
+- [Contributing Guide](CONTRIBUTING.md) - Development guidelines
+- [Security Policy](SECURITY.md) - Vulnerability reporting
 
 ---
 
 ## Status
 
 **Production Ready** - All development phases complete:
-- 105 tests passing (82% coverage)
+- 381 tests passing (82% coverage)
 - Zero compiler warnings
 - Chaos testing validated
 - Security review passed
 - Performance benchmarks met
+- Autonomous development workflow integrated
+- MCP tools (Memory, Knowledge, Code-Graph-RAG) operational
+- Secure work process with session isolation
 
-**Version**: 1.8.3
+**Version**: 1.9.0
 
-**Last Updated**: 2026-03-28
+**Last Updated**: 2026-03-29
 
 ---
 

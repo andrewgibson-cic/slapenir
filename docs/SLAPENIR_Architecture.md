@@ -1,16 +1,22 @@
-# **SLAPENIR: Architecture Specification**
+# SLAPENIR: Architecture Specification
 
 **Secure LLM Agent Proxy Environment: Network Isolation & Resilience**
 
-## **1\. System Overview**
+**Version**: 1.9.0 | **Last Updated**: 2026-03-29
+
+---
+
+## 1. System Overview
 
 **SLAPENIR** is a "Zero-Knowledge" execution sandbox designed to host high-privilege Autonomous Agents. The architecture enforces a strict separation of **Capability** (the Agent's ability to execute logic) and **Authority** (the credentials required to interact with external systems).
 
 The system relies on a Polyglot Architecture:
 
-* **Security Gateway (Proxy):** Written in **Rust** for deterministic memory management and high-throughput stream processing.  
-* **Execution Environment (Agent):** Built on **Wolfi OS** for minimal attack surface with full glibc compatibility.  
+* **Security Gateway (Proxy):** Written in **Rust** for deterministic memory management and high-throughput stream processing.
+* **Execution Environment (Agent):** Built on **Wolfi OS** for minimal attack surface with full glibc compatibility.
 * **Identity Plane:** Managed by **Step-CA** for automated, short-lived mutual TLS (mTLS) certificates.
+* **Knowledge Plane:** **Code-Graph-RAG** (Memgraph), **MCP Memory** (SQLite), and **Knowledge Server** (LanceDB) for agent context.
+* **Observability Plane:** **Prometheus** + **Grafana** for real-time monitoring and alerting.
 
 ## **2\. Component Architecture**
 
@@ -69,6 +75,7 @@ The following security enhancements have been implemented:
 | **Content-Length Fix** | Recalculates Content-Length after sanitization | Prevents protocol desync |
 | **Cached Automaton** | Sanitization automaton built once at startup | Prevents performance degradation |
 | **Blocked Headers** | Removes debug/info headers from responses | Reduces information leakage |
+| **N:1 Dummy Mapping** | Multiple dummies can map to single real credential | Flexible credential management |
 
 ### **2.2 The Agent Environment (Wolfi OS)**
 
@@ -76,21 +83,49 @@ The Agent is the untrusted execution environment. It must support complex AI wor
 
 #### **2.2.1 Operating System: Wolfi**
 
-* **Base Image:** cgr.dev/chainguard/wolfi-base  
-* **Rationale:**  
-  * **glibc Compatibility:** Unlike Alpine (musl), Wolfi supports standard Python wheels (PyTorch, NumPy, TensorFlow) without requiring local compilation.  
-  * **Supply Chain Security:** All packages are signed and have SBOMs.  
+* **Base Image:** cgr.dev/chainguard/wolfi-base
+* **Rationale:**
+  * **glibc Compatibility:** Unlike Alpine (musl), Wolfi supports standard Python wheels (PyTorch, NumPy, TensorFlow) without requiring local compilation.
+  * **Supply Chain Security:** All packages are signed and have SBOMs.
   * **Minimalism:** Contains no kernel, systemd, or unnecessary binaries.
 
 #### **2.2.2 Process Supervision: s6-overlay**
 
-To satisfy the "Dual-Layer Disaster Recovery" requirement, the Agent container uses s6-overlay as PID 1\.
+To satisfy the "Dual-Layer Disaster Recovery" requirement, the Agent container uses s6-overlay as PID 1.
 
-* **PID 1 (s6-svscan):** The rigorous init process. Handles signal propagation and zombie reaping.  
-* **Service A (Agent Logic):** The Python script or shell running the LLM agent.  
-* **Failure Modes:**  
-  * **Mode A (Process Crash/Suicide):** If the Agent executes kill \-9 $$ or the Python script crashes, s6 restarts the *service* immediately. The Container remains running; filesystem state (/workspace) is preserved.  
-  * **Mode B (System Failure):** If s6 itself crashes or OOM occurs, the Docker restart\_policy: on-failure handles the Container restart.
+* **PID 1 (s6-svscan):** The rigorous init process. Handles signal propagation and zombie reaping.
+* **Service A (Agent Logic):** The Python script or shell running the LLM agent.
+* **Failure Modes:**
+  * **Mode A (Process Crash/Suicide):** If the Agent executes kill -9 $$ or the Python script crashes, s6 restarts the *service* immediately. The Container remains running; filesystem state (/workspace) is preserved.
+  * **Mode B (System Failure):** If s6 itself crashes or OOM occurs, the Docker restart_policy: on-failure handles the Container restart.
+
+#### **2.2.3 Knowledge Plane (MCP Tools)**
+
+The agent has access to three Model Context Protocol (MCP) servers for persistent context:
+
+| Server | Storage | Purpose |
+|--------|---------|---------|
+| **Memory** | SQLite | Entity/relation graph for cross-session memory |
+| **Knowledge** | LanceDB | Vector search over indexed documents (PDF, MD, TXT) |
+| **Code-Graph-RAG** | Memgraph | AST-based code graph for semantic code queries |
+
+All three are fully air-gapped - no external API calls required at runtime.
+
+#### **2.2.4 Build Tool Security**
+
+Build tools (gradle, mvn, npm, yarn, cargo, pip) are wrapped with security scripts that block execution by default. Explicit opt-in required via `ALLOW_BUILD=1` environment variable prefix.
+
+#### **2.2.5 Autonomous Development Flow**
+
+SLAPENIR provides a structured 5-phase workflow for AI-driven development:
+
+1. **Preparation** (Host): Clone repo, export tickets, start LLM
+2. **Environment Setup** (Container): Start services, copy code, verify isolation
+3. **Session Isolation**: Reset workspace between tickets (`make session-reset`)
+4. **AI Work** (Inside container): Code-Graph-RAG indexing, OpenCode coding, testing
+5. **Extraction & Review** (Host): Secret scanning, code review, push/reject
+
+Each phase has safety guardrails including backup-before-extraction, pre-flight security checks, and structured commit review.
 
 ### **2.3 Network & Identity Architecture**
 
@@ -143,9 +178,85 @@ sequenceDiagram
 
 | Decision | Choice | Alternative | Rationale |
 | :---- | :---- | :---- | :---- |
-| **Language** | **Rust** | Go (Golang) | Go's Garbage Collector cannot guarantee immediate memory wiping (Security Risk). Rust Drop \+ zeroize guarantees it. |
+| **Language** | **Rust** | Go (Golang) | Go's Garbage Collector cannot guarantee immediate memory wiping (Security Risk). Rust Drop + zeroize guarantees it. |
 | **OS** | **Wolfi** | Alpine | Alpine (musl) breaks Python AI wheels. Wolfi offers glibc support with Alpine's size. |
 | **Supervision** | **s6-overlay** | Supervisord / Bash | Bash handles signals poorly (zombies). s6 is lightweight and handles process restarts correctly inside Docker. |
-| **Regex** | **Aho-Corasick** | Standard Regex | Standard regex is O(N\*M). Aho-Corasick is O(N) and supports stream buffering for split-secret detection. |
+| **Regex** | **Aho-Corasick** | Standard Regex | Standard regex is O(N*M). Aho-Corasick is O(N) and supports stream buffering for split-secret detection. |
 | **Ingress** | **Cloudflare** | Nginx / Port Fwd | Eliminates open port risks. Shifts AuthN to the Edge (Cloudflare Access). |
+| **Graph DB** | **Memgraph** | Neo4j | Memgraph is in-memory, faster for real-time code queries. No license restrictions. |
+| **Vector DB** | **LanceDB** | Chroma, Pinecone | LanceDB is embedded (no server), columnar storage, efficient for document embeddings. |
+| **Embeddings** | **all-MiniLM-L6-v2** | OpenAI embeddings | Local model, no API key required, air-gapped operation. |
+| **Process Isolation** | **Docker + iptables** | Kubernetes network policies | Simpler deployment, kernel-level enforcement, no K8s dependency. |
+
+---
+
+## **5\. Autonomous Development Architecture**
+
+### **5.1 Session Lifecycle**
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                    SESSION LIFECYCLE                          │
+│                                                               │
+│  START: make copy-in REPO=... TICKETS=...                    │
+│    │                                                          │
+│    ├── Code-Graph-RAG indexes repository AST                  │
+│    ├── MCP Memory loads prior session context                 │
+│    ├── MCP Knowledge indexes ticket documentation             │
+│    │                                                          │
+│  WORK: opencode (OpenCode CLI)                                │
+│    │                                                          │
+│    ├── Agent reads code via Code-Graph-RAG queries            │
+│    ├── Agent stores decisions in MCP Memory                   │
+│    ├── Agent searches docs via MCP Knowledge                  │
+│    ├── Agent writes code (edit permission required)           │
+│    ├── Agent tests code (ALLOW_BUILD=1 required)              │
+│    ├── Agent commits (git commit with audit trail)            │
+│    │                                                          │
+│  RESET: make session-reset                                   │
+│    │                                                          │
+│    ├── Clears workspace (git clean -fdx)                      │
+│    ├── Resets MCP Memory (deletes SQLite DB)                  │
+│    ├── Resets MCP Knowledge (deletes LanceDB index)           │
+│    ├── Resets Code-Graph-RAG (clears Memgraph)                │
+│    │                                                          │
+│  EXTRACT: make copy-out-safe REPO=...                        │
+│    │                                                          │
+│    ├── Backs up host copy (prevents data loss)                │
+│    ├── Copies container work to host                          │
+│    ├── Integrity check (rsync verification)                   │
+│    │                                                          │
+│  REVIEW: On host machine                                      │
+│    │                                                          │
+│    ├── Secret scanning (gitleaks / trufflehog)                │
+│    ├── Code review (git diff HEAD)                            │
+│    └── Push or reject                                         │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+```
+
+### **5.2 Security Boundary Model**
+
+```
+┌─────────────────────────────────────────────────┐
+│ HOST (Trusted)                                  │
+│ ├── Real credentials in .env                    │
+│ ├── SSH keys, GPG keys                          │
+│ ├── Git push authority                          │
+│ └── Final code review                           │
+├─────────────────────────────────────────────────┤
+│ PROXY (Semi-Trusted)                            │
+│ ├── Holds real credential mapping               │
+│ ├── Memory-protected (Zeroize)                  │
+│ ├── Never exposes secrets to agent              │
+│ └── All traffic audited                         │
+├─────────────────────────────────────────────────┤
+│ AGENT (Untrusted)                               │
+│ ├── DUMMY_* placeholders only                   │
+│ ├── No direct internet access                   │
+│ ├── Build tools blocked by default              │
+│ ├── iptables DROP on all non-proxy traffic      │
+│ └── Workspace reset between sessions            │
+└─────────────────────────────────────────────────┘
+```
 

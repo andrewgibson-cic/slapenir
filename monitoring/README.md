@@ -55,7 +55,8 @@ monitoring/
     │   └── prometheus.yml             # Grafana datasource config
     └── dashboards/
         ├── dashboards.yml             # Dashboard provisioning
-        └── slapenir-overview.json     # System overview dashboard
+        ├── slapenir-overview.json     # System overview dashboard
+        └── network-isolation.json     # Network isolation dashboard
 ```
 
 ## Quick Start
@@ -94,22 +95,19 @@ curl -s 'http://localhost:9090/api/v1/query?query=up' | jq '.data.result'
 
 ## Metrics Endpoints
 
-### Proxy (Future Implementation)
+### Proxy
 - **Endpoint**: http://proxy:3000/metrics
 - **Metrics**:
-  - `http_requests_total` - Total HTTP requests
-  - `http_request_duration_seconds` - Request latency histogram
-  - `secrets_sanitized_total` - Number of secrets sanitized
-  - `mtls_connections_total` - mTLS connection count
-  - `cert_expiry_timestamp` - Certificate expiration timestamp
+  - `slapenir_requests_total` - Total proxy requests
+  - `slapenir_secrets_sanitized_total` - Number of secrets sanitized
+  - `slapenir_mtls_connections_total` - mTLS connection count
+  - `slapenir_bypass_attempts_total` - Bypass attempt count
 
-### Agent (Future Implementation)
+### Agent
 - **Endpoint**: http://agent:8000/metrics
 - **Metrics**:
-  - `agent_tasks_total` - Total tasks executed
-  - `agent_task_duration_seconds` - Task execution time
-  - `agent_errors_total` - Error count
-  - `agent_proxy_requests_total` - Requests through proxy
+  - `agent_network_isolation_status` - Network isolation status (1=isolated, 0=bypassed)
+  - `agent_bypass_attempts_total` - Total network bypass attempts detected
 
 ## Dashboard Features
 
@@ -122,6 +120,13 @@ curl -s 'http://localhost:9090/api/v1/query?query=up' | jq '.data.result'
 - **mTLS Connections**: Active mTLS connections
 - **Certificate Expiry**: Days until certificate expiration
 - **Active Agents**: Count of healthy agent instances
+
+### Network Isolation Dashboard
+- **Firewall Status**: iptables rule enforcement status
+- **Bypass Attempts**: Blocked network connection attempts over time
+- **Traffic by Rule**: Breakdown of ACCEPT vs DROP traffic
+- **DNS Queries**: DNS request patterns and filtering
+- **Agent Connectivity**: Connection health to proxy and local LLM
 
 ## Adding Custom Dashboards
 
@@ -192,19 +197,20 @@ curl -u admin:slapenir-dev-password http://localhost:3001/api/datasources
 
 ## Next Steps
 
-1. **Implement Metrics Endpoints**:
-   - Add `/metrics` endpoint to Rust proxy
-   - Add `/metrics` endpoint to Python agent
+1. **Enhanced Dashboards**:
+   - Performance dashboard with latency percentiles
+   - Certificate management dashboard with expiry alerts
+   - Autonomous development session dashboard
 
-2. **Create Additional Dashboards**:
-   - Performance dashboard
-   - Security dashboard
-   - Certificate management dashboard
-
-3. **Set Up Alerting**:
-   - Define alert rules
+2. **Set Up Alerting**:
+   - Define alert rules in Prometheus
    - Configure Alertmanager
-   - Set up notification channels
+   - Set up notification channels (PagerDuty, Slack, etc.)
+
+3. **SIEM Integration**:
+   - Forward security events to external SIEM
+   - Webhook-based integration for real-time alerts
+   - Correlation with infrastructure logs
 
 ## References
 

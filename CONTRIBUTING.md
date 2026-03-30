@@ -127,10 +127,28 @@ docs(readme): update startup sequence documentation
 make test
 ```
 
-### Proxy Tests
+### Proxy Tests (Rust)
 
 ```bash
-cd proxy && cargo test
+cd proxy
+
+# Unit tests
+cargo test
+
+# With output
+cargo test -- --nocapture
+
+# Benchmarks
+cargo bench
+
+# Authorization boundary tests
+cargo test --test authorization_tests
+
+# Chaos/fault injection tests
+cargo test --test fault_injection_tests
+
+# Security bypass tests
+cargo test --test security_bypass_tests
 ```
 
 ### Agent Tests
@@ -140,11 +158,37 @@ python3 agent/tests/test_agent.py
 bash agent/tests/run_all_tests.sh
 ```
 
-### Integration Tests
+### Load Tests
 
 ```bash
-./test-system.sh
+cd proxy/tests/load
+./run_all_load_tests.sh
 ```
+
+### Mutation Tests (Weekly)
+
+```bash
+cd proxy
+cargo mutants
+```
+
+## Autonomous Development Workflow
+
+SLAPENIR supports a structured 5-phase workflow for AI-driven development:
+
+1. **Preparation**: Clone repo, export tickets, start LLM on host
+2. **Environment Setup**: `make up`, `make copy-in REPO=... TICKETS=...`, `make verify`
+3. **Session Isolation**: `make session-reset` between tickets
+4. **AI Work**: `make shell` → `cgr start` → `git checkout -b fix/TICKET-123` → `opencode`
+5. **Extraction**: `make copy-out-safe REPO=...` → secret scan → review → push
+
+**Key safety commands:**
+
+| Command | Purpose |
+|---------|---------|
+| `make verify` | Pre-flight security validation |
+| `make session-reset` | Clear workspace between tickets |
+| `make copy-out-safe REPO=...` | Backup + extract with integrity check |
 
 ## Architecture
 

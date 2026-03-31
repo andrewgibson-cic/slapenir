@@ -93,7 +93,7 @@ jobs:
       with:
         fetch-depth: 0
         token: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
-        persist-credentials: false
+        persist-credentials: true
     
     - name: Setup Node.js
       uses: actions/setup-node@v6
@@ -194,10 +194,13 @@ jobs:
       run: |
         REPO_URL="https://x-access-token:${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}@github.com/andrewgibson-cic/slapenir"
         git remote set-url origin "${REPO_URL}"
+        git config user.name "semantic-release-bot"
+        git config user.email "semantic-release-bot@users.noreply.github.com"
     
     - name: Run semantic-release
       env:
-        GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
       run: npx semantic-release
     
     - name: Get version

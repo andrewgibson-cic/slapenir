@@ -124,7 +124,7 @@ Expected results:
 - Memory utilization
 - Network I/O
 - File descriptor count
-- Goroutine/thread count
+- Tokio task/thread count
 
 ### Alerting Thresholds
 
@@ -241,7 +241,7 @@ performance-tests:
 ```bash
 #!/bin/bash
 # Run quick performance sanity check
-cargo bench --test small_payload -- --sample-size 10
+cargo bench --bench performance -- --sample-size 10
 ```
 
 ## Reporting

@@ -89,47 +89,9 @@ cargo mutants --exclude-operator function_call
 
 ## CI/CD Integration
 
-### GitHub Actions Workflow
+### GitHub Actions Integration
 
-Create `.github/workflows/mutation-testing.yml`:
-
-```yaml
-name: Mutation Testing
-
-on:
-  schedule:
-    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM
-  workflow_dispatch:
-
-jobs:
-  mutation-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          
-      - name: Install cargo-mutants
-        run: cargo install cargo-mutants
-        
-      - name: Run mutation tests
-        working-directory: ./proxy
-        run: |
-          cargo mutants \
-            --jobs 4 \
-            --timeout 60 \
-            --output html \
-            --output json
-            
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        with:
-          name: mutation-results
-          path: proxy/mutants-out/
-```
+Mutation testing is integrated into `.github/workflows/test.yml` as the `mutation-tests` job. It runs as part of the standard CI pipeline alongside other test jobs.
 
 ## Expected Results
 

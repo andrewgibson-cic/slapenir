@@ -1,8 +1,8 @@
 # SLAPENIR: Architecture Specification
 
-**Secure LLM Agent Proxy Environment: Network Isolation & Resilience**
+**Secure LLM Agent Proxy Environment with Network Isolation & Resilience (SLAPENIR)**
 
-**Version**: 1.9.0 | **Last Updated**: 2026-03-29
+**Version**: 1.9.1 | **Last Updated**: 2026-03-31
 
 ---
 
@@ -133,12 +133,12 @@ Each phase has safety guardrails including backup-before-extraction, pre-flight 
 
 The architecture uses a strict "Bridge Isolation" model.
 
-* **slape-net (Internal Docker Network):**  
-  * **Members:** Agent, Proxy, Step-CA.  
-  * **Constraint:** internal: true. No direct internet access.  
+* **slape-net (Docker Network):**  
+  * **Members:** Agent, Proxy, Step-CA, Memgraph, Prometheus, Grafana.  
+  * **Constraint:** `internal: ${NETWORK_INTERNAL:-false}`. Defaults to non-internal (allows outbound). Set `NETWORK_INTERNAL=true` for full air-gap.
 * **Ingress (Admin Access):**  
-  * **Cloudflare Tunnel:** Exposes the Dashboard/Logs to administrators.  
-  * **Security:** Outbound-only connection. No open firewall ports. Authenticated via Cloudflare Access (Zero Trust).
+  * **Host Port Mapping:** Services expose ports to localhost for admin access.  
+  * **Security:** All external access via localhost only. No open firewall ports required.
 
 #### **2.3.2 Certificate Bootstrapping**
 
@@ -182,7 +182,7 @@ sequenceDiagram
 | **OS** | **Wolfi** | Alpine | Alpine (musl) breaks Python AI wheels. Wolfi offers glibc support with Alpine's size. |
 | **Supervision** | **s6-overlay** | Supervisord / Bash | Bash handles signals poorly (zombies). s6 is lightweight and handles process restarts correctly inside Docker. |
 | **Regex** | **Aho-Corasick** | Standard Regex | Standard regex is O(N*M). Aho-Corasick is O(N) and supports stream buffering for split-secret detection. |
-| **Ingress** | **Cloudflare** | Nginx / Port Fwd | Eliminates open port risks. Shifts AuthN to the Edge (Cloudflare Access). |
+| **Ingress** | **Docker Port Mapping** | Cloudflare / Nginx | Simple localhost-only access. No external ingress by default. |
 | **Graph DB** | **Memgraph** | Neo4j | Memgraph is in-memory, faster for real-time code queries. No license restrictions. |
 | **Vector DB** | **LanceDB** | Chroma, Pinecone | LanceDB is embedded (no server), columnar storage, efficient for document embeddings. |
 | **Embeddings** | **all-MiniLM-L6-v2** | OpenAI embeddings | Local model, no API key required, air-gapped operation. |

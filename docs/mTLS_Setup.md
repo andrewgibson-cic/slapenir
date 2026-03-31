@@ -95,10 +95,9 @@ docker compose exec step-ca step ca certificate \
   /home/step/certs/proxy.key \
   --provisioner=admin
 
-# Copy certificates to proxy directory
-docker compose cp step-ca:/home/step/certs/proxy.crt ./proxy/certs/
-docker compose cp step-ca:/home/step/certs/proxy.key ./proxy/certs/
-docker compose cp step-ca:/home/step/certs/root_ca.crt ./proxy/certs/
+# Certificates are stored in Docker volumes (proxy-certs, agent-certs)
+# They are automatically provisioned by the bootstrap-certs.sh script
+# on container startup. No manual copying to local directories is needed.
 ```
 
 ### Step 4: Generate Agent Certificates
@@ -111,10 +110,9 @@ docker compose exec step-ca step ca certificate \
   /home/step/certs/agent-01.key \
   --provisioner=admin
 
-# Copy to agent directory
-docker compose cp step-ca:/home/step/certs/agent-01.crt ./agent/certs/
-docker compose cp step-ca:/home/step/certs/agent-01.key ./agent/certs/
-docker compose cp step-ca:/home/step/certs/root_ca.crt ./agent/certs/
+# Certificates are stored in Docker volumes (agent-certs)
+# They are automatically provisioned by the bootstrap-certs.sh script
+# on container startup. No manual copying to local directories is needed.
 ```
 
 ### Step 5: Configure Proxy for mTLS

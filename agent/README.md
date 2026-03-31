@@ -202,8 +202,6 @@ ALLOW_BUILD=1 gradle build
 # Allow only npm builds
 NPM_ALLOW_BUILD=1 npm install
 
-# Use make shell-unrestricted for full access
-make shell-unrestricted
 ```
 
 **Alternative approaches:**
@@ -221,9 +219,11 @@ docker build -t slapenir-agent:latest ./agent
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `STEP_CA_URL` | Step-CA server URL | `https://ca:9000` |
-| `STEP_TOKEN` | Certificate enrollment token | (required) |
-| `STEP_PROVISIONER` | CA provisioner name | `agent-provisioner` |
+| `MTLS_ENABLED` | Enable mTLS for proxy communication | `true` |
+| `MTLS_CA_CERT` | Path to CA certificate | `/certs/root_ca.crt` |
+| `MTLS_CLIENT_CERT` | Path to client certificate | `/certs/agent.crt` |
+| `MTLS_CLIENT_KEY` | Path to client key | `/certs/agent.key` |
+| `MTLS_VERIFY_HOSTNAME` | Verify hostname in certificates | `true` |
 
 ## Java 21 + Gradle Support
 
@@ -409,14 +409,24 @@ gpg-connect-agent /bye
 /home/agent/
 ├── certs/              # mTLS certificates
 ├── workspace/          # Agent working directory
-├── .opencode/          # OpenCode configuration
-│   └── config.json     # Hardened permissions config
+├── .config/opencode/   # OpenCode configuration
+│   └── opencode.json   # Hardened permissions config
 ├── .claude/            # Host ~/.claude (read-only mount)
 └── scripts/
     ├── bootstrap-certs.sh
     ├── traffic-enforcement.sh
     ├── verify-network-isolation.sh
-    └── agent.py
+    ├── agent.py
+    ├── cgr-index
+    ├── cgr-query
+    ├── setup-bashrc.sh
+    ├── setup-git-credentials.sh
+    ├── setup-gpg.sh
+    ├── setup-ssh-config.sh
+    ├── startup-validation.sh
+    ├── runtime-monitor.sh
+    ├── *-wrapper         # Build tool wrappers (gradle, npm, cargo, etc.)
+    └── ... (40+ scripts total)
 ```
 
 ---
@@ -487,10 +497,10 @@ opencode --version
 ```bash
 OPENCODE_DISABLE_CLAUDE_CODE=1
 LLAMA_SERVER_HOST=host.docker.internal
-LLAMA_SERVER_PORT=11434  # Use 8080 for llama.cpp
+LLAMA_SERVER_PORT=6666
 ```
 
-**Hardened OpenCode Config** (`/home/agent/.opencode/config.json`):
+**Hardened OpenCode Config** (`/home/agent/.config/opencode/opencode.json`):
 
 ```json
 {
@@ -581,7 +591,7 @@ docker exec slapenir-agent iptables -L TRAFFIC_ENFORCE -n
 
 **OpenCode permission errors:**
 ```bash
-docker exec slapenir-agent cat /home/agent/.opencode/config.json
+docker exec slapenir-agent cat /home/agent/.config/opencode/opencode.json
 ```
 
 ### Model Selection
@@ -770,19 +780,19 @@ Code-Graph-RAG is available as an MCP server for IDE integration:
 Code-Graph-RAG is configured via environment variables:
 
 ```bash
-CGR_ORCHESTRATOR_PROVIDER=openai
-CGR_ORCHESTRATOR_ENDPOINT=http://host.docker.internal:11434/v1
-CGR_ORCHESTRATOR_API_KEY=sk-local
-CGR_CYPHER_PROVIDER=openai
-CGR_CYPHER_ENDPOINT=http://host.docker.internal:11434/v1
-CGR_CYPHER_API_KEY=sk-local
-CGR_MEMGRAPH_HOST=memgraph
-CGR_MEMGRAPH_PORT=7687
+ORCHESTRATOR_PROVIDER=openai
+ORCHESTRATOR_ENDPOINT=http://host.docker.internal:6666/v1
+ORCHESTRATOR_API_KEY=sk-local
+CYPHER_PROVIDER=openai
+CYPHER_ENDPOINT=http://host.docker.internal:6666/v1
+CYPHER_API_KEY=sk-local
+MEMGRAPH_HOST=memgraph
+MEMGRAPH_PORT=7687
 ```
 
 ### Prerequisites
 
-- llama-server running on host (port 11434 for Ollama, or port 8080 for llama.cpp)
+- llama-server running on host (default port 6666)
 - Memgraph container running (auto-starts with docker compose)
 - Memgraph Lab accessible (auto-starts with docker compose)
 

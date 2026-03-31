@@ -39,7 +39,7 @@ The monitoring stack provides:
 ### Grafana
 - **URL**: http://localhost:3001
 - **Username**: `admin`
-- **Password**: `slapenir-dev-password`
+- **Password**: `${GRAFANA_ADMIN_PASSWORD}` (set in `.env`)
 - **Purpose**: Metrics visualization
 - **Datasources**: Automatically provisions Prometheus
 - **Dashboards**: Auto-loaded from `grafana/dashboards/`
@@ -79,7 +79,7 @@ docker-compose up -d prometheus grafana
 - Check scrape targets: http://localhost:9090/targets
 
 **Grafana**: http://localhost:3001
-- Login: admin / slapenir-dev-password
+- Login: admin / `${GRAFANA_ADMIN_PASSWORD}` (from `.env`)
 - Navigate to "SLAPENIR" folder
 - Open "SLAPENIR System Overview" dashboard
 
@@ -98,10 +98,10 @@ curl -s 'http://localhost:9090/api/v1/query?query=up' | jq '.data.result'
 ### Proxy
 - **Endpoint**: http://proxy:3000/metrics
 - **Metrics**:
-  - `slapenir_requests_total` - Total proxy requests
-  - `slapenir_secrets_sanitized_total` - Number of secrets sanitized
-  - `slapenir_mtls_connections_total` - mTLS connection count
-  - `slapenir_bypass_attempts_total` - Bypass attempt count
+  - `slapenir_proxy_http_requests_total` - Total proxy requests
+  - `slapenir_proxy_secrets_sanitized_total` - Number of secrets sanitized
+  - `slapenir_proxy_mtls_connections_total` - mTLS connection count
+  - `slapenir_proxy_mtls_errors_total` - mTLS error count
 
 ### Agent
 - **Endpoint**: http://agent:8000/metrics

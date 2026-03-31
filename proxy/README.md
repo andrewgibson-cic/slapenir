@@ -1,6 +1,6 @@
 # SLAPENIR Proxy
 
-**Secure LLM Agent Proxy Environment - Credential Sanitization Gateway**
+**Secure LLM Agent Proxy Environment with Network Isolation & Resilience (SLAPENIR) - Credential Sanitization Gateway**
 
 ## Overview
 
@@ -71,11 +71,24 @@ cargo test
 proxy/
 ├── src/
 │   ├── main.rs           # Entry point, HTTP server
+│   ├── lib.rs            # Library root
+│   ├── proxy.rs          # Proxy handler logic
+│   ├── config.rs         # Configuration management
+│   ├── builder.rs        # Service builder
 │   ├── sanitizer.rs      # Aho-Corasick credential sanitizer
+│   ├── middleware.rs      # Request/response middleware
+│   ├── metrics.rs        # Prometheus metrics
+│   ├── mtls.rs           # mTLS implementation
+│   ├── http_parser.rs    # HTTP parsing utilities
+│   ├── auto_detect.rs    # Auto credential detection
+│   ├── strategy.rs       # Strategy trait definition
 │   ├── strategies/       # Authentication strategies (AWS SigV4, etc.)
-│   └── tls/              # mTLS implementation
+│   ├── connect*.rs       # Connection handling (full, http, mitm, middleware)
+│   └── tls/              # TLS utilities
+├── benches/              # Performance benchmarks
 ├── migrations/           # PostgreSQL migrations
 ├── tests/                # Integration tests
+├── .cargo/               # Cargo configuration (mutants.toml)
 ├── config.yaml           # Proxy configuration
 ├── Cargo.toml            # Dependencies
 └── README.md             # This file

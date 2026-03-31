@@ -213,9 +213,13 @@ gh workflow run release.yml
 test.yml:
   ├── proxy-tests
   ├── python-lint
+  ├── benchmark-tests
+  ├── security-tests
   ├── agent-tests (depends on: python-lint)
   ├── integration-tests (depends on: proxy-tests, agent-tests)
   ├── security-audit
+  ├── load-tests
+  ├── mutation-tests
   └── test-summary (depends on: all)
 
 release.yml:
@@ -360,5 +364,5 @@ When modifying workflows:
 
 ---
 
-**Last Updated:** 2026-01-31  
+**Last Updated:** 2026-03-31  
 **Maintainer:** Andrew Gibson (andrew.gibson-cic@ibm.com)

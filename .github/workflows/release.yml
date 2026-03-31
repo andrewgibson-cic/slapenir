@@ -93,6 +93,7 @@ jobs:
       with:
         fetch-depth: 0
         token: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+        persist-credentials: false
     
     - name: Setup Node.js
       uses: actions/setup-node@v6
@@ -188,6 +189,11 @@ jobs:
           ]
         }
         EOF
+    
+    - name: Configure git credentials
+      run: |
+        REPO_URL="https://x-access-token:${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}@github.com/andrewgibson-cic/slapenir"
+        git remote set-url origin "${REPO_URL}"
     
     - name: Run semantic-release
       env:

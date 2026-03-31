@@ -1,6 +1,6 @@
 # SLAPENIR
 
-**Secure LLM Agent Proxy Environment** - A zero-knowledge credential sanitization proxy for AI agents.
+**Secure LLM Agent Proxy Environment with Network Isolation & Resilience (SLAPENIR)** - A zero-knowledge credential sanitization proxy for AI agents.
 
 ## Overview
 
@@ -494,7 +494,7 @@ Expected output:
 NAME                STATUS              PORTS
 slapenir-proxy     running (healthy)   0.2.3.4:3000->3000/tcp
 slapenir-agent     running            1.2.3.4:22->22/tcp
-slapenir-step-ca    running (healthy)   1.2.3.4:9000->9000/tcp
+slapenir-ca        running (healthy)   1.2.3.4:9000->9000/tcp
 slapenir-postgres   running (healthy)   1.2.3.4:5432->5432/tcp
 slapenir-memgraph   running (healthy)   1.2.3.4:7687->7687/tcp
 ```
@@ -551,18 +551,22 @@ slapenir-memgraph   running (healthy)   1.2.3.4:7687->7687/tcp
 |----------|---------|-------------|
 | `OPENCODE_DISABLE_CLAUDE_CODE` | `1` | Disable Claude Code (use local LLM) |
 | `LLAMA_SERVER_HOST` | `host.docker.internal` | LLM server hostname |
-| `LLAMA_SERVER_PORT` | `8080` | LLM server port |
+| `LLAMA_SERVER_PORT` | `6666` | LLM server port |
 
 #### Code-Graph-RAG Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CGR_ORCHESTRATOR_PROVIDER` | `openai` | Provider type (openai for compatibility) |
-| `CGR_ORCHESTRATOR_MODEL` | `gpt-4o` | Model name (ignored by llama-server) |
-| `CGR_ORCHESTRATOR_ENDPOINT` | `http://host.docker.internal:8080/v1` | LLM endpoint URL |
-| `CGR_ORCHESTRATOR_API_KEY` | `sk-local` | API key (dummy, ignored) |
-| `CGR_MEMGRAPH_HOST` | `memgraph` | Memgraph hostname |
-| `CGR_MEMGRAPH_PORT` | `7687` | Memgraph port |
+| `ORCHESTRATOR_PROVIDER` | `openai` | Provider type (openai for compatibility) |
+| `ORCHESTRATOR_MODEL` | `qwen3.5-35b-a3b-ud-q4_k_xl` | Model name (ignored by llama-server) |
+| `ORCHESTRATOR_ENDPOINT` | `http://host.docker.internal:6666/v1` | LLM endpoint URL |
+| `ORCHESTRATOR_API_KEY` | `sk-local` | API key (dummy, ignored) |
+| `CYPHER_PROVIDER` | `openai` | Cypher query provider type |
+| `CYPHER_MODEL` | `qwen3.5-35b-a3b-ud-q4_k_xl` | Cypher query model name |
+| `CYPHER_ENDPOINT` | `http://host.docker.internal:6666/v1` | Cypher query LLM endpoint URL |
+| `CYPHER_API_KEY` | `sk-local` | Cypher query API key (dummy, ignored) |
+| `MEMGRAPH_HOST` | `memgraph` | Memgraph hostname |
+| `MEMGRAPH_PORT` | `7687` | Memgraph port |
 
 ### Network Configuration
 
@@ -600,8 +604,10 @@ The agent container mounts your host Git configuration:
 ```yaml
 volumes:
   - ~/.gitconfig:/home/agent/.gitconfig:ro
-  - ~/.ssh:/home/agent/.ssh:ro
-  - ~/.gnupg:/home/agent/.gnupg:ro
+  - ~/.ssh/config:/home/agent/.ssh/config.host:ro
+  - ~/.ssh/known_hosts:/home/agent/.ssh/known_hosts
+  - ~/.gnupg/pubring.kbx:/home/agent/.gnupg/pubring.kbx:ro
+  - ~/.gnupg/trustdb.gpg:/home/agent/.gnupg/trustdb.gpg:ro
 ```
 
 **Required Git setup on host:**
@@ -685,9 +691,6 @@ docker compose ps proxy
 
 # Or using make
 make shell
-
-# Unrestricted shell (builds allowed - use with caution!)
-make shell-unrestricted
 ```
 
 ### Cleaning Up
@@ -755,9 +758,6 @@ docker compose logs proxy > proxy-logs.txt
 # Secure shell (build tools blocked)
 ./slapenir shell
 make shell
-
-# Unrestricted shell (build tools allowed)
-make shell-unrestricted
 
 # Direct container exec
 docker compose exec agent bash
@@ -978,7 +978,7 @@ ls -la ca-data/
 
 **Solutions:**
 ```bash
-# Increase Docker memory limit (Determine Desktop)
+# Increase Docker memory limit (Docker Desktop)
 # Settings → Resources → Memory: 16GB+
 
 # For LLM, use smaller model or quantization
@@ -1200,7 +1200,6 @@ git push origin fix/TICKET-123
 | `make down` | Stop all services |
 | `make status` | Show service status |
 | `make shell` | Open agent shell (builds blocked) |
-| `make shell-unrestricted` | Open shell with builds + direct internet |
 | `make copy-in REPO=... TICKETS=...` | Copy repo and tickets into container |
 | `make copy-out REPO=...` | Copy repo out with integrity check |
 | `make copy-out-safe REPO=...` | Same as copy-out but backs up host copy first |
@@ -1259,7 +1258,7 @@ cd proxy/tests/load
 - [Architecture Overview](docs/SLAPENIR_Architecture.md) - System design
 - [Security Layers](docs/SECURITY_LAYERS.md) - Defense-in-depth analysis
 - [mTLS Setup](docs/mTLS_Setup.md) - Certificate management
-- [MCP Knowledge Server](docs/mcp-knowledge-server-embeddings.md) - Embedding configuration
+- [MCP Knowledge Server](docs/SLAPENIR_Architecture.md) - Embedding and knowledge graph configuration
 - [Backup Strategy](docs/BACKUP-STRATEGY.md) - Backup and disaster recovery
 - [Monitoring Stack](monitoring/README.md) - Prometheus and Grafana
 - [Agent Environment](agent/README.md) - Agent configuration
@@ -1287,7 +1286,7 @@ cd proxy/tests/load
 - MCP tools (Memory, Knowledge, Code-Graph-RAG) operational
 - Secure work process with session isolation
 
-**Version**: 1.9.0
+**Version**: 1.9.1
 
 **Last Updated**: 2026-03-29
 

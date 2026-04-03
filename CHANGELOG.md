@@ -1,3 +1,18 @@
+## [1.9.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.1...v1.9.2) (2026-04-03)
+
+
+### Bug Fixes
+
+* **ci:** configure git credentials for semantic-release to bypass repo rules ([ed4d204](https://github.com/andrewgibson-cic/slapenir/commit/ed4d20495fb3829de2dc16d8422bec4cf123367f))
+* **ci:** use GH_TOKEN for semantic-release to bypass repo rules ([06c39c9](https://github.com/andrewgibson-cic/slapenir/commit/06c39c994ea364d60d1c3cba8d711d5d922b67f5))
+* **deps)(deps:** bump hmac ([de13712](https://github.com/andrewgibson-cic/slapenir/commit/de13712dde98c43ca75d2730e498240d7acfb531))
+
+
+### Documentation
+
+* audit and update all documentation to match current code state ([2f9a827](https://github.com/andrewgibson-cic/slapenir/commit/2f9a827e0b7cdd3936740fd4504be3e9b77087a7))
+* update architecture, monitoring, and contributing docs for v1.9.0 ([1b10356](https://github.com/andrewgibson-cic/slapenir/commit/1b103566956eb00d4584d74d0cdb83d7135b8699))
+
 ## [1.9.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.0...v1.9.1) (2026-03-29)
 
 

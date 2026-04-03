@@ -1,3 +1,10 @@
+## [1.9.5](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.4...v1.9.5) (2026-04-03)
+
+
+### Bug Fixes
+
+* **ci:** skip lifecycle scripts for mcp-local-rag install on musl ([afe94a2](https://github.com/andrewgibson-cic/slapenir/commit/afe94a2bdfada6a2cd2f814a2d3d1c15e51a4df7))
+
 ## [1.9.4](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.3...v1.9.4) (2026-04-03)
 
 

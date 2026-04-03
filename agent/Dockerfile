@@ -189,7 +189,7 @@ RUN npm install -g @modelcontextprotocol/server-memory
 
 # Install mcp-local-rag for markdown/document knowledge retrieval
 # Handles PDF, DOCX, MD with semantic chunking and keyword boosting
-RUN npm install -g mcp-local-rag
+RUN npm install -g --ignore-scripts mcp-local-rag
 
 # Pre-download Hugging Face embedding model for air-gapped operation
 # This caches the model during build so it's available offline at runtime

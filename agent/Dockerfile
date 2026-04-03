@@ -46,7 +46,14 @@ esac\n' > /usr/bin/getconf && chmod +x /usr/bin/getconf
 RUN apk add --no-cache nodejs npm
 
 # Install OpenCode CLI globally
-RUN npm install -g opencode-ai@latest
+# Wolfi uses musl libc - the opencode-ai postinstall doesn't detect musl,
+# so we install with --ignore-scripts and manually link the musl binary
+RUN ARCH=$(node -e "console.log(process.arch === 'arm64' ? 'arm64' : 'x64')") && \
+    npm install -g --ignore-scripts opencode-ai@1.3.13 "opencode-linux-${ARCH}-musl@1.3.13" && \
+    BINARY_DIR="$(node -e "console.log(require.resolve('opencode-linux-${ARCH}-musl/package.json').replace('/package.json',''))")" && \
+    mkdir -p /usr/local/lib/node_modules/opencode-ai/bin && \
+    cp "${BINARY_DIR}/bin/opencode" /usr/local/lib/node_modules/opencode-ai/bin/.opencode && \
+    chmod 755 /usr/local/lib/node_modules/opencode-ai/bin/.opencode
 
 # Install s6-overlay from GitHub releases (Wolfi doesn't have s6-overlay package)
 ARG S6_OVERLAY_VERSION=3.1.6.2

@@ -1,3 +1,10 @@
+## [1.9.3](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.2...v1.9.3) (2026-04-03)
+
+
+### Bug Fixes
+
+* **ci:** install opencode-ai with musl binary for Wolfi compatibility ([b939123](https://github.com/andrewgibson-cic/slapenir/commit/b939123effae563db4add46f1851c9b377113bdb))
+
 ## [1.9.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.1...v1.9.2) (2026-04-03)
 
 

@@ -1,3 +1,10 @@
+## [1.9.4](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.3...v1.9.4) (2026-04-03)
+
+
+### Bug Fixes
+
+* **ci:** use direct path for opencode musl binary lookup ([505a7df](https://github.com/andrewgibson-cic/slapenir/commit/505a7df9b735a8a4b258529605591c288ebb8e46))
+
 ## [1.9.3](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.2...v1.9.3) (2026-04-03)
 
 

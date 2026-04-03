@@ -50,7 +50,7 @@ RUN apk add --no-cache nodejs npm
 # so we install with --ignore-scripts and manually link the musl binary
 RUN ARCH=$(node -e "console.log(process.arch === 'arm64' ? 'arm64' : 'x64')") && \
     npm install -g --ignore-scripts opencode-ai@1.3.13 "opencode-linux-${ARCH}-musl@1.3.13" && \
-    BINARY_DIR="$(node -e "console.log(require.resolve('opencode-linux-${ARCH}-musl/package.json').replace('/package.json',''))")" && \
+    BINARY_DIR="/usr/local/lib/node_modules/opencode-linux-${ARCH}-musl" && \
     mkdir -p /usr/local/lib/node_modules/opencode-ai/bin && \
     cp "${BINARY_DIR}/bin/opencode" /usr/local/lib/node_modules/opencode-ai/bin/.opencode && \
     chmod 755 /usr/local/lib/node_modules/opencode-ai/bin/.opencode

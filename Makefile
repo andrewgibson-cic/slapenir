@@ -103,11 +103,13 @@ ifndef REPO
 endif
 	@echo "Copying repo into container..."
 	docker-compose exec -T agent mkdir -p /home/agent/workspace/$(notdir $(REPO))
-	docker cp "$(REPO)" slapenir-agent:/home/agent/workspace/$(notdir $(REPO))
+	docker cp "$(REPO)/." slapenir-agent:/home/agent/workspace/$(notdir $(REPO))/
+	docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/workspace/$(notdir $(REPO))
 ifdef TICKETS
 	@echo "Copying tickets into container..."
 	docker-compose exec -T agent mkdir -p /home/agent/workspace/tickets
 	docker cp "$(TICKETS)/." slapenir-agent:/home/agent/workspace/tickets/
+	docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/workspace/tickets
 endif
 	@echo "Copy-in complete"
 

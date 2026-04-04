@@ -135,7 +135,7 @@ services:
       - RUST_LOG=info
       - DATABASE_URL=postgres://${POSTGRES_USER:-slapenir}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}@postgres:5432/${POSTGRES_DB:-slapenir}
       - AUTO_DETECT_ENABLED=${AUTO_DETECT_ENABLED:-true}
-      - ALLOW_BUILD=${ALLOW_BUILD:-false}
+      - ALLOW_BUILD=${ALLOW_BUILD:-true}
       - MTLS_ENABLED=${MTLS_ENABLED:-false}
       - MTLS_ENFORCE=${MTLS_ENFORCE:-false}
       - MTLS_CA_CERT=/certs/root_ca.crt

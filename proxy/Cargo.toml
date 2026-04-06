@@ -8,7 +8,7 @@ license = "MIT"
 
 [dependencies]
 # Async runtime
-tokio = { version = "1.35", features = ["full"] }
+tokio = { version = "1.51", features = ["full"] }
 futures = "0.3"
 
 # HTTP server framework
@@ -17,7 +17,7 @@ tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace", "cors"] }
 
 # HTTP client for proxying
-hyper = { version = "1.1", features = ["client", "http1", "http2"] }
+hyper = { version = "1.9", features = ["client", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", "http2", "tokio"] }
 
 # TLS support

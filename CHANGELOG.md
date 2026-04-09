@@ -1,3 +1,10 @@
+## [1.10.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.5...v1.10.0) (2026-04-09)
+
+
+### Features
+
+* harden network isolation, add ALLOW_BUILD proxy gate, netctl CAP_NET_ADMIN, and build cache copy-in ([5cc5628](https://github.com/andrewgibson-cic/slapenir/commit/5cc5628982976345f30b24a2bc1a72e0c87f1e0e))
+
 ## [1.9.5](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.4...v1.9.5) (2026-04-03)
 
 

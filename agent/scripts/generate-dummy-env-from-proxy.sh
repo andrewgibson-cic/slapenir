@@ -97,18 +97,17 @@ GITHUB_TOKEN=DUMMY_GITHUB
 FALLBACK
 fi
 
-# Always add proxy configuration and Python settings
+# Always add Python settings (NOT proxy config - see note below)
 cat >> /home/agent/.env << 'FOOTER'
-
-# ============================================================================
-# Proxy Configuration (REQUIRED)
-# ============================================================================
-HTTP_PROXY=http://proxy:3000
-HTTPS_PROXY=http://proxy:3000
-NO_PROXY=localhost,127.0.0.1,proxy
 
 # Python Configuration
 PYTHONUNBUFFERED=1
+
+# NOTE: HTTP_PROXY/HTTPS_PROXY are NOT set in .env.
+# They are set via Dockerfile ENV and docker-compose environment.
+# Build wrappers use them when ALLOW_BUILD=1 is active.
+# Opencode (Bun) must not have proxy vars to avoid tunneling HTTPS through
+# the iptables-blocked proxy.
 
 # ============================================================================
 # Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")

@@ -145,20 +145,18 @@ cat "$ENV_SOURCE" | while IFS= read -r line; do
     fi
 done > "$ENV_TARGET"
 
-# Add required proxy configuration
+# Add Python configuration (proxy config is NOT added - see note below)
 echo "" >> "$ENV_TARGET"
 echo "# ============================================================================" >> "$ENV_TARGET"
 echo "# Proxy Configuration (Auto-added)" >> "$ENV_TARGET"
 echo "# ============================================================================" >> "$ENV_TARGET"
-echo "HTTP_PROXY=http://proxy:3000" >> "$ENV_TARGET"
-echo "HTTPS_PROXY=http://proxy:3000" >> "$ENV_TARGET"
-echo "NO_PROXY=localhost,127.0.0.1,proxy" >> "$ENV_TARGET"
 echo "PYTHONUNBUFFERED=1" >> "$ENV_TARGET"
 
-# Export proxy settings to s6 environment
-set_s6_env "HTTP_PROXY" "http://proxy:3000"
-set_s6_env "HTTPS_PROXY" "http://proxy:3000"
-set_s6_env "NO_PROXY" "localhost,127.0.0.1,proxy"
+# NOTE: HTTP_PROXY/HTTPS_PROXY are NOT set here.
+# Proxy config is set only in the Dockerfile ENV and docker-compose.yml environment.
+# Build wrappers (gradle, npm, etc.) use those env vars when ALLOW_BUILD=1 is active.
+# Opencode (Bun binary) must NOT have proxy env vars because it tunnels HTTPS through
+# the proxy, which is blocked by iptables when ALLOW_BUILD is not active.
 
 # Set proper permissions
 chmod 600 "$ENV_TARGET"

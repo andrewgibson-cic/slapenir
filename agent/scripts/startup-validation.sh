@@ -333,13 +333,13 @@ test_traffic_enforcement() {
         test_warn "NAT redirect chain not found (HTTP/HTTPS redirect may not work)"
     fi
 
-    # Test 6: Verify proxy IP is allowed
+    # Test 6: Verify proxy IP is BLOCKED (not allowed by default)
     local proxy_ip=$(grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\s+proxy" /etc/hosts 2>/dev/null | awk '{print $1}' | head -1)
     if [ -n "$proxy_ip" ]; then
-        if iptables -L TRAFFIC_ENFORCE -n | grep -q "$proxy_ip"; then
-            test_pass "Proxy IP ($proxy_ip) allowed in iptables rules"
+        if iptables -L TRAFFIC_ENFORCE -n | grep -q "DROP.*$proxy_ip"; then
+            test_pass "Proxy IP ($proxy_ip) BLOCKED in iptables rules (security enforced)"
         else
-            test_fail "Proxy IP ($proxy_ip) not found in ALLOW rules"
+            test_fail "CRITICAL: Proxy IP ($proxy_ip) not BLOCKED - agent can bypass enforcement via Docker network!"
         fi
     fi
 

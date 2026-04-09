@@ -1,195 +1,186 @@
 #!/bin/bash
-# ============================================================================
 # Build Wrapper Library - Shared functions for all build tool wrappers
-# ============================================================================
-# Provides unified security enforcement for:
-#   - npm, yarn, pnpm (Node.js)
-#   - gradle, mvn (Java)
-#   - pip, pip3 (Python)
-#   - cargo (Rust)
-#
-# USAGE:
-#   export TOOL_NAME="npm"
-#   source /home/agent/scripts/lib/build-wrapper.sh
-#   run_build_wrapper "$@"
-# ============================================================================
+# When ALLOW_BUILD=1: passes security check, enables network via netctl, runs tool, disables network
 
 set -euo pipefail
 
-# Configuration
 LOG_FILE="${LOG_DIR:-/var/log/slapenir}/build-control.log"
 TOOL="${TOOL_NAME:-unknown}"
 
-# ============================================================================
-# Build Permission Checks
-# ============================================================================
-
-# Check if build is explicitly allowed via environment variable
-# Returns 0 if allowed, 1 if blocked
 is_build_allowed() {
-    # Layer 1: Check global override
     if [ "${ALLOW_BUILD:-}" = "1" ]; then
         return 0
     fi
-    
-    # Layer 2: Check tool-specific override (e.g., GRADLE_ALLOW_BUILD=1)
+
     local tool_upper
     tool_upper=$(echo "$TOOL" | tr '[:lower:]' '[:upper:]')
     if [ "${tool_upper}_ALLOW_BUILD:-}" = "1" ]; then
         return 0
     fi
-    
-    # Layer 3: Check for interactive shell (not in OpenCode session)
-    # If we're in an interactive shell outside OpenCode, allow builds
+
     if ! is_opencode_active 2>/dev/null; then
-        # Additional check: are we in a real interactive terminal?
         if [ -t 0 ] && [ -z "${OPENCODE_SESSION_ID:-}" ]; then
             return 0
         fi
     fi
-    
-    # Default: Block all builds
+
     return 1
 }
 
-# ============================================================================
-# Logging Functions
-# ============================================================================
-
-# Log build attempt to audit log
 log_build_attempt() {
-    local action="$1"   # ALLOWED or BLOCKED
-    local reason="$2"   # Explanation
-    
-    # Ensure log directory exists
+    local action="$1"
+    local reason="$2"
+
     mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
-    
-    # Format: [timestamp] [TOOL] ACTION - reason - args
+
     local timestamp
     timestamp=$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z')
-    local args="${*:-}"
-    
-    echo "[$timestamp] [$TOOL] $action - $reason - args: $args" >> "$LOG_FILE" 2>/dev/null || true
+
+    echo "[$timestamp] [$TOOL] $action - $reason - args: ${*:3}" >> "$LOG_FILE" 2>/dev/null || true
 }
 
-# ============================================================================
-# Tool Execution
-# ============================================================================
-
-# Execute the real tool (after passing security checks)
-execute_real_tool() {
+_find_real_tool() {
     local real_tool="${TOOL}.real"
-    
-    # Find real tool
+
     if command -v "$real_tool" >/dev/null 2>&1; then
-        exec "$real_tool" "$@"
-    else
-        # Try alternative locations
-        local alt_path="/usr/bin/${real_tool}"
-        if [ -x "$alt_path" ]; then
-            exec "$alt_path" "$@"
-        fi
-        
-        echo "ERROR: Real tool not found: $real_tool" >&2
+        echo "$real_tool"
+        return 0
+    fi
+
+    local alt_path="/usr/bin/${real_tool}"
+    if [ -x "$alt_path" ]; then
+        echo "$alt_path"
+        return 0
+    fi
+
+    return 1
+}
+
+run_build_wrapper() {
+    if ! is_build_allowed; then
+        log_build_attempt "BLOCKED" "No override, OpenCode active" "$*"
+        show_build_blocked_message "$TOOL"
+        exit 1
+    fi
+
+    local reason="Override enabled"
+    [ -n "${ALLOW_BUILD:-}" ] && reason="ALLOW_BUILD=1"
+
+    local tool_upper
+    tool_upper=$(echo "$TOOL" | tr '[:lower:]' '[:upper:]')
+    [ "${tool_upper}_ALLOW_BUILD:-}" = "1" ] && reason="${tool_upper}_ALLOW_BUILD=1"
+
+    if ! is_opencode_active 2>/dev/null && [ -t 0 ]; then
+        reason="Interactive shell (OpenCode not active)"
+    fi
+
+    log_build_attempt "ALLOWED" "$reason" "$*"
+
+    local tool_path
+    if ! tool_path=$(_find_real_tool); then
+        echo "ERROR: Real tool not found: ${TOOL}.real" >&2
         echo "       This indicates a wrapper installation problem." >&2
         exit 127
     fi
-}
 
-# ============================================================================
-# Main Wrapper Logic
-# ============================================================================
-
-# Main entry point for build wrappers
-# Call this after setting TOOL_NAME and sourcing this file
-run_build_wrapper() {
-    # Check if build is allowed
-    if is_build_allowed; then
-        local reason="Override enabled"
-        [ -n "${ALLOW_BUILD:-}" ] && reason="ALLOW_BUILD=1"
-        
-        local tool_upper
-        tool_upper=$(echo "$TOOL" | tr '[:lower:]' '[:upper:]')
-        [ "${tool_upper}_ALLOW_BUILD:-}" = "1" ] && reason="${tool_upper}_ALLOW_BUILD=1"
-        
-        # Check if not in OpenCode
-        if ! is_opencode_active 2>/dev/null && [ -t 0 ]; then
-            reason="Interactive shell (OpenCode not active)"
-        fi
-        
-        log_build_attempt "ALLOWED" "$reason" "$*"
-        execute_real_tool "$@"
+    local needs_network=false
+    if [ "${ALLOW_BUILD:-}" = "1" ] || [ "${tool_upper}_ALLOW_BUILD:-}" = "1" ]; then
+        needs_network=true
     fi
-    
-    # Build is blocked
-    log_build_attempt "BLOCKED" "No override, OpenCode active" "$*"
-    show_build_blocked_message "$TOOL"
-    exit 1
+
+    if $needs_network; then
+        _enable_network_if_needed
+        HTTP_PROXY="http://${BUILD_PROXY_HOST:-proxy}:${BUILD_PROXY_PORT:-3000}" \
+        HTTPS_PROXY="http://${BUILD_PROXY_HOST:-proxy}:${BUILD_PROXY_PORT:-3000}" \
+        NO_PROXY="localhost,127.0.0.1,proxy,postgres,memgraph,host.docker.internal" \
+        "$tool_path" "$@"
+        local exit_code=$?
+        _disable_network_after_build
+        exit $exit_code
+    else
+        exec "$tool_path" "$@"
+    fi
 }
 
-# ============================================================================
-# User Messages
-# ============================================================================
-
-# Display blocked message with instructions
 show_build_blocked_message() {
     local tool="$1"
     local tool_upper
     tool_upper=$(echo "$tool" | tr '[:lower:]' '[:upper:]')
-    
+
     cat >&2 << HEREDOC
-╔══════════════════════════════════════════════════════════════╗
-║  BUILD TOOL BLOCKED: $tool
-║                                                              
-║  All builds are blocked by default for security:             ║
-║  - Prevent arbitrary code execution                          ║
-║  - Prevent supply chain attacks                              ║
-║  - Ensure dependency audit trail                             ║
-║                                                              
-║  TO RUN BUILDS:                                              ║
-║                                                              
-║  Method 1: Environment variable override                     ║
-║    ALLOW_BUILD=1 $tool <args>
-║    ${tool_upper}_ALLOW_BUILD=1 $tool <args>
-║                                                              
-║  Method 2: Interactive shell (recommended)                   ║
-║    1. Exit OpenCode (Ctrl+D or type 'exit')                  ║
-║    2. Start shell: make shell                                ║
-║    3. Run: $tool <args>
-║                                                              
-║  LOGS: $LOG_FILE
-║                                                              
-╚══════════════════════════════════════════════════════════════╝
++--------------------------------------------------------------+
+|  BUILD TOOL BLOCKED: $tool
+|
+|  All builds are blocked by default for security.
+|
+|  TO RUN BUILDS:
+|
+|  Method 1: Environment variable override
+|    ALLOW_BUILD=1 $tool <args>
+|    ${tool_upper}_ALLOW_BUILD=1 $tool <args>
+|
+|  Method 2: Unrestricted shell (recommended)
+|    1. Exit OpenCode (Ctrl+D or type 'exit')
+|    2. Start shell: make shell-unrestricted
+|    3. Run: $tool <args>
+|
+|  Method 3: For ./gradlew or other scripts
+|    net ./gradlew <args>
+|
+|  LOGS: $LOG_FILE
++--------------------------------------------------------------+
 HEREDOC
 }
 
-# ============================================================================
-# Helper Functions
-# ============================================================================
+_enable_network_if_needed() {
+    local lock_file="/tmp/slapenir-network-enabled.lock"
 
-# Check if we're in an OpenCode session
-# Sources detection.sh if available
+    if [ -f "$lock_file" ]; then
+        log_build_attempt "NETWORK" "Already enabled (lock exists)" "$TOOL"
+        return 0
+    fi
+
+    log_build_attempt "NETWORK" "Enabling internet access for build" "$TOOL $*"
+
+    if command -v netctl >/dev/null 2>&1; then
+        netctl enable 2>/dev/null || true
+    elif [ "$(id -u)" -eq 0 ]; then
+        bash /home/agent/scripts/network-enable.sh enable
+    else
+        log_build_attempt "WARNING" "Cannot enable network - no netctl or root" "$TOOL $*"
+        echo "WARNING: Cannot enable network. Build may fail." >&2
+        echo "         netctl not found and not running as root." >&2
+    fi
+}
+
+_disable_network_after_build() {
+    log_build_attempt "NETWORK" "Disabling internet access after build" "$TOOL"
+
+    if command -v netctl >/dev/null 2>&1; then
+        netctl disable 2>/dev/null || true
+    elif [ "$(id -u)" -eq 0 ]; then
+        bash /home/agent/scripts/network-enable.sh disable 2>/dev/null || true
+    fi
+}
+
 is_opencode_active() {
-    # Try to source detection library
     local detection_lib="/home/agent/scripts/lib/detection.sh"
     if [ -f "$detection_lib" ]; then
         source "$detection_lib"
         is_opencode_active
         return $?
     fi
-    
-    # Fallback: check environment variables only
+
     [ -n "${OPENCODE_SESSION_ID:-}" ] && return 0
     [ -n "${OPENCODE_YOLO:-}" ] && return 0
     [ -n "${OPENCODE_CONFIG_PATH:-}" ] && return 0
-    
+
     return 1
 }
 
-# Get current OpenCode session ID
 get_opencode_session() {
     local lock_file="/tmp/opencode-session.lock"
-    
+
     if [ -f "$lock_file" ]; then
         grep "^session_id=" "$lock_file" 2>/dev/null | cut -d= -f2 || echo "unknown"
     else
@@ -197,14 +188,12 @@ get_opencode_session() {
     fi
 }
 
-# Validate proxy is accessible before running build
 validate_proxy_connection() {
     local proxy_host="${HTTP_PROXY:-http://proxy:3000}"
-    
-    # Extract host:port from proxy URL
+
     local host_port
     host_port=$(echo "$proxy_host" | sed 's|http://||' | sed 's|/.*||')
-    
+
     if command -v nc >/dev/null 2>&1; then
         if ! nc -z -w5 ${host_port%:*} ${host_port#*:} 2>/dev/null; then
             echo "WARNING: Cannot reach proxy at $host_port" >&2
@@ -212,6 +201,6 @@ validate_proxy_connection() {
             return 1
         fi
     fi
-    
+
     return 0
 }

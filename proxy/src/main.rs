@@ -72,9 +72,10 @@ async fn main() -> anyhow::Result<()> {
         // Proxy routes - handle all HTTP methods
         .route("/v1/{*path}", any(proxy::proxy_handler))
         .with_state(app_state.clone())
-        // Add CONNECT middleware BEFORE TraceLayer to intercept HTTPS tunneling
-        .layer(ConnectLayer::new(app_state))
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        // CONNECT middleware must be OUTERMOST layer so CONNECT responses
+        // bypass TraceLayer, which interferes with hyper's HTTP upgrade mechanism
+        .layer(ConnectLayer::new(app_state));
 
     // Add mTLS layer if configured
     if let Some(mtls) = mtls_config {

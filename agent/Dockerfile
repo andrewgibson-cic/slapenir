@@ -32,7 +32,13 @@ RUN apk add --no-cache \
     cmake \
     ripgrep \
     openssl-dev \
-    netcat-openbsd
+    netcat-openbsd && \
+    echo "127.0.0.1 models.dev" >> /etc/hosts && \
+    echo "127.0.0.1 api.opencode.ai" >> /etc/hosts && \
+    echo "127.0.0.1 download-cdn.jetbrains.com" >> /etc/hosts && \
+    echo "127.0.0.1 formulae.brew.sh" >> /etc/hosts && \
+    echo "127.0.0.1 community.chocolatey.org" >> /etc/hosts && \
+    echo "127.0.0.1 raw.githubusercontent.com" >> /etc/hosts
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\
@@ -46,14 +52,19 @@ esac\n' > /usr/bin/getconf && chmod +x /usr/bin/getconf
 RUN apk add --no-cache nodejs npm
 
 # Install OpenCode CLI globally
-# Wolfi uses musl libc - the opencode-ai postinstall doesn't detect musl,
-# so we install with --ignore-scripts and manually link the musl binary
+# Wolfi uses musl libc - the postinstall script detects platform as linux-${ARCH}
+# and looks for the "opencode-linux-${ARCH}" package (glibc binary).
+# We install the musl binary and alias it under the expected package name
+# so the postinstall's require.resolve() finds it correctly.
 RUN ARCH=$(node -e "console.log(process.arch === 'arm64' ? 'arm64' : 'x64')") && \
-    npm install -g --ignore-scripts opencode-ai@1.3.13 "opencode-linux-${ARCH}-musl@1.3.13" && \
-    BINARY_DIR="/usr/local/lib/node_modules/opencode-linux-${ARCH}-musl" && \
-    mkdir -p /usr/local/lib/node_modules/opencode-ai/bin && \
-    cp "${BINARY_DIR}/bin/opencode" /usr/local/lib/node_modules/opencode-ai/bin/.opencode && \
-    chmod 755 /usr/local/lib/node_modules/opencode-ai/bin/.opencode
+    npm install -g --ignore-scripts "opencode-ai@1.3.13" "opencode-linux-${ARCH}-musl@1.3.13" && \
+    cp -r \
+      "/usr/local/lib/node_modules/opencode-linux-${ARCH}-musl" \
+      "/usr/local/lib/node_modules/opencode-linux-${ARCH}" && \
+    cd /usr/local/lib/node_modules/opencode-ai && \
+    node postinstall.mjs && \
+    test -f /usr/local/lib/node_modules/opencode-ai/bin/.opencode && \
+    echo "OpenCode binary installed successfully"
 
 # Install s6-overlay from GitHub releases (Wolfi doesn't have s6-overlay package)
 ARG S6_OVERLAY_VERSION=3.1.6.2
@@ -89,7 +100,7 @@ RUN mkdir -p /home/agent/certs \
              /etc/s6-overlay/s6-rc.d/agent-svc \
              /var/log/slapenir && \
     chown -R agent:agent /home/agent && \
-    chown agent:agent /var/log/slapenir && \
+    chown -R agent:agent /var/log/slapenir && \
     chmod 755 /var/log/slapenir
 
 # Copy s6 service configuration
@@ -171,7 +182,26 @@ RUN pip install --no-cache-dir --break-system-packages --target /usr/lib/python3
     tree-sitter-python==0.25.0 \
     tree-sitter-rust==0.24.1 \
     tree-sitter-scala==0.24.0 \
-    tree-sitter-typescript==0.23.2 && \
+    tree-sitter-typescript==0.23.2 \
+    typer>=0.12.5 \
+    loguru>=0.7.3 \
+    rich>=13.7.1 \
+    neo4j \
+    python-dotenv>=1.1.0 \
+    pydantic \
+    pydantic-settings>=2.0.0 \
+    mcp>=1.21.1 \
+    pydantic-ai>=1.70.0 \
+    pymgclient>=1.4.0 \
+    tiktoken>=0.12.0 \
+    toml>=0.10.2 \
+    watchdog>=6.0.0 \
+    prompt-toolkit>=3.0.0 \
+    diff-match-patch>=20241021 \
+    click>=8.0.0 \
+    protobuf>=5.27.0 \
+    defusedxml>=0.7.1 \
+    'huggingface-hub[hf-xet]>=0.36.0' && \
     cp -r /tmp/code-graph-rag-vendor/codebase_rag /usr/lib/python3.13/site-packages/codebase_rag && \
     cp -r /tmp/code-graph-rag-vendor/code_graph_rag-0.0.149.dist-info /usr/lib/python3.13/site-packages/code_graph_rag-0.0.149.dist-info && \
     rm -rf /tmp/code-graph-rag-vendor
@@ -179,6 +209,10 @@ RUN pip install --no-cache-dir --break-system-packages --target /usr/lib/python3
 # Patch code-graph-rag: fix missing tool descriptions for semantic_search and get_function_source
 # Upstream bug: Tool() calls don't pass description parameter
 RUN /home/agent/scripts/patch-codegraph-rag.sh
+
+RUN printf '#!/bin/sh\nexec python3.13 -m codebase_rag.cli "$@"\n' > /usr/local/bin/cgr && \
+    chmod +x /usr/local/bin/cgr && \
+    ln -sf /usr/local/bin/cgr /usr/local/bin/code-graph-rag
 
 # ============================================================================
 # MCP Memory & Knowledge Tools
@@ -248,6 +282,14 @@ RUN for tool in gradle mvn npm yarn pnpm cargo pip pip3; do \
         fi; \
     done
 
+# Build netctl - setuid binary for agent to control network access
+# Allows agent user to run network-enable.sh (iptables) without sudo
+COPY scripts/netctl.c /tmp/netctl.c
+RUN gcc -static -o /usr/local/bin/netctl /tmp/netctl.c && \
+    chown root:root /usr/local/bin/netctl && \
+    chmod 4755 /usr/local/bin/netctl && \
+    rm /tmp/netctl.c
+
 # Create gradlew symlink (catches ./gradlew)
 RUN if [ -f /home/agent/scripts/gradle-wrapper ]; then \
         ln -sf /home/agent/scripts/gradle-wrapper /home/agent/scripts/gradlew; \
@@ -271,9 +313,10 @@ ENV PYTHON_VERSION=3.12 \
     JAVA_OPTS="-Xmx2g -Xms512m -Dhttp.proxyHost=proxy -Dhttp.proxyPort=3000 -Dhttps.proxyHost=proxy -Dhttps.proxyPort=3000 -Dhttp.nonProxyHosts=localhost|127.0.0.1|proxy" \
     GRADLE_OPTS="-Dhttp.proxyHost=proxy -Dhttp.proxyPort=3000 -Dhttps.proxyHost=proxy -Dhttps.proxyPort=3000 -Dhttp.nonProxyHosts=localhost|127.0.0.1|proxy" \
     HF_HUB_OFFLINE=1 \
-    HTTP_PROXY=http://proxy:3000 \
-    HTTPS_PROXY=http://proxy:3000 \
-    NO_PROXY=localhost,127.0.0.1,proxy,postgres,memgraph,host.docker.internal \
+    BUILD_PROXY_HOST=proxy \
+    BUILD_PROXY_PORT=3000 \
+    BASH_ENV=/home/agent/scripts/lib/allow-build-trap.sh \
+    NODE_OPTIONS=--require=/home/agent/scripts/lib/node-fetch-port-fix.js \
     PATH=/root/.local/bin:/home/agent/.local/bin:/usr/lib/jvm/java-21-openjdk/bin:$PATH
 
 # Configure s6-overlay to run user services as agent

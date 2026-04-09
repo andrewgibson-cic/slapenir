@@ -20,4 +20,14 @@ sed -i 's/return Tool(semantic_search_functions, name=td.AgenticToolName.SEMANTI
 sed -i 's/return Tool(get_function_source_by_id, name=td.AgenticToolName.GET_FUNCTION_SOURCE)/return Tool(get_function_source_by_id, name=td.AgenticToolName.GET_FUNCTION_SOURCE, description=td.GET_FUNCTION_SOURCE)/' \
     "$TOOL_FILE"
 
+CLI_FILE="/usr/lib/python3.13/site-packages/codebase_rag/cli.py"
+if [ -f "$CLI_FILE" ] && grep -q "from .services.protobuf_service import" "$CLI_FILE" 2>/dev/null; then
+    PROTO_FILE="/usr/lib/python3.13/site-packages/codebase_rag/services/protobuf_service.py"
+    if ! python3.13 -c "import sys; sys.path.insert(0, '/usr/lib/python3.13/site-packages'); import codec" 2>/dev/null; then
+        sed -i 's/^import codec.schema_pb2 as pb$/try:\n    import codec.schema_pb2 as pb\nexcept ImportError:\n    pb = None/' "$PROTO_FILE"
+        sed -i 's/^from .services.protobuf_service import ProtobufFileIngestor$/try:\n    from .services.protobuf_service import ProtobufFileIngestor\nexcept ImportError:\n    ProtobufFileIngestor = None/' "$CLI_FILE"
+        echo "Patched protobuf imports (codec module not available)"
+    fi
+fi
+
 echo "Patched code-graph-rag tool descriptions"

@@ -1,7 +1,7 @@
 # SLAPENIR Makefile
 # Minimal commands for essential operations
 
-.PHONY: up down restart status logs shell shell-unrestricted shell-raw copy-in copy-out copy-out-safe session-reset verify test rebuild clean
+.PHONY: up down restart status logs shell shell-unrestricted shell-raw copy-in copy-out copy-out-safe copy-cache index session-reset verify test rebuild clean
 
 # Default: show available commands
 help:
@@ -16,6 +16,8 @@ help:
 	@echo "  copy-in           Copy repo + tickets into container (REPO= TICKETS=)"
 	@echo "  copy-out          Copy repo out with integrity check (REPO=)"
 	@echo "  copy-out-safe     Copy repo out with backup of host copy first (REPO=)"
+	@echo "  copy-cache        Copy host build cache into container (TYPE=gradle|npm|pip|yarn|maven|all)"
+	@echo "  index             Index repo in agent for code-graph-rag (REPO=)"
 	@echo "  session-reset     Clear workspace, MCP memory, and knowledge for fresh session"
 	@echo "  verify            Run pre-flight security verification (zero-knowledge + network)"
 	@echo "  test              Run all tests"
@@ -39,8 +41,10 @@ logs:
 	docker-compose logs -f $(SERVICE)
 
 shell:
-	@echo "🔒 Secure shell - builds blocked by default"
-	@echo "   To run builds: ALLOW_BUILD=1 <command> or make shell-unrestricted"
+	@echo "🔒 Secure shell - builds and internet blocked by default"
+	@echo "   To run builds through proxy: ALLOW_BUILD=1 <tool> <args>"
+	@echo "   For ./gradlew or scripts:    net ./gradlew <args>"
+	@echo "   For unrestricted access:      make shell-unrestricted"
 	@exec docker-compose exec \
 		-u agent \
 		$(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
@@ -132,6 +136,115 @@ endif
 	@echo "Backup created at $(REPO).backup.*"
 	@$(MAKE) copy-out REPO=$(REPO)
 
+define COPY_CACHE_GRADLE
+	if [ -d "$(HOME)/.gradle/caches" ]; then \
+		echo "Copying gradle caches..."; \
+		docker cp "$(HOME)/.gradle/caches/." slapenir-agent:/home/agent/.gradle/caches/; \
+		docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/.gradle/caches; \
+		echo "  gradle caches copied"; \
+	else \
+		echo "  SKIP: $(HOME)/.gradle/caches not found"; \
+	fi
+	if [ -d "$(HOME)/.gradle/wrapper" ]; then \
+		echo "Copying gradle wrapper..."; \
+		docker cp "$(HOME)/.gradle/wrapper/." slapenir-agent:/home/agent/.gradle/wrapper/; \
+		docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/.gradle/wrapper; \
+		echo "  gradle wrapper copied"; \
+	else \
+		echo "  SKIP: $(HOME)/.gradle/wrapper not found"; \
+	fi
+endef
+
+define COPY_CACHE_NPM
+	if [ -d "$(HOME)/.npm" ]; then \
+		echo "Copying npm cache..."; \
+		docker-compose exec -T agent mkdir -p /home/agent/.npm; \
+		docker cp "$(HOME)/.npm/." slapenir-agent:/home/agent/.npm/; \
+		docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/.npm; \
+		echo "  npm cache copied"; \
+	else \
+		echo "  SKIP: $(HOME)/.npm not found"; \
+	fi
+endef
+
+define COPY_CACHE_PIP
+	if [ -d "$(HOME)/Library/Caches/pip" ]; then \
+		echo "Copying pip cache (macOS)..."; \
+		docker-compose exec -T agent mkdir -p /home/agent/.cache/pip; \
+		docker cp "$(HOME)/Library/Caches/pip/." slapenir-agent:/home/agent/.cache/pip/; \
+		docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/.cache/pip; \
+		echo "  pip cache copied"; \
+	elif [ -d "$(HOME)/.cache/pip" ]; then \
+		echo "Copying pip cache..."; \
+		docker-compose exec -T agent mkdir -p /home/agent/.cache/pip; \
+		docker cp "$(HOME)/.cache/pip/." slapenir-agent:/home/agent/.cache/pip/; \
+		docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/.cache/pip; \
+		echo "  pip cache copied"; \
+	else \
+		echo "  SKIP: pip cache not found"; \
+	fi
+endef
+
+define COPY_CACHE_YARN
+	if [ -d "$(HOME)/Library/Caches/Yarn" ]; then \
+		echo "Copying yarn cache (macOS)..."; \
+		docker-compose exec -T agent mkdir -p /home/agent/.yarn/cache; \
+		docker cp "$(HOME)/Library/Caches/Yarn/." slapenir-agent:/home/agent/.yarn/cache/; \
+		docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/.yarn/cache; \
+		echo "  yarn cache copied"; \
+	elif [ -d "$(HOME)/.cache/yarn" ]; then \
+		echo "Copying yarn cache..."; \
+		docker-compose exec -T agent mkdir -p /home/agent/.yarn/cache; \
+		docker cp "$(HOME)/.cache/yarn/." slapenir-agent:/home/agent/.yarn/cache/; \
+		docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/.yarn/cache; \
+		echo "  yarn cache copied"; \
+	else \
+		echo "  SKIP: yarn cache not found"; \
+	fi
+endef
+
+define COPY_CACHE_MAVEN
+	if [ -d "$(HOME)/.m2" ]; then \
+		echo "Copying maven cache..."; \
+		docker cp "$(HOME)/.m2/." slapenir-agent:/home/agent/.m2/; \
+		docker-compose exec -T -u root agent chown -R 1000:1000 /home/agent/.m2; \
+		echo "  maven cache copied"; \
+	else \
+		echo "  SKIP: $(HOME)/.m2 not found"; \
+	fi
+endef
+
+copy-cache:
+ifndef TYPE
+	$(error TYPE is required - usage: make copy-cache TYPE=gradle|npm|pip|yarn|maven|all)
+endif
+	@echo "Copying build caches (TYPE=$(TYPE))..."
+ifeq ($(TYPE),gradle)
+	@$(COPY_CACHE_GRADLE)
+else ifeq ($(TYPE),npm)
+	@$(COPY_CACHE_NPM)
+else ifeq ($(TYPE),pip)
+	@$(COPY_CACHE_PIP)
+else ifeq ($(TYPE),yarn)
+	@$(COPY_CACHE_YARN)
+else ifeq ($(TYPE),maven)
+	@$(COPY_CACHE_MAVEN)
+else ifeq ($(TYPE),all)
+	@$(COPY_CACHE_GRADLE)
+	@$(COPY_CACHE_NPM)
+	@$(COPY_CACHE_PIP)
+	@$(COPY_CACHE_YARN)
+	@$(COPY_CACHE_MAVEN)
+else
+	$(error Unknown TYPE '$(TYPE)' - must be one of: gradle, npm, pip, yarn, maven, all)
+endif
+	@echo "Copy-cache complete"
+
+index:
+	@echo "Indexing repository for code-graph-rag..."
+	docker-compose exec -T agent bash -c 'cgr start --repo-path /home/agent/workspace/$(notdir $(or $(REPO),.)) --update-graph --clean'
+	@echo "Index complete"
+
 session-reset:
 	@echo "Clearing workspace for fresh session..."
 	docker-compose exec -T agent bash -c 'rm -rf /home/agent/workspace/*'
@@ -149,9 +262,15 @@ test:
 	cd proxy && cargo test --all
 
 rebuild:
-	docker-compose down
-	docker-compose build --no-cache
+	docker-compose down -v --remove-orphans
+	docker system prune -af --filter "label=slapenir" -f || true
+	docker builder prune -af --filter "type=exec.cach*.$(or $(SERVICE),agent)*" -f || true
+	docker-compose build --no-cache --pull --parallel
 	docker-compose up -d
+	@echo "✅ Rebuild complete - containers running"
+	@docker-compose ps
 
 clean:
-	docker-compose down -v --rmi local
+	docker-compose down -v --rmi local --remove-orphans
+	docker system prune -af --filter "label=slapenir" -f || true
+	@echo "✅ Clean complete - all containers, volumes, and images removed"

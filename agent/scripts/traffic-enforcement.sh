@@ -110,12 +110,20 @@ log "DNS filtered to trusted servers only (8.8.8.8, 8.8.4.4, 1.1.1.1)"
 iptables -A TRAFFIC_ENFORCE -p tcp --dport 22 -j ACCEPT
 log "SSH traffic allowed"
 
-# Allow connections to proxy
-iptables -A TRAFFIC_ENFORCE -d "$PROXY_IP" -p tcp --dport "$PROXY_PORT" -j ACCEPT
-log "Proxy connections allowed"
+# NOTE: Proxy connections are NOT allowed by default.
+# When ALLOW_BUILD=1 is set, network-enable.sh temporarily opens proxy access.
+# This ensures no tool can reach the internet without explicit permission.
+# Internal services (Docker network, local LLM) remain accessible.
+
+# Block proxy access even within Docker network (must precede broad allow)
+# Without this, the 172.30.0.0/24 rule allows the agent to reach the proxy
+# and bypass all traffic enforcement via HTTPS_PROXY.
+iptables -A TRAFFIC_ENFORCE -d "$PROXY_IP" -j DROP
+log "Proxy ($PROXY_IP) blocked - only accessible via ALLOW_BUILD"
 
 # Allow internal Docker network traffic (slapenir services)
 iptables -A TRAFFIC_ENFORCE -d 172.30.0.0/24 -j ACCEPT
+log "Docker internal network allowed"
 
 # Allow connections to llama server on host
 LLAMA_HOST_IP=$(resolve_host "$LLAMA_SERVER_HOST" 2>/dev/null)
@@ -127,25 +135,12 @@ else
 fi
 
 # =============================================================================
-# REDIRECT RULES (in nat table - REDIRECT only works in nat)
+# NAT REDIRECT RULES — NOT applied by default
 # =============================================================================
-
-# Create nat table rules for traffic redirection
-# Note: REDIRECT target only works in nat table, not filter table
-iptables -t nat -F TRAFFIC_REDIRECT 2>/dev/null || true
-iptables -t nat -X TRAFFIC_REDIRECT 2>/dev/null || true
-iptables -t nat -N TRAFFIC_REDIRECT
-
-# Redirect HTTP (port 80) to proxy
-iptables -t nat -A TRAFFIC_REDIRECT -p tcp --dport 80 -j REDIRECT --to-ports "$PROXY_PORT"
-log "HTTP traffic redirected to proxy"
-
-# Redirect HTTPS (port 443) to proxy for CONNECT tunneling
-iptables -t nat -A TRAFFIC_REDIRECT -p tcp --dport 443 -j REDIRECT --to-ports "$PROXY_PORT"
-log "HTTPS traffic redirected to proxy"
-
-# Apply nat rules to OUTPUT chain
-iptables -t nat -I OUTPUT 1 -j TRAFFIC_REDIRECT
+# NAT redirect to proxy is intentionally omitted in default (locked) state.
+# network-enable.sh adds these rules when ALLOW_BUILD=1 is active,
+# and removes them when the build completes.
+# This prevents any tool from reaching the internet without explicit permission.
 
 # =============================================================================
 # BLOCK AND LOG RULES
@@ -154,9 +149,9 @@ iptables -t nat -I OUTPUT 1 -j TRAFFIC_REDIRECT
 # Log any traffic that gets here (bypass attempt)
 iptables -A TRAFFIC_ENFORCE -m limit --limit 10/min -j LOG --log-prefix "[BYPASS-ATTEMPT] " --log-level 4
 
-# Drop all other outbound traffic
-iptables -A TRAFFIC_ENFORCE -j DROP
-log "Unknown traffic blocked and logged"
+# Drop all other outbound traffic (use REJECT for fast failure instead of DROP which hangs)
+iptables -A TRAFFIC_ENFORCE -j REJECT --reject-with icmp-port-unreachable
+log "Unknown traffic rejected (fast fail)"
 
 # =============================================================================
 # APPLY CHAIN TO OUTPUT
@@ -165,13 +160,19 @@ log "Unknown traffic blocked and logged"
 # Insert our chain at the beginning of OUTPUT chain
 iptables -I OUTPUT 1 -j TRAFFIC_ENFORCE
 
-log "Traffic enforcement active!"
+log "Traffic enforcement active (LOCKED mode)!"
 log "Summary:"
-log "  - HTTP/HTTPS: Redirected to proxy:$PROXY_PORT"
+log "  - HTTP/HTTPS: BLOCKED (proxy explicitly blocked)"
+log "  - Proxy ($PROXY_IP): BLOCKED despite Docker network allow"
 log "  - SSH (port 22): Allowed directly"
 log "  - DNS: Filtered to trusted servers (8.8.8.8, 8.8.4.4, 1.1.1.1)"
 log "  - Llama server ($LLAMA_SERVER_HOST:$LLAMA_SERVER_PORT): Allowed"
+log "  - Docker internal (172.30.0.0/24): Allowed (except proxy)"
 log "  - All other traffic: Blocked and logged"
+log ""
+log "  To enable internet access:"
+log "    ALLOW_BUILD=1 <command>   (build wrappers enable automatically)"
+log "    make shell-unrestricted    (flushes all iptables rules)"
 
 # =============================================================================
 # FAIL-SAFE VERIFICATION

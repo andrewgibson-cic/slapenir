@@ -2,6 +2,15 @@
 # SLAPENIR Traffic Enforcement Initialization
 # Runs during container initialization to set up iptables rules
 # Container runs as root, so this script has root privileges
+#
+# DEFAULT STATE: Internet access is BLOCKED
+# - iptables blocks all outbound to proxy
+# - No NAT redirect rules applied
+# - Only internal services + local LLM accessible
+#
+# TO ENABLE INTERNET:
+# - ALLOW_BUILD=1 (build wrappers enable automatically)
+# - make shell-unrestricted (flushes all iptables rules)
 
 # Only run if traffic enforcement is enabled
 if [ "${TRAFFIC_ENFORCEMENT_ENABLED:-true}" != "true" ]; then
@@ -11,26 +20,22 @@ fi
 
 # Check if ALLOW_BUILD mode is enabled - bypass all restrictions for builds
 if [ "${ALLOW_BUILD:-}" = "1" ] || [ "${ALLOW_BUILD:-}" = "true" ]; then
-    echo "[traffic-init] ⚠️  ALLOW_BUILD mode enabled - traffic enforcement DISABLED"
-    echo "[traffic-init] ⚠️  Agent can connect directly to internet"
-    echo "[traffic-init] ⚠️  Use only for builds/tests, disable when done"
-    
-    # Unset proxy environment variables so tools connect directly
-    unset HTTP_PROXY
-    unset HTTPS_PROXY
-    unset http_proxy
-    unset https_proxy
-    unset NO_PROXY
-    unset no_proxy
-    
-    # Export to s6 environment for child processes
-    s6-env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u NO_PROXY -u no_proxy
-    
-    echo "[traffic-init] ✓ Proxy environment variables removed"
+    echo "[traffic-init] ALLOW_BUILD mode enabled - traffic enforcement DISABLED"
+    echo "[traffic-init] Flushing all iptables rules for unrestricted access"
+
+    iptables -F TRAFFIC_ENFORCE 2>/dev/null || true
+    iptables -X TRAFFIC_ENFORCE 2>/dev/null || true
+    iptables -t nat -F TRAFFIC_REDIRECT 2>/dev/null || true
+    iptables -t nat -X TRAFFIC_REDIRECT 2>/dev/null || true
+    iptables -t nat -D OUTPUT -j TRAFFIC_REDIRECT 2>/dev/null || true
+
+    unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy
+    s6-env -u HTTP_PROXY -u HTTPS_PROXY-u http_proxy -u https_proxy-u NO_PROXY-u no_proxy
+
+    echo "[traffic-init] Unrestricted network access enabled"
     exit 0
 fi
 
-echo "[traffic-init] Setting up traffic enforcement rules..."
+echo "[traffic-init] Setting up LOCKED traffic enforcement (internet blocked)..."
 
-# Run the traffic enforcement script (runs as root)
 exec /home/agent/scripts/traffic-enforcement.sh

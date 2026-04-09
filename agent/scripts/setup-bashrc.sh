@@ -1,66 +1,82 @@
 #!/bin/bash
-# Setup bashrc to automatically source .env file
 
-cat > /home/agent/.bashrc << 'EOF'
+cat > /home/agent/.bashrc << 'BASHEOF'
 # SLAPENIR Agent .bashrc
-# Auto-generated - automatically sources environment variables
 
-# Check for ALLOW_BUILD mode first (before sourcing .env)
-if [ "${ALLOW_BUILD:-}" = "1" ] || [ "${ALLOW_BUILD:-}" = "true" ]; then
-    echo "⚠️  ALLOW_BUILD mode enabled - bypassing proxy"
-    unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy
-    export ALLOW_BUILD=1
-    # Comment out proxy settings in gradle.properties
-    if [ -f /home/agent/.gradle/gradle.properties ]; then
-        sed -i 's|^\(systemProp\.http\.proxyHost=\)|#\1|' /home/agent/.gradle/gradle.properties
-        sed -i 's|^\(systemProp\.http\.proxyPort=\)|#\1|' /home/agent/.gradle/gradle.properties
-        sed -i 's|^\(systemProp\.https\.proxyHost=\)|#\1|' /home/agent/.gradle/gradle.properties
-        sed -i 's|^\(systemProp\.https\.proxyPort=\)|#\1|' /home/agent/.gradle/gradle.properties
-    fi
-fi
-
-# Source .env if it exists
 if [ -f /home/agent/.env ]; then
     set -a
     source /home/agent/.env
     set +a
 fi
 
-# Re-check ALLOW_BUILD after sourcing .env (in case it was set there)
-if [ "${ALLOW_BUILD:-}" = "1" ] || [ "${ALLOW_BUILD:-}" = "true" ]; then
-    unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy
-    # Comment out proxy settings in gradle.properties
-    if [ -f /home/agent/.gradle/gradle.properties ]; then
-        sed -i 's|^\(systemProp\.http\.proxyHost=\)|#\1|' /home/agent/.gradle/gradle.properties
-        sed -i 's|^\(systemProp\.http\.proxyPort=\)|#\1|' /home/agent/.gradle/gradle.properties
-        sed -i 's|^\(systemProp\.https\.proxyHost=\)|#\1|' /home/agent/.gradle/gradle.properties
-        sed -i 's|^\(systemProp\.https\.proxyPort=\)|#\1|' /home/agent/.gradle/gradle.properties
+_gradlew_real() {
+    local gradlew_script
+    if [ -f "./gradlew" ]; then
+        gradlew_script="./gradlew"
+    elif [ -f "gradlew" ]; then
+        gradlew_script="gradlew"
+    else
+        echo "ERROR: gradlew not found in current directory" >&2
+        return 1
     fi
-fi
 
-# Bash completion
+    if [ "${ALLOW_BUILD:-}" != "1" ] && [ "${GRADLE_ALLOW_BUILD:-}" != "1" ]; then
+        echo "BUILD TOOL BLOCKED: gradlew - Use: ALLOW_BUILD=1 gradlew <args>" >&2
+        return 1
+    fi
+
+    if ! netctl status >/dev/null 2>&1; then
+        netctl enable 2>/dev/null || true
+    fi
+
+    HTTP_PROXY="http://${BUILD_PROXY_HOST:-proxy}:${BUILD_PROXY_PORT:-3000}" \
+    HTTPS_PROXY="http://${BUILD_PROXY_HOST:-proxy}:${BUILD_PROXY_PORT:-3000}" \
+    NO_PROXY="localhost,127.0.0.1,proxy,postgres,memgraph,host.docker.internal" \
+    GRADLE_WRAPPER_OPTS="${GRADLE_WRAPPER_OPTS:--Dhttp.proxyHost=proxy -Dhttp.proxyPort=3000 -Dhttps.proxyHost=proxy -Dhttps.proxyPort=3000 -Dhttp.nonProxyHosts=localhost|127.0.0.1|proxy|postgres|host.docker.internal}" \
+    "$gradlew_script" $GRADLE_WRAPPER_OPTS "$@"
+    local exit_code=$?
+
+    netctl disable 2>/dev/null || true
+    return $exit_code
+}
+alias gradlew='_gradlew_real'
+
+net() {
+    local already_enabled=false
+    netctl status >/dev/null 2>&1 && already_enabled=true
+
+    if ! $already_enabled; then
+        netctl enable 2>/dev/null || true
+    fi
+
+    "$@"
+    local exit_code=$?
+
+    if ! $already_enabled; then
+        netctl disable 2>/dev/null || true
+    fi
+
+    return $exit_code
+}
+
 if [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
 fi
 
-# Colorful prompt
 PS1='\[\033[01;32m\]agent@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-
-# Useful aliases
 alias ll='ls -lah'
 alias python='python3'
 alias pip='pip3'
-
-# Environment info
 export EDITOR=vi
 export LANG=en_US.UTF-8
-
-# Git safe directories - use writable config location
 export GIT_CONFIG_GLOBAL=~/.config/git/config
 
-EOF
+if [ -f /home/agent/scripts/lib/allow-build-trap.sh ]; then
+    source /home/agent/scripts/lib/allow-build-trap.sh
+fi
+BASHEOF
 
 chmod 644 /home/agent/.bashrc
 chown agent:agent /home/agent/.bashrc 2>/dev/null || true
 
-echo "✅ .bashrc configured to auto-source .env"
+echo "✅ .bashrc configured"

@@ -19,11 +19,11 @@
         "TARGET_REPO_PATH": "/home/agent/workspace",
         "ORCHESTRATOR_PROVIDER": "openai",
         "ORCHESTRATOR_MODEL": "qwen3.5-35b-a3b-ud-q4_k_xl",
-        "ORCHESTRATOR_ENDPOINT": "http://host.docker.internal:6666/v1",
+        "ORCHESTRATOR_ENDPOINT": "http://host.docker.internal:8080/v1",
         "ORCHESTRATOR_API_KEY": "sk-local",
         "CYPHER_PROVIDER": "openai",
         "CYPHER_MODEL": "qwen3.5-35b-a3b-ud-q4_k_xl",
-        "CYPHER_ENDPOINT": "http://host.docker.internal:6666/v1",
+        "CYPHER_ENDPOINT": "http://host.docker.internal:8080/v1",
         "CYPHER_API_KEY": "sk-local",
         "MEMGRAPH_HOST": "memgraph",
         "MEMGRAPH_PORT": "7687"
@@ -248,7 +248,7 @@
       "npm": "@ai-sdk/openai-compatible",
       "name": "Local Llama Server",
       "options": {
-        "baseURL": "http://host.docker.internal:6666/v1"
+        "baseURL": "http://host.docker.internal:8080/v1"
       },
       "models": {
         "qwen3.5-35b-a3b-ud-q4_k_xl": {

@@ -2,7 +2,7 @@
 
 **Secure LLM Agent Proxy Environment with Network Isolation & Resilience (SLAPENIR)**
 
-**Version**: 1.9.1 | **Last Updated**: 2026-03-31
+**Version**: 1.9.6 | **Last Updated**: 2026-04-09
 
 ---
 
@@ -115,6 +115,16 @@ All three are fully air-gapped - no external API calls required at runtime.
 
 Build tools (gradle, mvn, npm, yarn, cargo, pip) are wrapped with security scripts that block execution by default. Explicit opt-in required via `ALLOW_BUILD=1` environment variable prefix.
 
+The network isolation model operates in three layers:
+
+1. **iptables (kernel level)**: Proxy is DROPped by default. Only internal services (Docker network, local LLM on port 8080) are reachable. The agent user controls iptables via `netctl`, a setuid binary compiled from `netctl.c`.
+
+2. **Build wrappers (application level)**: System binaries are shadowed with wrapper scripts that check for `ALLOW_BUILD=1`. When detected, the wrapper calls `netctl enable` to open proxy access, sets `HTTP_PROXY`/`HTTPS_PROXY`, runs the real tool, then calls `netctl disable`.
+
+3. **BASH_ENV trap (opencode level)**: `allow-build-trap.sh` is loaded via `BASH_ENV` for non-interactive shells spawned by opencode. A DEBUG trap detects `ALLOW_BUILD=1` prefixes on any command and temporarily enables network.
+
+Additionally, `make copy-cache TYPE=gradle|npm|pip|yarn|maven|all` copies the host machine's build caches into the container, enabling builds to resolve dependencies offline without needing `ALLOW_BUILD=1`.
+
 #### **2.2.5 Autonomous Development Flow**
 
 SLAPENIR provides a structured 5-phase workflow for AI-driven development:
@@ -186,7 +196,7 @@ sequenceDiagram
 | **Graph DB** | **Memgraph** | Neo4j | Memgraph is in-memory, faster for real-time code queries. No license restrictions. |
 | **Vector DB** | **LanceDB** | Chroma, Pinecone | LanceDB is embedded (no server), columnar storage, efficient for document embeddings. |
 | **Embeddings** | **all-MiniLM-L6-v2** | OpenAI embeddings | Local model, no API key required, air-gapped operation. |
-| **Process Isolation** | **Docker + iptables** | Kubernetes network policies | Simpler deployment, kernel-level enforcement, no K8s dependency. |
+| **Process Isolation** | **Docker + iptables + netctl** | Kubernetes network policies | Simpler deployment, kernel-level enforcement, setuid CAP_NET_ADMIN for agent user |
 
 ---
 
@@ -243,19 +253,26 @@ sequenceDiagram
 │ ├── Real credentials in .env                    │
 │ ├── SSH keys, GPG keys                          │
 │ ├── Git push authority                          │
+│ ├── llama-server on :8080 (local LLM)           │
 │ └── Final code review                           │
 ├─────────────────────────────────────────────────┤
 │ PROXY (Semi-Trusted)                            │
 │ ├── Holds real credential mapping               │
 │ ├── Memory-protected (Zeroize)                  │
 │ ├── Never exposes secrets to agent              │
-│ └── All traffic audited                         │
+│ ├── All traffic audited                         │
+│ └── BLOCKED by default in iptables              │
 ├─────────────────────────────────────────────────┤
 │ AGENT (Untrusted)                               │
 │ ├── DUMMY_* placeholders only                   │
-│ ├── No direct internet access                   │
+│ ├── No internet access (proxy BLOCKED)          │
+│ ├── Local LLM accessible (:8080)                │
 │ ├── Build tools blocked by default              │
-│ ├── iptables DROP on all non-proxy traffic      │
+│ ├── ALLOW_BUILD=1 enables proxy temporarily     │
+│ ├── netctl (setuid) for iptables control        │
+│ ├── BASH_ENV trap intercepts build commands     │
+│ ├── Node.js fetch patched (no web access)       │
+│ ├── curl/wget/webfetch denied in opencode.json  │
 │ └── Workspace reset between sessions            │
 └─────────────────────────────────────────────────┘
 ```

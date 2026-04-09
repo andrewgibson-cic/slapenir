@@ -551,7 +551,7 @@ slapenir-memgraph   running (healthy)   1.2.3.4:7687->7687/tcp
 |----------|---------|-------------|
 | `OPENCODE_DISABLE_CLAUDE_CODE` | `1` | Disable Claude Code (use local LLM) |
 | `LLAMA_SERVER_HOST` | `host.docker.internal` | LLM server hostname |
-| `LLAMA_SERVER_PORT` | `6666` | LLM server port |
+| `LLAMA_SERVER_PORT` | `8080` | LLM server port |
 
 #### Code-Graph-RAG Configuration
 
@@ -559,11 +559,11 @@ slapenir-memgraph   running (healthy)   1.2.3.4:7687->7687/tcp
 |----------|---------|-------------|
 | `ORCHESTRATOR_PROVIDER` | `openai` | Provider type (openai for compatibility) |
 | `ORCHESTRATOR_MODEL` | `qwen3.5-35b-a3b-ud-q4_k_xl` | Model name (ignored by llama-server) |
-| `ORCHESTRATOR_ENDPOINT` | `http://host.docker.internal:6666/v1` | LLM endpoint URL |
+| `ORCHESTRATOR_ENDPOINT` | `http://host.docker.internal:8080/v1` | LLM endpoint URL |
 | `ORCHESTRATOR_API_KEY` | `sk-local` | API key (dummy, ignored) |
 | `CYPHER_PROVIDER` | `openai` | Cypher query provider type |
 | `CYPHER_MODEL` | `qwen3.5-35b-a3b-ud-q4_k_xl` | Cypher query model name |
-| `CYPHER_ENDPOINT` | `http://host.docker.internal:6666/v1` | Cypher query LLM endpoint URL |
+| `CYPHER_ENDPOINT` | `http://host.docker.internal:8080/v1` | Cypher query LLM endpoint URL |
 | `CYPHER_API_KEY` | `sk-local` | Cypher query API key (dummy, ignored) |
 | `MEMGRAPH_HOST` | `memgraph` | Memgraph hostname |
 | `MEMGRAPH_PORT` | `7687` | Memgraph port |
@@ -1060,9 +1060,11 @@ docker compose exec proxy --help
 ### Network Isolation
 
 - Docker network segmentation (`slape-net`)
-- iptables traffic enforcement
+- iptables traffic enforcement with proxy **BLOCKED by default**
+- `ALLOW_BUILD=1` temporarily opens proxy for build commands only
 - DNS filtering (whitelist only)
-- Transparent proxy redirection
+- `netctl` setuid binary for controlled iptables manipulation
+- `make copy-cache` seeds host build caches for offline builds
 
 ### mTLS Authentication
 
@@ -1199,10 +1201,13 @@ git push origin fix/TICKET-123
 | `make up` | Start all services |
 | `make down` | Stop all services |
 | `make status` | Show service status |
-| `make shell` | Open agent shell (builds blocked) |
+| `make shell` | Open agent shell (builds blocked, no internet) |
+| `make shell-unrestricted` | Open shell with internet (flushes iptables) |
+| `make shell-raw` | Open raw shell bypassing all config |
 | `make copy-in REPO=... TICKETS=...` | Copy repo and tickets into container |
 | `make copy-out REPO=...` | Copy repo out with integrity check |
 | `make copy-out-safe REPO=...` | Same as copy-out but backs up host copy first |
+| `make copy-cache TYPE=gradle\|npm\|pip\|yarn\|maven\|all` | Copy host build caches for offline builds |
 | `make session-reset` | Clear workspace, MCP memory, and knowledge |
 | `make verify` | Run pre-flight security verification |
 | `make test` | Run all tests |
@@ -1286,9 +1291,9 @@ cd proxy/tests/load
 - MCP tools (Memory, Knowledge, Code-Graph-RAG) operational
 - Secure work process with session isolation
 
-**Version**: 1.9.1
+**Version**: 1.9.6
 
-**Last Updated**: 2026-03-29
+**Last Updated**: 2026-04-09
 
 ---
 

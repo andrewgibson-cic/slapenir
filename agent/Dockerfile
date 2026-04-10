@@ -32,13 +32,7 @@ RUN apk add --no-cache \
     cmake \
     ripgrep \
     openssl-dev \
-    netcat-openbsd && \
-    echo "127.0.0.1 models.dev" >> /etc/hosts && \
-    echo "127.0.0.1 api.opencode.ai" >> /etc/hosts && \
-    echo "127.0.0.1 download-cdn.jetbrains.com" >> /etc/hosts && \
-    echo "127.0.0.1 formulae.brew.sh" >> /etc/hosts && \
-    echo "127.0.0.1 community.chocolatey.org" >> /etc/hosts && \
-    echo "127.0.0.1 raw.githubusercontent.com" >> /etc/hosts
+    netcat-openbsd
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\

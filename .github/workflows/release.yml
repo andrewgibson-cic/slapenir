@@ -245,7 +245,14 @@ jobs:
     
     - name: Build agent image
       run: |
-        docker build -t slapenir-agent:${{ steps.version.outputs.version }} ./agent
+        docker build \
+          --add-host models.dev:127.0.0.1 \
+          --add-host api.opencode.ai:127.0.0.1 \
+          --add-host download-cdn.jetbrains.com:127.0.0.1 \
+          --add-host formulae.brew.sh:127.0.0.1 \
+          --add-host community.chocolatey.org:127.0.0.1 \
+          --add-host raw.githubusercontent.com:127.0.0.1 \
+          -t slapenir-agent:${{ steps.version.outputs.version }} ./agent
         docker tag slapenir-agent:${{ steps.version.outputs.version }} slapenir-agent:latest
     
     - name: Image info

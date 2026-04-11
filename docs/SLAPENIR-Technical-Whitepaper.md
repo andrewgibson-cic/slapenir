@@ -287,7 +287,7 @@ graph TB
     PROXY --> | Metrics :3000/metrics | PROM
     AGENT --> | Metrics :8000/metrics | PROM
     PROM --> | Datasource | GRAF
-    AGENT -.-> | "Direct (iptables ACCEPT)" | LLM
+    AGENT -.-> | Direct iptables ACCEPT | LLM
 
     style HOST fill:#27ae60,color:#fff
     style SLAPENET fill:#2c3e50,color:#fff
@@ -422,16 +422,16 @@ graph LR
         API["GitHub API<br/>OpenAI API<br/>AWS APIs<br/>Slack API"]
     end
 
-    AGENT --> | "Bolt :7687" | MG
-    AGENT --> | "SQL :5432" | PG
-    AGENT -.-> | "HTTP :3000<br/>(BLOCKED by default)" | PROXY
-    PROXY --> | "Authenticated<br/>HTTPS" | API
-    PROXY --> | "host.docker.internal" | LLM
-    AGENT --> | "host.docker.internal:8080<br/>(iptables ACCEPT)" | LLM
-    PROM --> | "Scrape :3000/metrics" | PROXY
-    PROM --> | "Scrape :8000/metrics" | AGENT
-    PROM --> | "Datasource" | GRAF
-    MGL --> | "Bolt :7687" | MG
+    AGENT --> | Bolt :7687 | MG
+    AGENT --> | SQL :5432 | PG
+    AGENT -.-> | HTTP :3000<br/>BLOCKED by default | PROXY
+    PROXY --> | Authenticated<br/>HTTPS | API
+    PROXY --> | host.docker.internal | LLM
+    AGENT --> | host.docker.internal:8080<br/>iptables ACCEPT | LLM
+    PROM --> | Scrape :3000/metrics | PROXY
+    PROM --> | Scrape :8000/metrics | AGENT
+    PROM --> | Datasource | GRAF
+    MGL --> | Bolt :7687 | MG
 
     linkStyle 2 stroke:#c0392b,stroke-dasharray: 5 5
     linkStyle 3 stroke:#27ae60
@@ -470,10 +470,10 @@ networks:
 
 ```mermaid
 graph TD
-    CA["step-ca<br/>(Phase 1)"] --> | "service_healthy" | PROXY["proxy<br/>(Phase 2)"]
-    PG["postgres<br/>(Phase 1)"] --> | "service_healthy" | PROXY
-    PROXY --> | "service_healthy" | AGENT["agent<br/>(Phase 3)"]
-    MG["memgraph<br/>(standalone)"] --> | "service_healthy" | MGL["memgraph-lab"]
+    CA["step-ca<br/>(Phase 1)"] --> | service_healthy | PROXY["proxy<br/>(Phase 2)"]
+    PG["postgres<br/>(Phase 1)"] --> | service_healthy | PROXY
+    PROXY --> | service_healthy | AGENT["agent<br/>(Phase 3)"]
+    MG["memgraph<br/>(standalone)"] --> | service_healthy | MGL["memgraph-lab"]
     AGENT --> PUMBA["pumba<br/>(chaos profile)"]
     PROXY --> PUMBA
     AGENT --> PROM["prometheus<br/>(logs profile)"]
@@ -687,11 +687,11 @@ proxy/src/
 flowchart TD
     REQ["Incoming Request"] --> CONNECT{"CONNECT<br/>method?"}
     
-    CONNECT --> | "Yes" | CM["ConnectMiddleware<br/>(outermost layer)"]
+    CONNECT --> | Yes | CM["ConnectMiddleware<br/>(outermost layer)"]
     CM --> PARSE["Parse destination<br/>host:port"]
     PARSE --> PORT{"Port 443/8443<br/>AND NOT<br/>ALLOW_BUILD?"}
-    PORT --> | "Yes" | MITM["Full TLS MITM<br/>connect_full.rs"]
-    PORT --> | "No" | PASS["Raw TCP Passthrough<br/>connect.rs"]
+    PORT --> | Yes | MITM["Full TLS MITM<br/>connect_full.rs"]
+    PORT --> | No | PASS["Raw TCP Passthrough<br/>connect.rs"]
     
     MITM --> TLS_HS["TLS Handshake<br/>(generated cert)"]
     TLS_HS --> HTTP_PARSE["HTTP Request Parse<br/>http_parser.rs"]
@@ -702,16 +702,16 @@ flowchart TD
     RESPONSE_M --> SANITIZE_M["Sanitize Response<br/>(body + headers)"]
     SANITIZE_M --> CLIENT_M["Send to client"]
     
-    CONNECT --> | "No" | TRACE["TraceLayer<br/>(logging)"]
+    CONNECT --> | No | TRACE["TraceLayer<br/>(logging)"]
     TRACE --> ROUTE{"Route matching"}
-    ROUTE --> | "/health" | HEALTH["health() → OK"]
-    ROUTE --> | "/metrics" | METRICS["metrics_handler()"]
-    ROUTE --> | "/" | ROOT["root() → Landing page"]
-    ROUTE --> | "/v1/*" | PROXY_H["proxy_handler()"]
+    ROUTE --> | /health | HEALTH["health() → OK"]
+    ROUTE --> | /metrics | METRICS["metrics_handler()"]
+    ROUTE --> | / | ROOT["root() → Landing page"]
+    ROUTE --> | /v1/* | PROXY_H["proxy_handler()"]
     
     PROXY_H --> BYPASS{"should_bypass_proxy?<br/>(localhost/127.0.0.1)"}
-    BYPASS --> | "Yes" | DIRECT["forward_directly()<br/>(no sanitization)"]
-    BYPASS --> | "No" | READ_REQ["Read body<br/>(size-limited: 10MB)"]
+    BYPASS --> | Yes | DIRECT["forward_directly()<br/>(no sanitization)"]
+    BYPASS --> | No | READ_REQ["Read body<br/>(size-limited: 10MB)"]
     READ_REQ --> INJ["secret_map.inject()<br/>(DUMMY → REAL)"]
     INJ --> TARGET["determine_target_url()<br/>(X-Target-URL / Host / env)"]
     TARGET --> FWD["hyper client<br/>→ upstream"]
@@ -739,20 +739,20 @@ The proxy loads credentials through a 4-stage priority pipeline:
 flowchart TD
     START["main()"] --> YAML{"config.yaml<br/>exists?"}
     
-    YAML --> | "Yes" | LOAD_YAML["Config::from_file()<br/>config.rs:166-179"]
-    YAML --> | "No" | AUTODETECT
+    YAML --> | Yes | LOAD_YAML["Config::from_file()<br/>config.rs:166-179"]
+    YAML --> | No | AUTODETECT
     
     LOAD_YAML --> BUILD["build_strategies_from_config()<br/>builder.rs:8-41"]
     BUILD --> AUTODETECT{"AUTO_DETECT_ENABLED?"}
     
-    AUTODETECT --> | "true" | DB["AutoDetector::scan()<br/>auto_detect.rs:108-191"]
-    AUTODETECT --> | "false" | MERGE
+    AUTODETECT --> | true | DB["AutoDetector::scan()<br/>auto_detect.rs:108-191"]
+    AUTODETECT --> | false | MERGE
     
     DB --> MERGE["merge_strategies()<br/>auto_detect.rs:430-449<br/>(manual wins over auto)"]
     MERGE --> HAS{"Has strategies?"}
     
-    HAS --> | "Yes" | SMAP["SecretMap::from_strategies()<br/>sanitizer.rs:200-270"]
-    HAS --> | "No" | FALLBACK["load_secrets_fallback()<br/>main.rs:267-322<br/>(hardcoded env vars)"]
+    HAS --> | Yes | SMAP["SecretMap::from_strategies()<br/>sanitizer.rs:200-270"]
+    HAS --> | No | FALLBACK["load_secrets_fallback()<br/>main.rs:267-322<br/>(hardcoded env vars)"]
     
     FALLBACK --> SMAP2["SecretMap::new()<br/>sanitizer.rs:46-77"]
     SMAP --> STATE["AppState::new()<br/>with SecretMap"]
@@ -792,9 +792,9 @@ graph LR
         MEMG["Memgraph<br/>:7687 (Bolt)"]
     end
 
-    OC --> | "memory_*" | MEM
-    OC --> | "knowledge_*" | KNOW
-    OC --> | "code-graph-rag_*" | CGR
+    OC --> | memory_* | MEM
+    OC --> | knowledge_* | KNOW
+    OC --> | code-graph-rag_* | CGR
     MEM --> SQL
     KNOW --> LDB
     CGR --> MEMG
@@ -1139,8 +1139,8 @@ flowchart TD
     
     SPAWN --> PORT{"Port 443/8443<br/>AND NOT ALLOW_BUILD?"}
     
-    PORT --> | "Yes<br/>(HTTPS interception)" | MITM["tunnel_with_tls_mitm_full()<br/>connect_full.rs"]
-    PORT --> | "No<br/>(ALLOW_BUILD=1 or non-HTTPS)" | PASS["tunnel_passthrough()<br/>connect.rs"]
+    PORT --> | Yes<br/>HTTPS interception | MITM["tunnel_with_tls_mitm_full()<br/>connect_full.rs"]
+    PORT --> | No<br/>ALLOW_BUILD=1 or non-HTTPS | PASS["tunnel_passthrough()<br/>connect.rs"]
     
     MITM --> TLS1["Load CA certificate<br/>(load_or_generate)"]
     TLS1 --> TLS2["Accept client TLS<br/>(MitmAcceptor generates cert)"]
@@ -1149,8 +1149,8 @@ flowchart TD
     
     LOOP --> READ_REQ["read_http_request()<br/>(8KB chunks, max 1MB)"]
     READ_REQ --> VALIDATE["detect_and_validate_strategies()<br/>Host whitelist check"]
-    VALIDATE --> | "Blocked" | SEC_ERR["SecurityViolation error"]
-    VALIDATE --> | "Passed" | INJECT["secret_map.inject()<br/>(body + headers)"]
+    VALIDATE --> | Blocked | SEC_ERR["SecurityViolation error"]
+    VALIDATE --> | Passed | INJECT["secret_map.inject()<br/>(body + headers)"]
     INJECT --> SERIALIZE["serialize_request()"]
     SERIALIZE --> FWD["Write to upstream TLS"]
     FWD --> READ_RESP["read_http_response()<br/>(8KB chunks, max 10MB)"]
@@ -1158,8 +1158,8 @@ flowchart TD
     SANITIZE --> SERIALIZE2["serialize_response()"]
     SERIALIZE2 --> SEND["Write to client TLS"]
     SEND --> CONN{"Connection: close?"}
-    CONN --> | "Yes" | DONE["Tunnel closed"]
-    CONN --> | "No" | LOOP
+    CONN --> | Yes | DONE["Tunnel closed"]
+    CONN --> | No | LOOP
     
     PASS --> COPY["Bidirectional copy<br/>(8KB buffers)"]
     COPY --> STATS["Log byte counts"]
@@ -1327,10 +1327,10 @@ DNS is tightly controlled through iptables to prevent DNS-based data exfiltratio
 flowchart LR
     AG["Agent DNS Query"] --> IPT{"iptables<br/>TRAFFIC_ENFORCE"}
     
-    IPT --> | "8.8.8.8:53<br/>ACCEPT" | G["Google DNS"]
-    IPT --> | "8.8.4.4:53<br/>ACCEPT" | G2["Google DNS (secondary)"]
-    IPT --> | "1.1.1.1:53<br/>ACCEPT" | CF["Cloudflare DNS"]
-    IPT --> | "*:53<br/>LOG + DROP" | LOG["[DNS-BLOCK] logged"]
+    IPT --> | 8.8.8.8:53<br/>ACCEPT | G["Google DNS"]
+    IPT --> | 8.8.4.4:53<br/>ACCEPT | G2["Google DNS (secondary)"]
+    IPT --> | 1.1.1.1:53<br/>ACCEPT | CF["Cloudflare DNS"]
+    IPT --> | *:53<br/>LOG + DROP | LOG["[DNS-BLOCK] logged"]
     LOG --> DROP["DROP"]
     
     style DROP fill:#c0392b,color:#fff
@@ -1675,8 +1675,8 @@ flowchart LR
         MAP["DUMMY_OPENAI → sk-proj-abc123<br/>DUMMY_GITHUB → ghp_real_token<br/>DUMMY_AWS_ACCESS → AKIA..."]
     end
 
-    REAL --> | "Mounted :ro<br/>Read by generate-dummy-env.sh" | DUMMY
-    REAL --> | "Loaded via env_file<br/>docker-compose.yml:133" | MAP
+    REAL --> | Mounted :ro<br/>Read by generate-dummy-env.sh | DUMMY
+    REAL --> | Loaded via env_file<br/>docker-compose.yml:133 | MAP
 
     style REAL fill:#c0392b,color:#fff
     style DUMMY fill:#27ae60,color:#fff
@@ -2085,7 +2085,7 @@ flowchart TD
     R5 --> | No | R6{"Port 22?"}
     R6 --> | Yes | ACCEPT5["ACCEPT"]
     R6 --> | No | R7{"Proxy IP?"}
-    R7 --> | "Yes" | DROP["DROP<br/>(DEFAULT BLOCK)"]
+    R7 --> | Yes | DROP["DROP<br/>(DEFAULT BLOCK)"]
     R7 --> | No | R8{"172.30.0.0/24?"}
     R8 --> | Yes | ACCEPT6["ACCEPT"]
     R8 --> | No | R9{"LLM host:port?"}
@@ -2965,13 +2965,13 @@ flowchart LR
         O["ghp_x7K... ... sk-proj-real"]
     end
 
-    Input --> | "Single pass, O(N)" | Automaton --> Output
+    Input --> | Single pass, ON | Automaton --> Output
 
     A0 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
     A6 --> A7
     A6 --> A8
-    A7 -.-> | "failure link" | AF
-    A8 -.-> | "failure link" | AF
+    A7 -.-> | failure link | AF
+    A8 -.-> | failure link | AF
 ```
 
 The Aho-Corasick automaton processes the input stream one byte at a time. At each position, it either advances along a trie edge or follows a precomputed failure link. When a match is reached, the replacement string is emitted instead of the matched pattern. The key property: the automaton scans the input exactly once, regardless of how many patterns are registered.
@@ -3116,8 +3116,8 @@ flowchart TB
         B8["build_response_headers()<br/>Recalculate Content-Length<br/>Remove ETag, Content-MD5"]
         B9["Return clean response<br/>to agent"]
         B1 --> B2 --> B3 --> B4 --> B5
-        B5 --> | "No" | B6
-        B5 --> | "Yes" | B7 --> B8 --> B9
+        B5 --> | No | B6
+        B5 --> | Yes | B7 --> B8 --> B9
     end
 
     style Outbound fill:#2980b9,color:#fff
@@ -3645,22 +3645,22 @@ flowchart TD
     OUTPUT --> TE["TRAFFIC_ENFORCE<br/>(position 1 in OUTPUT)"]
 
     TE --> R1{"Rule 1-2:<br/>Loopback / localhost?"}
-    R1 --> | "Yes" | A1["ACCEPT"]
-    R1 --> | "No" | R2{"Rule 3:<br/>ESTABLISHED,RELATED?"}
-    R2 --> | "Yes" | A2["ACCEPT"]
-    R2 --> | "No" | R3{"Rules 4-9:<br/>DNS to trusted servers?"}
-    R3 --> | "Yes" | A3["ACCEPT<br/>(8.8.8.8, 8.8.4.4, 1.1.1.1)"]
-    R3 --> | "No" | R4{"Rules 10-11:<br/>DNS to any other?"}
-    R4 --> | "Yes" | D1["LOG [DNS-BLOCK]<br/>+ DROP"]
-    R4 --> | "No" | R5{"Rule 12:<br/>TCP port 22?"}
-    R5 --> | "Yes" | A4["ACCEPT<br/>(SSH for git)"]
-    R5 --> | "No" | R6{"Rule 13:<br/>Proxy IP?"}
-    R6 --> | "Yes" | D2["DROP<br/>(proxy blocked)"]
-    R6 --> | "No" | R7{"Rule 14:<br/>172.30.0.0/24?"}
-    R7 --> | "Yes" | A5["ACCEPT<br/>(Docker network)"]
-    R7 --> | "No" | R8{"Rule 15:<br/>LLM host:port?"}
-    R8 --> | "Yes" | A6["ACCEPT<br/>(local inference)"]
-    R8 --> | "No" | LOG["Rule 16:<br/>LOG [BYPASS-ATTEMPT]<br/>(rate-limited 10/min)"]
+    R1 --> | Yes | A1["ACCEPT"]
+    R1 --> | No | R2{"Rule 3:<br/>ESTABLISHED,RELATED?"}
+    R2 --> | Yes | A2["ACCEPT"]
+    R2 --> | No | R3{"Rules 4-9:<br/>DNS to trusted servers?"}
+    R3 --> | Yes | A3["ACCEPT<br/>(8.8.8.8, 8.8.4.4, 1.1.1.1)"]
+    R3 --> | No | R4{"Rules 10-11:<br/>DNS to any other?"}
+    R4 --> | Yes | D1["LOG [DNS-BLOCK]<br/>+ DROP"]
+    R4 --> | No | R5{"Rule 12:<br/>TCP port 22?"}
+    R5 --> | Yes | A4["ACCEPT<br/>(SSH for git)"]
+    R5 --> | No | R6{"Rule 13:<br/>Proxy IP?"}
+    R6 --> | Yes | D2["DROP<br/>(proxy blocked)"]
+    R6 --> | No | R7{"Rule 14:<br/>172.30.0.0/24?"}
+    R7 --> | Yes | A5["ACCEPT<br/>(Docker network)"]
+    R7 --> | No | R8{"Rule 15:<br/>LLM host:port?"}
+    R8 --> | Yes | A6["ACCEPT<br/>(local inference)"]
+    R8 --> | No | LOG["Rule 16:<br/>LOG [BYPASS-ATTEMPT]<br/>(rate-limited 10/min)"]
     LOG --> REJ["Rule 17:<br/>REJECT (fast fail)"]
 
     style D2 fill:#c0392b,color:#fff
@@ -4210,15 +4210,15 @@ The build control system enforces network isolation through three independent la
 flowchart TD
     CMD["User/AI executes:<br/>gradle build"] --> L1{"Layer 1: OpenCode<br/>Permission Model"}
 
-    L1 --> | "deny (curl, wget, nc)" | BLOCK1["BLOCKED<br/>OpenCode deny rule"]
-    L1 --> | "deny (gradle, npm, pip)" | BLOCK2["BLOCKED<br/>OpenCode deny rule"]
-    L1 --> | "allow: ALLOW_BUILD=1 gradle" | L2{"Layer 2: Build Wrapper"}
-    L1 --> | "allow: curl (not in deny list)" | L2
+    L1 --> | deny curl, wget, nc | BLOCK1["BLOCKED<br/>OpenCode deny rule"]
+    L1 --> | deny gradle, npm, pip | BLOCK2["BLOCKED<br/>OpenCode deny rule"]
+    L1 --> | allow: ALLOW_BUILD=1 gradle | L2{"Layer 2: Build Wrapper"}
+    L1 --> | allow: curl not in deny list | L2
 
-    L2 --> | "Wrapper script<br/>on $PATH" | CHECK{"is_build_allowed()?"}
-    CHECK --> | "ALLOW_BUILD=1" | ALLOW["ALLOWED"]
-    CHECK --> | "OpenCode active<br/>+ no override" | BLOCK3["BLOCKED<br/>show_build_blocked_message()"]
-    CHECK --> | "Interactive shell<br/>+ no OpenCode" | ALLOW
+    L2 --> | Wrapper script<br/>on $PATH | CHECK{"is_build_allowed()?"}
+    CHECK --> | ALLOW_BUILD=1 | ALLOW["ALLOWED"]
+    CHECK --> | OpenCode active<br/>+ no override | BLOCK3["BLOCKED<br/>show_build_blocked_message()"]
+    CHECK --> | Interactive shell<br/>+ no OpenCode | ALLOW
 
     ALLOW --> NET{"netctl enable"}
     NET --> RULE["Insert ACCEPT<br/>before proxy DROP"]
@@ -4673,12 +4673,12 @@ graph TD
 
     AGENT["Client Certificate<br/>CN=agent.slapenir.local<br/>Signed by Intermediate CA<br/>Validity: 720h<br/>Used for: mTLS client"]
 
-    ROOT --> | "signs" | INT
-    INT --> | "signs" | PROXY
-    INT --> | "signs" | AGENT
+    ROOT --> | signs | INT
+    INT --> | signs | PROXY
+    INT --> | signs | AGENT
 
-    PROXY -.-> | "presents to agent" | VERIFY1["Agent verifies:<br/>proxy.crt → intermediate → root"]
-    AGENT -.-> | "presents to proxy" | VERIFY2["Proxy verifies:<br/>cert.pem → intermediate → root"]
+    PROXY -.-> | presents to agent | VERIFY1["Agent verifies:<br/>proxy.crt → intermediate → root"]
+    AGENT -.-> | presents to proxy | VERIFY2["Proxy verifies:<br/>cert.pem → intermediate → root"]
 
     style ROOT fill:#8e44ad,color:#fff
     style INT fill:#9b59b6,color:#fff
@@ -5017,12 +5017,12 @@ impl CertificateCache {
 flowchart TD
     CONNECT["CONNECT tunnel<br/>to api.github.com:443"] --> SNI["Extract SNI from ClientHello"]
     SNI --> CHECK{"Hostname in<br/>certificate cache?"}
-    CHECK --> | "Yes (cache hit)" | RETURN["Return cached<br/>HostCertificate"]
-    CHECK --> | "No (cache miss)" | GEN["Generate new certificate:<br/>CA.sign_for_host(hostname)"]
+    CHECK --> | Yes cache hit | RETURN["Return cached<br/>HostCertificate"]
+    CHECK --> | No cache miss | GEN["Generate new certificate:<br/>CA.sign_for_host(hostname)"]
 
     GEN --> EVICT{"Cache full?<br/>(>= 1000 entries)"}
-    EVICT --> | "Yes" | LRU["Evict LRU entry<br/>(oldest last_accessed)"]
-    EVICT --> | "No" | STORE
+    EVICT --> | Yes | LRU["Evict LRU entry<br/>(oldest last_accessed)"]
+    EVICT --> | No | STORE
     LRU --> STORE["Store in cache<br/>with current timestamp"]
     STORE --> RETURN
 
@@ -6668,8 +6668,8 @@ flowchart TD
     COPY --> HOSTSCAN["Host-side verification<br/>gitleaks detect<br/>trufflehog filesystem"]
     HOSTSCAN --> DIFF["Review diff<br/>git diff HEAD"]
     DIFF --> DECISION{"Accept changes?"}
-    DECISION --> | "Yes" | PUSH["git push origin branch"]
-    DECISION --> | "No" | RETRY["make copy-in<br/>Repeat from Phase 3"]
+    DECISION --> | Yes | PUSH["git push origin branch"]
+    DECISION --> | No | RETRY["make copy-in<br/>Repeat from Phase 3"]
     
     style SCAN fill:#e74c3c,color:#fff
     style HOSTSCAN fill:#e74c3c,color:#fff
@@ -6913,9 +6913,9 @@ flowchart TD
     PROM --> CA["step-ca<br/>:9000/metrics<br/>CA operational metrics"]
     PROM --> SELF["prometheus<br/>:9090/metrics<br/>Self-monitoring"]
 
-    PX --> | "HTTP requests<br/>Latency histograms<br/>Secret counts<br/>mTLS handshakes<br/>Certificate expiry" | PROM
-    AG --> | "iptables counters<br/>Bypass attempts<br/>Connection states<br/>Isolation status" | PROM
-    CA --> | "Certificate issuance<br/>Provisioner activity" | PROM
+    PX --> | HTTP requests<br/>Latency histograms<br/>Secret counts<br/>mTLS handshakes<br/>Certificate expiry | PROM
+    AG --> | iptables counters<br/>Bypass attempts<br/>Connection states<br/>Isolation status | PROM
+    CA --> | Certificate issuance<br/>Provisioner activity | PROM
 
     PROM --> GRAF["Grafana<br/>:3001<br/>Auto-provisioned datasources"]
     GRAF --> DASH1["SLAPENIR System Overview<br/>8 panels"]
@@ -7631,12 +7631,12 @@ flowchart LR
         MULTI["multiple_secrets<br/>5 counts (1-50 secrets)"]
     end
 
-    SAN --> | "Aho-Corasick<br/>text scan + replace" | OP1["O(N) linear scan"]
-    INJ --> | "Aho-Corasick<br/>dummy → real" | OP1
-    MAP --> | "Automaton build<br/>N patterns" | OP2["O(M) construction"]
-    BIN --> | "Binary-safe<br/>byte scan" | OP3["O(N) byte scan"]
-    NOMATCH --> | "Fast path<br/>no matches" | OP4["O(N) early exit"]
-    MULTI --> | "Scaling<br/>secret count" | OP5["O(N*M) worst case"]
+    SAN --> | Aho-Corasick<br/>text scan + replace | OP1["O(N) linear scan"]
+    INJ --> | Aho-Corasick<br/>dummy → real | OP1
+    MAP --> | Automaton build<br/>N patterns | OP2["O(M) construction"]
+    BIN --> | Binary-safe<br/>byte scan | OP3["O(N) byte scan"]
+    NOMATCH --> | Fast path<br/>no matches | OP4["O(N) early exit"]
+    MULTI --> | Scaling<br/>secret count | OP5["O(N*M) worst case"]
 
     style SAN fill:#3498db,color:#fff
     style INJ fill:#27ae60,color:#fff
@@ -8394,19 +8394,19 @@ flowchart TD
         L10["L10: Observability"]
     end
 
-    A1 --> | "blocked by" | L1
-    A1 --> | "blocked by" | L4
-    A1 --> | "blocked by" | L7
-    A2 --> | "blocked by" | L1
-    A2 --> | "blocked by" | L6
-    A3 --> | "blocked by" | L2
-    A3 --> | "blocked by" | L4
-    A3 --> | "blocked by" | L5
-    A3 --> | "blocked by" | L6
-    A3 --> | "blocked by" | L7
-    A4 --> | "blocked by" | L3
-    A4 --> | "blocked by" | L5
-    A4 --> | "blocked by" | L10
+    A1 --> | blocked by | L1
+    A1 --> | blocked by | L4
+    A1 --> | blocked by | L7
+    A2 --> | blocked by | L1
+    A2 --> | blocked by | L6
+    A3 --> | blocked by | L2
+    A3 --> | blocked by | L4
+    A3 --> | blocked by | L5
+    A3 --> | blocked by | L6
+    A3 --> | blocked by | L7
+    A4 --> | blocked by | L3
+    A4 --> | blocked by | L5
+    A4 --> | blocked by | L10
 
     style A1 fill:#e74c3c,color:#fff
     style A2 fill:#e67e22,color:#fff
@@ -9043,8 +9043,8 @@ flowchart LR
         EN3["Envoy Sidecar<br/>Lua/WASM filter<br/>Manual rule authoring<br/>No binary support"]
     end
 
-    SL1 --> | "Unique" | DIFF1["Only system where<br/>agent NEVER sees<br/>real credentials"]
-    SL3 --> | "Unique" | DIFF2["Only system with<br/>automatic credential<br/>removal from responses"]
+    SL1 --> | Unique | DIFF1["Only system where<br/>agent NEVER sees<br/>real credentials"]
+    SL3 --> | Unique | DIFF2["Only system with<br/>automatic credential<br/>removal from responses"]
 
     style SL1 fill:#27ae60,color:#fff
     style SL2 fill:#27ae60,color:#fff

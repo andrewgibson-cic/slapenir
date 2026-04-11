@@ -1,3 +1,10 @@
+## [1.11.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.11.0...v1.11.1) (2026-04-11)
+
+
+### Bug Fixes
+
+* quote mermaid label with parentheses in whitepaper section 2 ([3ebb6e7](https://github.com/andrewgibson-cic/slapenir/commit/3ebb6e7caff37c85f44cddb39bff80890cecf1b8))
+
 ## [1.10.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.9.5...v1.10.0) (2026-04-09)
 
 

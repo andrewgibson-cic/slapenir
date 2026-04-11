@@ -1,3 +1,10 @@
+## [1.11.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.11.1...v1.11.2) (2026-04-11)
+
+
+### Bug Fixes
+
+* remove quotes and parens from mermaid edge labels in whitepaper ([d3dcdc6](https://github.com/andrewgibson-cic/slapenir/commit/d3dcdc69da93c51dce22150e793ebd1c72e1425d))
+
 ## [1.11.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.11.0...v1.11.1) (2026-04-11)
 
 

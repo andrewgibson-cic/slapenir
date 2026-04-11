@@ -8,7 +8,7 @@
 
 ### Security Enhancements
 
-1. **Proxy Blocked by Default (v1.9.6)**
+1. **Proxy Blocked by Default (v1.10.0)**
    - iptables now explicitly DROPs traffic to proxy IP in LOCKED mode
    - Only `ALLOW_BUILD=1` temporarily opens proxy via `netctl enable`
    - Eliminates all passive network paths — proxy cannot be reached accidentally
@@ -17,11 +17,11 @@
    - BASH_ENV `allow-build-trap.sh` intercepts ALLOW_BUILD commands in non-interactive shells
    - Build cache seeding via `make copy-cache` enables offline builds without ALLOW_BUILD
 
-2. **N:1 Dummy-to-Real Mapping (v1.8.10)**
+3. **N:1 Dummy-to-Real Mapping (v1.8.10)**
    - Multiple DUMMY_* placeholders can map to a single real credential
    - Enables flexible credential management across services
 
-2. **Axum 0.8 Migration (v1.8.13)**
+4. **Axum 0.8 Migration (v1.8.13)**
    - Updated wildcard route syntax for improved security middleware
    - Better path handling prevents route-based bypass attempts
 
@@ -873,10 +873,9 @@ curl -X POST http://localhost:3000/test \
 ### Related Documentation
 
 - [Architecture Specification](./SLAPENIR_Architecture.md)
-- [mTLS Setup Guide](./mTLS_Setup.md)
+- [Technical Whitepaper](./SLAPENIR-Technical-Whitepaper.md)
 - [Security Policy](../SECURITY.md)
-- [Security Review](../.claude/docs/SECURITY-REVIEW.md)
 
 ---
 
-*Document Version: 1.1 | Last Updated: 2026-03-29 | Classification: Technical Reference*
+*Document Version: 1.2 | Last Updated: 2026-04-11 | Classification: Technical Reference*

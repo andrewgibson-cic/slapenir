@@ -1260,17 +1260,9 @@ cd proxy/tests/load
 
 ### Architecture and Design
 
-- [Architecture Overview](docs/SLAPENIR_Architecture.md) - System design
-- [Security Layers](docs/SECURITY_LAYERS.md) - Defense-in-depth analysis
-- [mTLS Setup](docs/mTLS_Setup.md) - Certificate management
-- [MCP Knowledge Server](docs/SLAPENIR_Architecture.md) - Embedding and knowledge graph configuration
-- [Backup Strategy](docs/BACKUP-STRATEGY.md) - Backup and disaster recovery
-- [Monitoring Stack](monitoring/README.md) - Prometheus and Grafana
-- [Agent Environment](agent/README.md) - Agent configuration
-- [Proxy Configuration](proxy/README.md) - Proxy setup
-- [Performance Targets](proxy/PERFORMANCE.md) - SLAs and metrics
-- [Load Testing](proxy/tests/load/README.md) - k6 load testing suite
-- [Mutation Testing](proxy/MUTATION_TESTING.md) - Mutation testing guide
+- [Architecture Overview](docs/SLAPENIR_Architecture.md) - System design and component architecture
+- [Security Layers](docs/SECURITY_LAYERS.md) - Defense-in-depth analysis (10 layers)
+- [Technical Whitepaper](docs/SLAPENIR-Technical-Whitepaper.md) - Full technical specification
 
 ### Contributing
 
@@ -1291,9 +1283,9 @@ cd proxy/tests/load
 - MCP tools (Memory, Knowledge, Code-Graph-RAG) operational
 - Secure work process with session isolation
 
-**Version**: 1.9.6
+**Version**: 1.10.0
 
-**Last Updated**: 2026-04-09
+**Last Updated**: 2026-04-11
 
 ---
 

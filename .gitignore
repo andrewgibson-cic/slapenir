@@ -2,25 +2,24 @@
 *.pem
 *.key
 *.crt
-!tests/fixtures/certs/*.crt  # Test certs are OK
+!tests/fixtures/certs/*.crt
 *.env
 .env.local
 .env.proxy
 .env.*.local
 secrets.json
-!tests/fixtures/tokens.json  # Dummy tokens only
+!tests/fixtures/tokens.json
 
-# Explicitly exclude CA secrets directory
 ca-data/secrets/
 ca-data/db/
 
-# Keep example environment files
 !.env.proxy.example
 !.env.example
+!.env.agent.example
 
 # === Rust ===
 target/
-Cargo.lock  # Include for binary projects
+Cargo.lock
 **/*.rs.bk
 *.pdb
 
@@ -40,7 +39,7 @@ build/
 *.log
 
 # === IDE ===
-.vscode/settings.json  # Local settings
+.vscode/settings.json
 .idea/
 *.swp
 *.swo
@@ -60,42 +59,44 @@ coverage/
 *.bak
 temp/
 
-# === Documentation (keep READMEs, ignore all other markdown) ===
-# Ignore all markdown files
+# === Documentation ===
 *.md
-# But keep all README files (case-insensitive pattern)
-!README*.md
-!readme*.md
-!Readme*.md
-# Keep CHANGELOG and similar important files
-!changeLog*.md
+
+!README.md
+!CHANGELOG.md
 !CONTRIBUTING.md
 !SECURITY.md
 !LICENSE
 
-# Keep agent configuration instructions
 !agent/config/*.md
 
-# Ignore docs directory contents
-docs/*
-# Explicitly exclude security audits
-*SECURITY_AUDIT*.md
-*.mdarxiv-cosci/
+!docs/SLAPENIR-Technical-Whitepaper.md
+!docs/SECURITY_LAYERS.md
+!docs/SLAPENIR_Architecture.md
 
-# MCP Memory databases (local only, not committed)
+# === Claude / AI workspace artifacts ===
+.claude/
+.cgr-hash-cache.json
+.worktree-session
+
+# === MCP Memory databases ===
 *.db
 mcp-memory/
 mcp-knowledge/
 
-# HuggingFace model cache (downloaded during build)
+# === HuggingFace model cache ===
 .cache/huggingface/
 
-# Bug fix documentation (development)
-.claude/docs/fix-agent-log-directory-empty
+# === Build artifacts ===
+.ruff_cache/
 
-# Explicitly exclude security audits
-*security-audit*.md
-*.mdarxiv-cosci
-//
-.claude/docs/fix-agent-container-network-access/
-.claude/docs/fix-semantic-release-version-stuck/
+# === One-off scripts not for production ===
+csv_to_markdown.py
+convert_to_md.py
+split_csv.py
+improve-prompt*.md
+test-*.sh
+diagnose-*.sh
+run-shell.sh
+quickstart.sh
+slapenir

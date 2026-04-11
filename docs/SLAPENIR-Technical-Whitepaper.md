@@ -918,14 +918,14 @@ sequenceDiagram
     PG-->>PX: postgres healthy
     Host->>PX: Phase 2: Start proxy
     activate PX
-    Note over PX: Load .env (real credentials)<br/>Connect to postgres for auto-detect<br/>Build SecretMap (Aho-Corasick automatons)<br/>Load mTLS certs from /certs/
+    Note over PX: Load .env real credentials<br/>Connect to postgres for auto-detect<br/>Build SecretMap Aho-Corasick automatons<br/>Load mTLS certs from /certs/
     PX->>PX: Health: curl localhost:3000/health (10s start)
 
     PX-->>AG: proxy healthy
     Host->>AG: Phase 3: Start agent
     activate AG
-    Note over AG: cont-init.d (as root):<br/>  00-fix-permissions<br/>  01-traffic-enforcement (iptables LOCKED)<br/>  02-populate-huggingface-cache
-    Note over AG: s6-rc.d (as agent user):<br/>  env-init → env-dummy-init → bash-init<br/>  git-init → gpg-init → build-config<br/>  startup-validation (9 tests)<br/>  agent-svc (longrun)
+    Note over AG: cont-init.d as root:<br/>  00-fix-permissions<br/>  01-traffic-enforcement iptables LOCKED<br/>  02-populate-huggingface-cache
+    Note over AG: s6-rc.d as agent user:<br/>  env-init → env-dummy-init → bash-init<br/>  git-init → gpg-init → build-config<br/>  startup-validation 9 tests<br/>  agent-svc longrun
 
     Note over Host: --profile logs
     Host->>PROM: Phase 6: Start prometheus
@@ -1027,7 +1027,7 @@ sequenceDiagram
     AG->>IPT: HTTP request to proxy:3000
     IPT->>PX: ACCEPT (proxy port opened)
     
-    Note over PX: proxy_handler() invoked
+    Note over PX: proxy_handler invoked
     PX->>PX: Read body (size limit: 10MB)
     PX->>PX: secret_map.inject(body)<br/>DUMMY_GITHUB → ghp_real_token
     PX->>PX: Determine target URL<br/>(X-Target-URL → Host → OPENAI_API_URL)
@@ -1288,7 +1288,7 @@ sequenceDiagram
     participant PX as Proxy :3000
     participant PG as PostgreSQL :5432
 
-    Note over PX: Startup: AutoDetector::new()<br/>Creates PgPool (max 5 connections)
+    Note over PX: Startup: AutoDetector::new<br/>Creates PgPool max 5 connections
     PX->>PG: SELECT * FROM api_definitions<br/>WHERE env_vars && $1
     PG-->>PX: Matching API definitions<br/>(name, strategy_type, env_vars, allowed_hosts)
     Note over PX: Build AuthStrategy objects<br/>from results
@@ -1448,7 +1448,7 @@ sequenceDiagram
     AG->>NAT: HTTPS CONNECT to repo.maven.apache.org:443
     Note over NAT: Rule: -p tcp --dport 443<br/>REDIRECT --to-ports 3000
     NAT->>PX: Redirected to localhost:3000
-    Note over PX: ALLOW_BUILD=1 → passthrough mode<br/>(no TLS MITM)
+    Note over PX: ALLOW_BUILD=1 → passthrough mode<br/>no TLS MITM
     PX->>EXT: Raw TCP relay
 ```
 
@@ -1985,11 +1985,11 @@ Memory-based credential extraction through core dumps, `/proc/self/mem` reads, u
 ```mermaid
 stateDiagram-v2
     [*] --> Load: Proxy startup
-    Load --> Active: env var → String → SecretMap
-    Active --> InUse: inject() / sanitize()
+    Load --> Active: env var to String to SecretMap
+    Active --> InUse: inject / sanitize
     InUse --> Transit: TLS 1.3 encryption
     Transit --> Cleanup: Request complete
-    Cleanup --> Zeroized: Drop trait → zeroize::zeroize()
+    Cleanup --> Zeroized: Drop trait calls zeroize
     Zeroized --> Verified: Memory overwritten with zeros
     Verified --> [*]: No forensic recovery possible
 ```
@@ -2589,16 +2589,16 @@ stateDiagram-v2
     Stage1_Config --> Stage2_AutoDetect: Parse strategies from YAML
     Stage1_Config --> Stage2_AutoDetect: config.yaml not found
 
-    Stage2_AutoDetect: Stage 2: Auto-Detect (PostgreSQL)
+    Stage2_AutoDetect: Stage 2: Auto-Detect - PostgreSQL
     Stage2_AutoDetect --> Stage3_Merge: Detected APIs match env vars
     Stage2_AutoDetect --> Stage4_Fallback: No APIs detected or DB unavailable
 
     Stage3_Merge: Stage 3: Merge
     Stage3_Merge --> BuildSecretMap: Manual + auto-detected strategies combined
 
-    Stage4_Fallback: Stage 4: Fallback (hardcoded env vars)
+    Stage4_Fallback: Stage 4: Fallback - hardcoded env vars
     Stage4_Fallback --> BuildSecretMap: OPENAI_API_KEY, ANTHROPIC_API_KEY, GITHUB_TOKEN, API_KEY
-    Stage4_Fallback --> [*]: No credentials found (error)
+    Stage4_Fallback --> [*]: No credentials found error
 
     BuildSecretMap: Build SecretMap
     BuildSecretMap --> [*]: Aho-Corasick automatons ready
@@ -5599,14 +5599,14 @@ memgraph-verify, metrics, ollama-verify, runtime-monitor, startup-validation
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Starting: /init (s6-overlay)
+    [*] --> Starting: /init s6-overlay
     
     Starting --> ContInit: Phase 1
-    ContInit --> S6RC: Phase 2 (oneshot services)
-    S6RC --> Longrun: Phase 3 (supervised daemons)
+    ContInit --> S6RC: Phase 2 oneshot services
+    S6RC --> Longrun: Phase 3 supervised daemons
     
     Longrun --> Running: All services healthy
-    Running --> Crash: Process exits (non-zero)
+    Running --> Crash: Process exits non-zero
     Crash --> Restart: Exit code 1-99
     Crash --> FatalStop: Exit code >= 100
     Running --> CleanStop: Exit code 0 or SIGTERM
@@ -6290,7 +6290,7 @@ sequenceDiagram
     participant MG as memgraph :7687
 
     rect rgb(230, 240, 255)
-        Note over HOST,LLM: Phase 1: Preparation (Host)
+        Note over HOST,LLM: Phase 1: Preparation Host
         HOST->>HOST: git clone repo
         HOST->>HOST: export tickets to markdown
         HOST->>HOST: git stash (clean state)
@@ -6311,7 +6311,7 @@ sequenceDiagram
     end
 
     rect rgb(255, 240, 230)
-        Note over AG,LLM: Phase 3: AI Work (Inside Container)
+        Note over AG,LLM: Phase 3: AI Work Inside Container
         HOST->>AG: make shell
         AG->>AG: cgr start (index repo in Memgraph)
         AG->>AG: git checkout -b fix/TICKET-123
@@ -6777,7 +6777,7 @@ stateDiagram-v2
     Scanning --> Failed: Secrets detected
     Failed --> Working: Fix and retry
     
-    Pushing --> Working: Next ticket (Phase 3)
+    Pushing --> Working: Next ticket Phase 3
     Pushing --> Cleanup: All tickets done
     Working --> Cleanup: Session reset
     Cleanup --> Ready: make session-reset

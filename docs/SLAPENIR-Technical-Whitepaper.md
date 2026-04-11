@@ -287,7 +287,7 @@ graph TB
     PROXY --> | Metrics :3000/metrics | PROM
     AGENT --> | Metrics :8000/metrics | PROM
     PROM --> | Datasource | GRAF
-    AGENT -.-> | Direct (iptables ACCEPT) | LLM
+    AGENT -.-> | "Direct (iptables ACCEPT)" | LLM
 
     style HOST fill:#27ae60,color:#fff
     style SLAPENET fill:#2c3e50,color:#fff

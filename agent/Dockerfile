@@ -32,7 +32,8 @@ RUN apk add --no-cache \
     cmake \
     ripgrep \
     openssl-dev \
-    netcat-openbsd
+    netcat-openbsd \
+    jq
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\

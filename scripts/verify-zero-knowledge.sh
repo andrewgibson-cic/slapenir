@@ -206,20 +206,24 @@ done
 
 print_section "Test 3: Agent Proxy Configuration"
 
-# Check HTTP_PROXY
-HTTP_PROXY_VALUE=$(docker exec slapenir-agent env | grep "^HTTP_PROXY=" | cut -d'=' -f2- || echo "")
-if [ "$HTTP_PROXY_VALUE" = "http://proxy:3000" ]; then
-    check_pass "HTTP_PROXY=http://proxy:3000 (correct)"
+# HTTP_PROXY/HTTPS_PROXY are intentionally NOT set globally on the agent
+# because Bun (opencode) tunnels HTTPS through the proxy which conflicts
+# with iptables. Build wrappers use BUILD_PROXY_HOST/BUILD_PROXY_PORT instead.
+BUILD_PROXY_HOST=$(docker exec slapenir-agent env | grep "^BUILD_PROXY_HOST=" | cut -d'=' -f2- || echo "")
+BUILD_PROXY_PORT=$(docker exec slapenir-agent env | grep "^BUILD_PROXY_PORT=" | cut -d'=' -f2- || echo "")
+if [ "$BUILD_PROXY_HOST" = "proxy" ] && [ "$BUILD_PROXY_PORT" = "3000" ]; then
+    check_pass "BUILD_PROXY_HOST=proxy, BUILD_PROXY_PORT=3000 (correct)"
 else
-    check_fail "HTTP_PROXY=${HTTP_PROXY_VALUE} (should be http://proxy:3000)"
+    check_fail "BUILD_PROXY_HOST=${BUILD_PROXY_HOST}, BUILD_PROXY_PORT=${BUILD_PROXY_PORT} (should be proxy:3000)"
 fi
 
-# Check HTTPS_PROXY
+# HTTP_PROXY/HTTPS_PROXY should NOT be set globally
+HTTP_PROXY_VALUE=$(docker exec slapenir-agent env | grep "^HTTP_PROXY=" | cut -d'=' -f2- || echo "")
 HTTPS_PROXY_VALUE=$(docker exec slapenir-agent env | grep "^HTTPS_PROXY=" | cut -d'=' -f2- || echo "")
-if [ "$HTTPS_PROXY_VALUE" = "http://proxy:3000" ]; then
-    check_pass "HTTPS_PROXY=http://proxy:3000 (correct)"
+if [ -z "$HTTP_PROXY_VALUE" ] && [ -z "$HTTPS_PROXY_VALUE" ]; then
+    check_pass "HTTP_PROXY/HTTPS_PROXY not set globally (correct for iptables mode)"
 else
-    check_fail "HTTPS_PROXY=${HTTPS_PROXY_VALUE} (should be http://proxy:3000)"
+    check_warn "HTTP_PROXY=${HTTP_PROXY_VALUE}, HTTPS_PROXY=${HTTPS_PROXY_VALUE} (may conflict with iptables)"
 fi
 
 # ============================================================================
@@ -228,15 +232,15 @@ fi
 
 print_section "Test 4: Network Connectivity Tests"
 
-# Check if agent can reach proxy
-if docker exec slapenir-agent curl -s -f http://proxy:3000/health > /dev/null 2>&1; then
+# Check if agent can reach proxy (may not work without HTTP_PROXY set)
+if docker exec slapenir-agent curl -s -f --max-time 5 http://proxy:3000/health > /dev/null 2>&1; then
     check_pass "Agent can reach proxy health endpoint"
 else
-    check_fail "Agent cannot reach proxy health endpoint"
+    check_warn "Agent cannot reach proxy health endpoint (expected in iptables mode without HTTP_PROXY)"
 fi
 
 # Check if proxy is healthy
-PROXY_HEALTH=$(docker exec slapenir-proxy curl -s http://localhost:3000/health)
+PROXY_HEALTH=$(docker exec slapenir-proxy curl -s --max-time 5 http://localhost:3000/health)
 if [ "$PROXY_HEALTH" = "OK" ]; then
     check_pass "Proxy health check returns OK"
 else

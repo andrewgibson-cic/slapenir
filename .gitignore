@@ -74,6 +74,9 @@ temp/
 !docs/SECURITY_LAYERS.md
 !docs/SLAPENIR_Architecture.md
 
+# === SLAPENIR session state ===
+.slapenir-session
+
 # === Claude / AI workspace artifacts ===
 .claude/
 .cgr-hash-cache.json
@@ -99,4 +102,3 @@ test-*.sh
 diagnose-*.sh
 run-shell.sh
 quickstart.sh
-slapenir

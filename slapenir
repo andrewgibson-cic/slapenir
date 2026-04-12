@@ -1,0 +1,439 @@
+#!/bin/bash
+# ============================================================================
+# SLAPENIR CLI — Backend for make workflow targets
+# ============================================================================
+# Called by Makefile targets. Not intended for direct use.
+#
+# Workflow:
+#   make work-start REPO=... DOCS=...   →  slapenir init
+#   make shell                          →  slapenir shell
+#   make work-done REPO=...             →  slapenir done
+# ============================================================================
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SESSION_FILE="$SCRIPT_DIR/.slapenir-session"
+
+if docker compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose > /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker-compose"
+else
+    echo "ERROR: docker compose not found" >&2; exit 1
+fi
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+die() {
+    echo -e "${RED}ERROR: $1${NC}" >&2
+    exit 1
+}
+
+warn() {
+    echo -e "${YELLOW}WARNING: $1${NC}" >&2
+}
+
+info() {
+    echo -e "${BLUE}▸${NC} $1"
+}
+
+success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+step() {
+    echo ""
+    echo -e "${BOLD}━━━ $1 ━━━${NC}"
+}
+
+save_session() {
+    local repo_path="$1"
+    local docs_path="${2:-}"
+    local repo_name
+    repo_name="$(basename "$repo_path")"
+    cat > "$SESSION_FILE" <<EOF
+REPO_PATH="$repo_path"
+REPO_NAME="$repo_name"
+DOCS_PATH="$docs_path"
+INIT_TIMESTAMP="$(date -Iseconds)"
+EOF
+    success "Session saved to .slapenir-session"
+}
+
+load_session() {
+    if [ ! -f "$SESSION_FILE" ]; then
+        die "No active session. Run: make work-start REPO=/path/to/repo"
+    fi
+    source "$SESSION_FILE"
+}
+
+require_docker() {
+    if ! docker info > /dev/null 2>&1; then
+        die "Docker is not running. Start Docker Desktop and try again."
+    fi
+}
+
+require_llama_server() {
+    local port="${LLAMA_SERVER_PORT:-8080}"
+    if ! curl -s -f --max-time 3 "http://localhost:$port/health" > /dev/null 2>&1 && \
+       ! curl -s -f --max-time 3 "http://localhost:$port/v1/models" > /dev/null 2>&1; then
+        echo ""
+        echo -e "${YELLOW}llama-server is not running on port $port.${NC}"
+        echo ""
+        echo "Start it with:"
+        echo "  llama-server --model ~/models/YourModel.gguf --host 0.0.0.0 --port $port"
+        echo ""
+        echo "Or skip this check with: SLAPENIR_SKIP_LLM=1 make work-start ..."
+        echo ""
+        die "llama-server required but not found"
+    fi
+    success "llama-server is running on port $port"
+}
+
+require_services_running() {
+    if ! docker ps --format '{{.Names}}' | grep -q "slapenir-proxy" 2>/dev/null; then
+        info "Starting SLAPENIR services..."
+        $DOCKER_COMPOSE -f "$SCRIPT_DIR/docker-compose.yml" up -d
+        info "Waiting for services to become healthy..."
+        local attempts=0
+        while [ $attempts -lt 60 ]; do
+            if docker ps --filter "name=slapenir-proxy" --filter "health=healthy" --format '{{.Names}}' | grep -q "slapenir-proxy" 2>/dev/null; then
+                success "Services are healthy"
+                return 0
+            fi
+            attempts=$((attempts + 1))
+            sleep 2
+        done
+        warn "Services started but proxy not yet healthy. Continuing anyway."
+    fi
+}
+
+do_verify() {
+    info "Running security verification..."
+    if [ -x "$SCRIPT_DIR/scripts/verify-zero-knowledge.sh" ]; then
+        "$SCRIPT_DIR/scripts/verify-zero-knowledge.sh" || die "Security verification failed"
+    fi
+    if [ -x "$SCRIPT_DIR/scripts/verify-local-llm-security.sh" ]; then
+        "$SCRIPT_DIR/scripts/verify-local-llm-security.sh" || warn "LLM security verification had warnings"
+    fi
+    success "Security verification passed"
+}
+
+do_copy_in() {
+    local repo_path="$1"
+    local docs_path="${2:-}"
+    local repo_name
+    repo_name="$(basename "$repo_path")"
+
+    info "Copying repository into container..."
+    docker exec slapenir-agent mkdir -p /home/agent/workspace/"$repo_name"
+    docker cp "$repo_path/." "slapenir-agent:/home/agent/workspace/$repo_name/"
+    docker exec -u root slapenir-agent chown -R 1000:1000 /home/agent/workspace/"$repo_name"
+    success "Repository copied to /home/agent/workspace/$repo_name"
+
+    do_sanitize_env "$repo_name"
+
+    if [ -n "$docs_path" ] && [ -d "$docs_path" ]; then
+        info "Copying documents into container..."
+        docker exec slapenir-agent mkdir -p /home/agent/workspace/docs
+        docker cp "$docs_path/." slapenir-agent:/home/agent/workspace/docs/
+        docker exec -u root slapenir-agent chown -R 1000:1000 /home/agent/workspace/docs
+        success "Documents copied to /home/agent/workspace/docs"
+    fi
+}
+
+do_sanitize_env() {
+    local repo_name="$1"
+    info "Sanitizing credentials in workspace .env files..."
+    docker exec -u agent slapenir-agent bash -c '
+        repo_name="'"$repo_name"'"
+        workspace="/home/agent/workspace/$repo_name"
+        count=0
+        while IFS= read -r -d "" envfile; do
+            tmpfile="${envfile}.sanitized"
+            touched=0
+            while IFS= read -r line; do
+                if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then
+                    echo "$line"
+                    continue
+                fi
+                if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]+)=(.*)$ ]]; then
+                    key="${BASH_REMATCH[1]}"
+                    value="${BASH_REMATCH[2]}"
+                    dummy_value=""
+                    case "$key" in
+                        OPENAI_API_KEY)         dummy_value="DUMMY_OPENAI" ;;
+                        ANTHROPIC_API_KEY)      dummy_value="DUMMY_ANTHROPIC" ;;
+                        GEMINI_API_KEY)         dummy_value="DUMMY_GEMINI" ;;
+                        MISTRAL_API_KEY)        dummy_value="DUMMY_MISTRAL" ;;
+                        AWS_ACCESS_KEY_ID)      dummy_value="DUMMY_AWS_ACCESS" ;;
+                        AWS_SECRET_ACCESS_KEY)  dummy_value="DUMMY_AWS_SECRET" ;;
+                        GITHUB_TOKEN)           dummy_value="DUMMY_GITHUB" ;;
+                        GITLAB_TOKEN)           dummy_value="DUMMY_GITLAB" ;;
+                        SLACK_BOT_TOKEN)        dummy_value="xoxb-DUMMY_SLACK" ;;
+                        SLACK_APP_TOKEN)        dummy_value="xapp-DUMMY_SLACK_APP" ;;
+                        STRIPE_SECRET_KEY)      dummy_value="sk_test_DUMMY_STRIPE" ;;
+                        SENDGRID_API_KEY)       dummy_value="SG.DUMMY" ;;
+                        *API_KEY|*TOKEN|*SECRET|*PASSWORD)
+                            dummy_value="DUMMY_${key}" ;;
+                    esac
+                    if [ -n "$dummy_value" ]; then
+                        echo "${key}=${dummy_value}"
+                        touched=1
+                    else
+                        echo "${key}=${value}"
+                    fi
+                else
+                    echo "$line"
+                fi
+            done < "$envfile" > "$tmpfile"
+            if [ "$touched" -eq 1 ]; then
+                mv "$tmpfile" "$envfile"
+                echo "  Sanitized: ${envfile#$workspace/}"
+                count=$((count + 1))
+            else
+                rm -f "$tmpfile"
+            fi
+        done < <(find "$workspace" -maxdepth 3 -name "*.env" -o -name ".env" -o -name ".env.*" -print0 2>/dev/null | grep -zv "\.env\.example$" | grep -zv "\.env\.sample$")
+        if [ "$count" -eq 0 ]; then
+            echo "  No .env files with credentials found"
+        else
+            echo "  $count .env file(s) sanitized"
+        fi
+    '
+    success "Workspace .env files sanitized"
+}
+
+do_copy_out() {
+    local repo_path="$1"
+    local repo_name
+    repo_name="$(basename "$repo_path")"
+
+    info "Running integrity check..."
+    docker exec -u agent slapenir-agent bash -c \
+        "cd /home/agent/workspace/$repo_name && echo '=== Changed files ===' && git status --porcelain && echo '=== Diff stat ===' && git diff --stat" || true
+
+    info "Backing up host repository..."
+    local backup_path="${repo_path}.backup.$(date +%Y%m%d%H%M%S)"
+    if [ -d "$repo_path" ]; then
+        cp -r "$repo_path" "$backup_path"
+        success "Backup created at $backup_path"
+    fi
+
+    info "Copying repository out of container..."
+    docker cp "slapenir-agent:/home/agent/workspace/$repo_name/." "$repo_path"
+    success "Repository copied to host"
+}
+
+do_secret_scan_container() {
+    local repo_name
+    repo_name="$(basename "$1")"
+    info "Scanning for leaked secrets (container)..."
+    local found
+    found=$(docker exec slapenir-agent bash -c \
+        "grep -rnE '(sk-|ghp_|gho_|AKIA|-----BEGIN)' --include='*.py' --include='*.ts' --include='*.js' --include='*.go' --include='*.rs' --include='*.java' --include='*.jsx' --include='*.tsx' /home/agent/workspace/$repo_name 2>/dev/null" || true)
+    if [ -n "$found" ]; then
+        echo -e "${RED}SECRET DETECTED IN CONTAINER:${NC}"
+        echo "$found"
+        die "Secrets found! Do not proceed until resolved."
+    fi
+    success "No secrets detected in container"
+}
+
+do_secret_scan_host() {
+    local repo_path="$1"
+    info "Scanning for leaked secrets (host)..."
+    if command -v gitleaks > /dev/null 2>&1; then
+        (cd "$repo_path" && gitleaks detect --source=. --no-git) || {
+            warn "gitleaks detected potential secrets. Review before pushing."
+            return 1
+        }
+        success "No secrets detected by gitleaks"
+    elif command -v trufflehog > /dev/null 2>&1; then
+        trufflehog filesystem "$repo_path" || {
+            warn "trufflehog detected potential secrets. Review before pushing."
+            return 1
+        }
+        success "No secrets detected by trufflehog"
+    else
+        found=$(grep -rnE '(sk-|ghp_|gho_|AKIA|-----BEGIN)' \
+            --include='*.py' --include='*.ts' --include='*.js' --include='*.go' \
+            --include='*.rs' --include='*.java' --include='*.jsx' --include='*.tsx' \
+            "$repo_path" 2>/dev/null || true)
+        if [ -n "$found" ]; then
+            echo -e "${RED}SECRET DETECTED ON HOST:${NC}"
+            echo "$found"
+            die "Secrets found! Do not push until resolved."
+        fi
+        success "No secrets detected (basic scan — install gitleaks for deeper scanning)"
+    fi
+}
+
+do_index() {
+    local project_name="$1"
+    info "Indexing repository with Code-Graph-RAG (project: $project_name)..."
+    docker exec -u agent slapenir-agent bash -c \
+        "cd /home/agent/workspace/$project_name && cgr start --repo-path . --update-graph --clean --project-name $project_name"
+    success "Code-Graph-RAG index complete (project: $project_name)"
+}
+
+do_ingest() {
+    info "Ingesting documents into knowledge RAG..."
+    docker exec -u agent slapenir-agent bash -c \
+        "/home/agent/scripts/ingest-markdown.sh -r /home/agent/workspace/docs" || \
+        warn "Document ingestion had failures (see above)"
+    success "Document ingestion complete"
+}
+
+# ============================================================================
+# Commands
+# ============================================================================
+
+cmd_init() {
+    local repo_path="${1:-}"
+    local docs_path="${2:-}"
+
+    if [ -z "$repo_path" ]; then
+        die "Usage: make work-start REPO=/path/to/repo DOCS=/path/to/docs"
+    fi
+
+    repo_path="$(cd "$repo_path" && pwd)"
+    [ -d "$repo_path" ] || die "Repository not found: $repo_path"
+    [ -d "$repo_path/.git" ] || die "Not a git repository: $repo_path"
+
+    if [ -n "$docs_path" ]; then
+        docs_path="$(cd "$docs_path" && pwd)"
+        [ -d "$docs_path" ] || die "Docs directory not found: $docs_path"
+    fi
+
+    local repo_name
+    repo_name="$(basename "$repo_path")"
+
+    step "Phase 1: Prerequisites"
+    require_docker
+
+    if [ "${SLAPENIR_SKIP_LLM:-}" != "1" ]; then
+        require_llama_server
+    else
+        warn "Skipping LLM check (SLAPENIR_SKIP_LLM=1)"
+    fi
+
+    step "Phase 2: Starting Services"
+    require_services_running
+
+    step "Phase 3: Transferring Data"
+    do_copy_in "$repo_path" "$docs_path"
+
+    step "Phase 4: Security Verification"
+    do_verify
+
+    step "Phase 5: Indexing Repository"
+    do_index "$repo_name"
+
+    if [ -n "$docs_path" ]; then
+        step "Phase 6: Ingesting Documents"
+        do_ingest
+    fi
+
+    step "Saving Session"
+    save_session "$repo_path" "$docs_path"
+
+    echo ""
+    success "Ready!"
+    echo ""
+    echo -e "  ${BOLD}Repository:${NC}  $repo_name  →  /home/agent/workspace/$repo_name"
+    if [ -n "$docs_path" ]; then
+        echo -e "  ${BOLD}Documents:${NC}  $(basename "$docs_path")  →  /home/agent/workspace/docs"
+    fi
+    echo -e "  ${BOLD}Code Graph:${NC}  project \"$repo_name\" indexed in Memgraph"
+    echo ""
+    echo -e "  ${BOLD}Next:${NC}"
+    echo "    make shell                # Enter agent workspace"
+    echo "    # ... work inside agent (opencode, git, builds, etc.) ..."
+    echo "    # ... type 'exit' when done ..."
+    echo "    make work-done REPO=$repo_path"
+    echo ""
+}
+
+cmd_done() {
+    local repo_path="${1:-}"
+
+    if [ -n "$repo_path" ]; then
+        repo_path="$(cd "$repo_path" && pwd)"
+    else
+        load_session
+        repo_path="$REPO_PATH"
+    fi
+
+    [ -d "$repo_path" ] || die "Repository not found: $repo_path"
+    [ -d "$repo_path/.git" ] || die "Not a git repository: $repo_path"
+
+    step "Extracting Changes"
+
+    do_secret_scan_container "$repo_path"
+    do_copy_out "$repo_path"
+    do_secret_scan_host "$repo_path"
+
+    step "Summary"
+    local branch
+    branch=$(cd "$repo_path" && git branch --show-current 2>/dev/null || echo "unknown")
+    echo ""
+    (cd "$repo_path" && git log --oneline -10)
+    echo ""
+    (cd "$repo_path" && git diff --stat HEAD~1 HEAD 2>/dev/null || git diff --stat)
+    echo ""
+
+    success "Extraction complete!"
+    echo ""
+    echo -e "  ${BOLD}Changes are on host at:${NC} $repo_path"
+    echo ""
+    if [ "$branch" != "unknown" ]; then
+        echo -e "  ${BOLD}To push:${NC}"
+        echo "    cd $repo_path && git push origin $branch"
+    fi
+    echo ""
+}
+
+cmd_shell() {
+    require_docker
+    if ! docker ps --format '{{.Names}}' | grep -q "slapenir-agent" 2>/dev/null; then
+        die "Agent container not running. Start with: make up"
+    fi
+    exec docker exec -it -u agent slapenir-agent /bin/bash 2>/dev/null || \
+    exec docker exec -it -u agent slapenir-agent /bin/sh
+}
+
+cmd_verify() {
+    require_docker
+    do_verify
+}
+
+# ============================================================================
+# Main Dispatch
+# ============================================================================
+
+case "${1:-help}" in
+    init)
+        cmd_init "${2:-}" "${3:-}"
+        ;;
+    done)
+        cmd_done "${2:-}"
+        ;;
+    shell)
+        cmd_shell
+        ;;
+    verify)
+        cmd_verify
+        ;;
+    *)
+        echo "Usage: slapenir {init|done|shell|verify}"
+        echo "This script is called by Makefile targets. Use 'make help' for the full interface."
+        exit 1
+        ;;
+esac

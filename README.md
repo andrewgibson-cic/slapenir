@@ -60,8 +60,9 @@ SLAPENIR sits between AI agents and external APIs, ensuring agents never see rea
 5. [Useful Commands Reference](#useful-commands-reference)
 6. [Troubleshooting](#troubleshooting)
 7. [Security Features](#security-features)
-8. [Testing](#testing)
-9. [Documentation](#documentation)
+8. [Secure Work Process](#secure-work-process)
+9. [Testing](#testing)
+10. [Documentation](#documentation)
 
 ---
 
@@ -462,14 +463,14 @@ curl http://localhost:8080/v1/chat/completions \
 
 Now that Docker is running, your environment is configured, and LLM server is ready, start SLAPENIR:
 
-#### 5.1 Initial Start
+#### 5.1 Start Services
 
 ```bash
-# Make the startup script executable (first time only)
-chmod +x slapenir
-
 # Start all services
-./slapenir start
+make up
+
+# Or using Docker Compose directly
+docker compose up -d
 ```
 
 This command will:
@@ -477,13 +478,12 @@ This command will:
 2. Build Docker images (5-10 minutes on first run)
 3. Start all services in correct order
 4. Wait for health checks to pass
-5. Display service URLs
 
 #### 5.2 Verify Services Are Running
 
 ```bash
 # Check service status
-./slapenir status
+make status
 
 # Or manually check each service
 docker compose ps
@@ -631,33 +631,25 @@ ssh -T git@github.com
 ### Starting Services
 
 ```bash
-# Start all services
-./slapenir start
-
-# Or using make
 make up
 ```
 
 ### Stopping Services
 
 ```bash
-# Stop all services
-./slapenir stop
-
-# Or using Docker Compose
-docker compose down
+make down
 ```
 
 ### Viewing Logs
 
 ```bash
 # View all logs
-./slapenir logs
+make logs
 
 # View specific service logs
-./slapenir logs proxy
-./slapenir logs agent
-./slapenir logs memgraph
+make logs SERVICE=proxy
+make logs SERVICE=agent
+make logs SERVICE=memgraph
 
 # Follow logs in real-time
 docker compose logs -f proxy
@@ -667,7 +659,7 @@ docker compose logs -f proxy
 
 ```bash
 # Restart all services
-./slapenir restart
+make restart
 
 # Restart specific service
 docker compose restart proxy
@@ -676,20 +668,12 @@ docker compose restart proxy
 ### Checking Status
 
 ```bash
-# Check all services
-./slapenir status
-
-# Check specific service
-docker compose ps proxy
+make status
 ```
 
 ### Accessing Agent Shell
 
 ```bash
-# Secure shell (builds blocked)
-./slapenir shell
-
-# Or using make
 make shell
 ```
 
@@ -697,7 +681,7 @@ make shell
 
 ```bash
 # Stop and remove containers (keeps volumes)
-./slapenir clean
+make clean
 
 # Remove everything including volumes (WARNING: deletes all data!)
 docker compose down -v
@@ -714,22 +698,20 @@ docker compose down --rmi all
 
 ```bash
 # Start services
-./slapenir start                    # Start all services
-make up                             # Alternative: start with make
+make up                             # Start all services
 docker compose up -d               # Direct Docker Compose command
 
 # Stop services
-./slapenir stop                     # Stop all services
-make down                           # Alternative: stop with make
+make down                           # Stop all services
 docker compose down                 # Direct Docker Compose command
 
 # Restart services
-./slapenir restart                  # Restart all services
+make restart                        # Restart all services
 docker compose restart              # Restart all containers
 docker compose restart proxy        # Restart specific service
 
 # View status
-./slapenir status                   # Check service health
+make status                         # Check service health
 docker compose ps                   # List all containers
 docker compose ps proxy             # Check specific service
 ```
@@ -738,9 +720,9 @@ docker compose ps proxy             # Check specific service
 
 ```bash
 # View logs
-./slapenir logs                       # All service logs
-./slapenir logs proxy               # Proxy logs only
-./slapenir logs agent               # Agent logs only
+make logs                             # All service logs
+make logs SERVICE=proxy               # Proxy logs only
+make logs SERVICE=agent               # Agent logs only
 docker compose logs                 # All container logs
 docker compose logs -f proxy        # Follow proxy logs in real-time
 docker compose logs --tail=100 agent  # Last 100 lines of agent logs
@@ -756,7 +738,6 @@ docker compose logs proxy > proxy-logs.txt
 
 ```bash
 # Secure shell (build tools blocked)
-./slapenir shell
 make shell
 
 # Direct container exec
@@ -932,7 +913,7 @@ docker compose logs
 
 # Reset everything
 docker compose down -v
-./slapenir start
+make up
 ```
 
 #### LLM Server Not Responding
@@ -963,7 +944,7 @@ sudo ufw allow 8080/tcp
 # Regenerate certificates
 docker compose down -v
 rm -rf ca-data
-./slapenir start
+make up
 
 # Check Step-CA logs
 docker compose logs step-ca
@@ -1033,9 +1014,6 @@ docker compose exec agent curl http://proxy:3000/health
 # View make targets
 make help
 
-# View slapenir commands
-./slapenir help
-
 # View Docker Compose help
 docker compose --help
 
@@ -1094,126 +1072,128 @@ For more details, see [Security Layers](docs/SECURITY_LAYERS.md)
 
 ## Secure Work Process
 
-This is the recommended workflow for using SLAPENIR to do development work securely. The process ensures code never leaks to the internet, credentials are never exposed to the AI agent, and changes are fully auditable before merging.
+A three-step workflow for secure AI-assisted development:
 
-### Phase 1: Preparation (on host)
-
-```bash
-# 1. Clone the target repository on your host
-git clone https://github.com/org/repo.git ~/Projects/repo
-
-# 2. Export tickets to markdown files
-mkdir -p ~/Projects/tickets
-# Place ticket markdown files in this directory
-
-# 3. Ensure clean host state
-cd ~/Projects/repo && git stash
-
-# 4. Start llama-server on host
-llama-server --host 0.0.0.0 --port 8080 --model ~/models/YourModel.gguf
 ```
-
-### Phase 2: Environment Setup
-
-```bash
-# 5. Start SLAPENIR services
-make up
-
-# 6. Copy repo and tickets into container
-make copy-in REPO=/path/to/repo TICKETS=/path/to/tickets
-
-# 7. Verify connectivity
+make work-start REPO=~/Projects/vaultpay DOCS=~/Projects/vaultpay-tickets
 make shell
-# Inside container:
-ls workspace/ && curl http://host.docker.internal:8080/health
-
-# 8. Run pre-flight security verification
-make verify
+make work-done REPO=~/Projects/vaultpay
 ```
 
-### Phase 3: Session Isolation
+### Prerequisites
 
-Run this between tickets to prevent state leakage:
+- Docker Desktop is running
+- llama-server is running on the host (see [Step 4](#step-4-download-and-configure-llm))
+- Your `.env` file has `GIT_USER_NAME`, `GIT_USER_EMAIL`, and `GITHUB_TOKEN` configured
+
+### Step 1: `make work-start`
+
+Sets up the entire environment and waits for indexing to complete:
+
+1. Validates Docker and llama-server are running
+2. Starts SLAPENIR services if not running
+3. Copies repository to `/home/agent/workspace`
+4. Copies documents to `/home/agent/workspace/docs`
+5. Runs security verification (zero-knowledge + network isolation)
+6. Indexes repository with Code-Graph-RAG (saves as project `<repo-name>` in Memgraph)
+7. Ingests documents into knowledge RAG (via `ingest-markdown.sh`)
+8. Saves session state
 
 ```bash
-# 9. Reset workspace for a fresh session (skip on first ticket)
-make session-reset
+# With documents (tickets, specs, etc.)
+make work-start REPO=~/Projects/vaultpay DOCS=~/Projects/vaultpay-tickets
+
+# Without documents
+make work-start REPO=~/Projects/vaultpay
+
+# Skip llama-server check
+SLAPENIR_SKIP_LLM=1 make work-start REPO=~/Projects/vaultpay
 ```
 
-### Phase 4: AI Work (inside container)
+### Step 2: `make shell`
+
+Opens an interactive shell inside the agent container. You have full manual control:
+
+- Run `opencode` to start the AI coding assistant
+- Run `cgr start --repo-path . --query "..."` to query the code graph
+- Use git (branch, commit, diff, log) with your configured identity
+- Run builds with `ALLOW_BUILD=1 <tool>`
+- Type `exit` when finished
 
 ```bash
-# 10. Open agent shell
 make shell
-
-# 11. Start Code-Graph-RAG and wait for indexing
-cgr start
-
-# 12. Create a feature branch (handles existing branch gracefully)
-git checkout -b fix/TICKET-123 2>/dev/null || git checkout fix/TICKET-123
-
-# 13. Start OpenCode (YOLO mode disabled by default for security)
+# Inside the agent:
+cd /home/agent/workspace
+git checkout -b fix/TICKET-123
 opencode
-# Or enable auto-approve if desired: OPENCODE_YOLO=true opencode
-
-# 14. Provide structured prompt with context file and specific ticket
+# ... work ...
+exit
 ```
 
-### Phase 5: Extraction and Review
+### Step 3: `make work-done`
+
+Extracts your work from the container and runs security checks:
+
+1. Scans for leaked secrets inside the container
+2. Creates timestamped backup of host repository
+3. Copies repository back to host
+4. Scans for secrets on host (gitleaks/trufflehog if available)
+5. Prints git log + diff summary
+6. Prints push instructions
 
 ```bash
-# 15. Exit OpenCode when done
-# Review changes inside container
-git diff && git log --oneline
-
-# 16. Scan for accidentally injected secrets (inside container)
-grep -rnE "(sk-|ghp_|AKIA|-----BEGIN)" --include="*.py" --include="*.ts" --include="*.js" --include="*.go" --include="*.rs" .
-
-# 17. Copy repo back to host with backup (prevents data loss on failure)
-make copy-out-safe REPO=/path/to/repo
-
-# 18. On host: scan for secrets and review diff
-cd /path/to/repo
-gitleaks detect --source=. --no-git  # or: trufflehog filesystem .
-git diff HEAD
-git log --oneline
-
-# 19. Push or reject
-git push origin fix/TICKET-123
-# If rejected, retry: make copy-in REPO=/path/to/repo and repeat from Phase 4
+make work-done REPO=~/Projects/vaultpay
+# Then push from host:
+cd ~/Projects/vaultpay && git push origin fix/TICKET-123
 ```
 
-### Safety Features in This Process
+### Agent Git Permissions
 
-| Feature | Command | Purpose |
-|---------|---------|---------|
-| Backup before copy-out | `make copy-out-safe` | Prevents data loss if transfer fails mid-way |
-| Pre-flight security check | `make verify` | Validates zero-knowledge arch + network isolation |
-| Session isolation | `make session-reset` | Clears workspace/MCP between tickets |
-| YOLO mode gated | `OPENCODE_YOLO` env var | Auto-approve disabled by default; opt-in |
-| Branch safety | `\|\| git checkout` fallback | Handles existing branches on retry |
-| Secret scanning | `grep` + `gitleaks` | Catches credential leakage before push |
+The agent container can perform all local git operations (branch, commit, diff, log) using your configured `GIT_USER_NAME` and `GIT_USER_EMAIL`. Push/pull are blocked because the agent receives `DUMMY_GITHUB` instead of the real token — this is by design. All pushes must happen on the host after `make work-done`.
+
+### Safety Features
+
+| Feature | Mechanism | Purpose |
+|---------|-----------|---------|
+| Pre-push secret scan | `grep` + `gitleaks`/`trufflehog` | Catches credential leakage before push |
+| Host backup | Timestamped copy before extraction | Prevents data loss if copy-out fails |
+| Security verification | `verify` on work-start | Validates zero-knowledge + network isolation |
+| Blocked push in agent | `DUMMY_GITHUB` token | Agent cannot push to remote |
+| Network isolation | iptables + proxy | Agent internet access restricted by default |
+| YOLO mode gated | `OPENCODE_YOLO` env var | Auto-approve disabled by default |
 
 ### Make Commands Reference
 
 | Command | Description |
 |---------|-------------|
+| **Workflow** | |
+| `make work-start REPO=... DOCS=...` | Setup: start services, copy data, verify, index, ingest |
+| `make shell` | Enter agent workspace |
+| `make work-done REPO=...` | Extract: scan, copy-out, summary |
+| **Service Management** | |
 | `make up` | Start all services |
 | `make down` | Stop all services |
 | `make status` | Show service status |
-| `make shell` | Open agent shell (builds blocked, no internet) |
-| `make shell-unrestricted` | Open shell with internet (flushes iptables) |
-| `make shell-raw` | Open raw shell bypassing all config |
-| `make copy-in REPO=... TICKETS=...` | Copy repo and tickets into container |
+| `make restart` | Restart all services |
+| **Data Transfer** | |
+| `make copy-in REPO=... DOCS=...` | Copy repo and docs into container |
 | `make copy-out REPO=...` | Copy repo out with integrity check |
 | `make copy-out-safe REPO=...` | Same as copy-out but backs up host copy first |
 | `make copy-cache TYPE=gradle\|npm\|pip\|yarn\|maven\|all` | Copy host build caches for offline builds |
+| **Indexing & Knowledge** | |
+| `make index REPO=...` | Index repo for Code-Graph-RAG |
+| `make ingest` | Ingest docs into knowledge RAG |
+| **Shell Access** | |
+| `make shell` | Open agent shell (builds blocked, no internet) |
+| `make shell-unrestricted` | Open shell with internet (flushes iptables) |
+| `make shell-raw` | Open raw shell bypassing all config |
+| **Operations** | |
 | `make session-reset` | Clear workspace, MCP memory, and knowledge |
 | `make verify` | Run pre-flight security verification |
+| `make logs [SERVICE=proxy]` | Follow service logs |
 | `make test` | Run all tests |
 | `make rebuild` | Rebuild from scratch |
 | `make clean` | Remove containers and volumes |
-| `make logs [SERVICE=proxy]` | Follow service logs |
 
 ---
 

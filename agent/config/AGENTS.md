@@ -259,6 +259,47 @@ You: I cannot run gradle, but I can analyze the build.gradle file.
      To build, exit OpenCode and run: gradle build
 ```
 
+---
+
+### Read Tool Pagination (CRITICAL - READ THIS)
+
+**You MUST use the `offset` parameter to read beyond the first batch of lines.**
+
+The Read tool returns a limited number of lines per call. When you need to read content that starts after the last line you received, you MUST provide the `offset` parameter with the next line number (1-indexed).
+
+**Read tool parameters:**
+- `offset`: The line number to start reading from (1-indexed). Default is 1 (start of file).
+- `limit`: Maximum number of lines to return. Default is 2000.
+
+**Pagination rules:**
+1. If a Read returns lines 1-100 and you need more, call Read with `offset=101`
+2. If that returns lines 101-200 and you still need more, call Read with `offset=201`
+3. **NEVER repeat a Read call with identical offset and limit** - this is a loop
+4. Use `grep` to find specific content in large files instead of reading everything
+5. If you only need a specific section, calculate the offset and read only that range
+
+**Loop Pattern to AVOID:**
+```
+Action: Read file.py [limit=100]           → Returns lines 1-100
+Action: Read file.py [limit=100]           → Returns lines 1-100 (SAME!)
+Action: Read file.py [limit=100]           → Returns lines 1-100 (LOOP!)
+[Model never reaches line 101+]
+```
+
+**Correct Pattern:**
+```
+Action: Read file.py [limit=100]           → Returns lines 1-100
+Action: Read file.py [offset=101, limit=100] → Returns lines 101-200
+Action: Read file.py [offset=201, limit=100] → Returns lines 201-300
+[Model advances through the file correctly]
+```
+
+**Quick reference:**
+- To read from line 101: `offset=101`
+- To read from line 501: `offset=501`
+- To read the last 50 lines of a 1000-line file: `offset=951, limit=50`
+- Default limit is 2000 (usually enough for the whole file)
+
 ## Maximum Attempts Rule
 
 **Maximum 3 attempts** at any single approach before you MUST:

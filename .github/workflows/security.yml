@@ -272,7 +272,7 @@ jobs:
     - uses: actions/checkout@v6
     
     - name: Create Issue
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           const title = `🔒 Security Vulnerabilities Detected - ${new Date().toISOString().split('T')[0]}`;

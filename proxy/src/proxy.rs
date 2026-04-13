@@ -246,7 +246,7 @@ pub async fn proxy_handler(
     metrics::HTTP_REQUEST_SIZE_BYTES.observe(body_bytes.len() as f64);
 
     // Step 1: Inject real secrets into the request
-    let injected_body = state.secret_map.inject(body_str);
+    let injected_body = state.inject_all(body_str);
     tracing::debug!(
         "Injected secrets into request ({} bytes)",
         injected_body.len()
@@ -306,7 +306,7 @@ pub async fn proxy_handler(
 
     // SECURITY FIX A: Use binary-safe sanitization for ALL responses
     // This prevents bypass via non-UTF-8 payloads
-    let sanitized_bytes = state.secret_map.sanitize_bytes(&response_bytes);
+    let sanitized_bytes = state.sanitize_bytes_all(&response_bytes);
     let sanitized_body = sanitized_bytes.into_owned();
 
     tracing::debug!(
@@ -315,7 +315,7 @@ pub async fn proxy_handler(
     );
 
     // SECURITY FIX A: Paranoid verification on sanitized bytes
-    let verification = state.secret_map.sanitize_bytes(&sanitized_body);
+    let verification = state.sanitize_bytes_all(&sanitized_body);
     if verification != sanitized_body {
         tracing::error!("Secret sanitization failed verification!");
         return Err(ProxyError::ResponseBodyRead(
@@ -324,7 +324,7 @@ pub async fn proxy_handler(
     }
 
     // SECURITY FIX B: Sanitize response headers
-    let sanitized_headers = state.secret_map.sanitize_headers(&parts.headers);
+    let sanitized_headers = state.sanitize_headers_all(&parts.headers);
 
     // SECURITY FIX E: Build response with correct Content-Length
     let final_headers = build_response_headers(&sanitized_headers, sanitized_body.len());

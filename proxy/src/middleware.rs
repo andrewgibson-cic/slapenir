@@ -15,12 +15,15 @@ use axum::{
     middleware::Next,
     response::IntoResponse,
 };
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 /// Shared application state containing the secret map
 #[derive(Clone)]
 pub struct AppState {
     pub secret_map: Arc<SecretMap>,
+    /// Runtime secrets from repo .env files (registered at work-start)
+    pub runtime_secrets: Arc<RwLock<HashMap<String, String>>>,
     pub http_client: HttpClient,
     /// SECURITY FIX D: Configuration with size limits
     pub config: Option<ProxyConfig>,
@@ -31,6 +34,7 @@ impl AppState {
     pub fn new(secret_map: Arc<SecretMap>, http_client: HttpClient) -> Self {
         Self {
             secret_map,
+            runtime_secrets: Arc::new(RwLock::new(HashMap::new())),
             http_client,
             config: None,
         }
@@ -44,9 +48,88 @@ impl AppState {
     ) -> Self {
         Self {
             secret_map,
+            runtime_secrets: Arc::new(RwLock::new(HashMap::new())),
             http_client,
             config: Some(config),
         }
+    }
+
+    pub fn register_secrets(&self, secrets: HashMap<String, String>) -> usize {
+        let mut rt = self.runtime_secrets.write().unwrap();
+        let count = secrets.len();
+        rt.extend(secrets);
+        count
+    }
+
+    pub fn unregister_secrets(&self, keys: &[String]) {
+        let mut rt = self.runtime_secrets.write().unwrap();
+        for key in keys {
+            rt.remove(key);
+        }
+    }
+
+    pub fn inject_all(&self, data: &str) -> String {
+        let rt = self.runtime_secrets.read().unwrap();
+        let mut result = self.secret_map.inject(data);
+        for (dummy, real) in rt.iter() {
+            result = result.replace(dummy.as_str(), real.as_str());
+        }
+        result
+    }
+
+    pub fn sanitize_all(&self, data: &str) -> String {
+        let rt = self.runtime_secrets.read().unwrap();
+        let mut result = self.secret_map.sanitize(data);
+        for (_, real) in rt.iter() {
+            result = result.replace(real.as_str(), "[REDACTED]");
+        }
+        result
+    }
+
+    pub fn sanitize_bytes_all(&self, data: &[u8]) -> std::borrow::Cow<'_, [u8]> {
+        let rt = self.runtime_secrets.read().unwrap();
+        let mut result = self.secret_map.sanitize_bytes(data).into_owned();
+        for (_, real) in rt.iter() {
+            let real_bytes = real.as_bytes();
+            let redacted = b"[REDACTED]";
+            let mut i = 0;
+            while i + real_bytes.len() <= result.len() {
+                if &result[i..i + real_bytes.len()] == real_bytes {
+                    let mut new_result = Vec::with_capacity(result.len() + redacted.len());
+                    new_result.extend_from_slice(&result[..i]);
+                    new_result.extend_from_slice(redacted);
+                    new_result.extend_from_slice(&result[i + real_bytes.len()..]);
+                    result = new_result;
+                    i += redacted.len();
+                } else {
+                    i += 1;
+                }
+            }
+        }
+        std::borrow::Cow::Owned(result)
+    }
+
+    pub fn sanitize_headers_all(&self, headers: &axum::http::HeaderMap) -> axum::http::HeaderMap {
+        let rt = self.runtime_secrets.read().unwrap();
+        let sanitized = self.secret_map.sanitize_headers(headers);
+        if rt.is_empty() {
+            return sanitized;
+        }
+        let mut final_headers = axum::http::HeaderMap::new();
+        for (name, value) in sanitized.iter() {
+            if let Ok(v) = value.to_str() {
+                let mut cleaned = v.to_string();
+                for (_, real) in rt.iter() {
+                    cleaned = cleaned.replace(real.as_str(), "[REDACTED]");
+                }
+                if let Ok(hv) = axum::http::HeaderValue::from_str(&cleaned) {
+                    final_headers.insert(name.clone(), hv);
+                    continue;
+                }
+            }
+            final_headers.insert(name.clone(), value.clone());
+        }
+        final_headers
     }
 }
 
@@ -96,7 +179,7 @@ pub async fn inject_secrets_middleware(
     };
 
     // Inject real secrets
-    let injected = state.secret_map.inject(body_str);
+    let injected = state.inject_all(body_str);
     tracing::debug!(
         "Injected secrets into request body ({} bytes)",
         injected.len()
@@ -148,7 +231,7 @@ pub async fn sanitize_secrets_middleware(
     };
 
     // SECURITY FIX A: Use binary-safe sanitization (works on any bytes)
-    let sanitized = state.secret_map.sanitize_bytes(&bytes);
+    let sanitized = state.sanitize_bytes_all(&bytes);
     let sanitized_bytes = sanitized.into_owned();
 
     tracing::debug!(
@@ -157,7 +240,7 @@ pub async fn sanitize_secrets_middleware(
     );
 
     // SECURITY FIX A: Paranoid verification
-    let verification = state.secret_map.sanitize_bytes(&sanitized_bytes);
+    let verification = state.sanitize_bytes_all(&sanitized_bytes);
     if verification != sanitized_bytes {
         tracing::error!("Secret sanitization failed verification!");
         return (
@@ -168,7 +251,7 @@ pub async fn sanitize_secrets_middleware(
     }
 
     // SECURITY FIX B: Sanitize response headers
-    let sanitized_headers = state.secret_map.sanitize_headers(&parts.headers);
+    let sanitized_headers = state.sanitize_headers_all(&parts.headers);
 
     // SECURITY FIX E: Build headers with correct Content-Length
     let final_headers =

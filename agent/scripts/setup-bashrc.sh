@@ -9,6 +9,12 @@ if [ -f /home/agent/.env ]; then
     set +a
 fi
 
+if [ -f /home/agent/.env.repo ]; then
+    set -a
+    source /home/agent/.env.repo
+    set +a
+fi
+
 _gradlew_real() {
     local gradlew_script
     if [ -f "./gradlew" ]; then

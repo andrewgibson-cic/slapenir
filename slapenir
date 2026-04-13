@@ -137,7 +137,9 @@ do_copy_in() {
     docker exec -u root slapenir-agent chown -R 1000:1000 /home/agent/workspace/"$repo_name"
     success "Repository copied to /home/agent/workspace/$repo_name"
 
+    do_register_repo_secrets "$repo_name"
     do_sanitize_env "$repo_name"
+    do_export_dummy_env "$repo_name"
 
     if [ -n "$docs_path" ] && [ -d "$docs_path" ]; then
         info "Copying documents into container..."
@@ -208,6 +210,151 @@ do_sanitize_env() {
         fi
     '
     success "Workspace .env files sanitized"
+}
+
+do_register_repo_secrets() {
+    local repo_name="$1"
+    info "Registering repo credentials with proxy..."
+
+    local secrets_json
+    secrets_json=$(docker exec slapenir-agent bash -c '
+        repo_name="'"$repo_name"'"
+        workspace="/home/agent/workspace/$repo_name"
+        first=1
+        printf "{"
+        while IFS= read -r -d "" envfile; do
+            while IFS= read -r line; do
+                [[ "$line" =~ ^#.*$ ]] && continue
+                [[ -z "$line" ]] && continue
+                if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]+)=(.*)$ ]]; then
+                    key="${BASH_REMATCH[1]}"
+                    value="${BASH_REMATCH[2]}"
+                    is_cred=0
+                    case "$key" in
+                        OPENAI_API_KEY|ANTHROPIC_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|\
+                        AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|\
+                        GITHUB_TOKEN|GITLAB_TOKEN|\
+                        SLACK_BOT_TOKEN|SLACK_APP_TOKEN|\
+                        STRIPE_SECRET_KEY|SENDGRID_API_KEY|\
+                        *API_KEY|*TOKEN|*SECRET|*PASSWORD)
+                            is_cred=1 ;;
+                    esac
+                    if [ "$is_cred" -eq 1 ] && [ -n "$value" ]; then
+                        dummy="DUMMY_REPO_${key}"
+                        if [ $first -eq 1 ]; then first=0; else printf ","; fi
+                        printf "\"%s\":\"%s\"" "$dummy" "$value"
+                    fi
+                fi
+            done < "$envfile"
+        done < <(find "$workspace" -maxdepth 1 -name ".env" -print0 2>/dev/null)
+        printf ",\"source\":\"%s\"}" "$repo_name"
+    ')
+
+    if [ "$secrets_json" = "{\"source\":\"$repo_name\"}" ] || [ -z "$secrets_json" ]; then
+        info "No repo credentials found to register"
+        return 0
+    fi
+
+    local response
+    response=$(curl -s -X POST http://localhost:3000/internal/secrets \
+        -H "Content-Type: application/json" \
+        -d "$secrets_json" 2>/dev/null) || true
+
+    if echo "$response" | grep -q '"count"'; then
+        local count
+        count=$(echo "$response" | grep -o '"count":[0-9]*' | grep -o '[0-9]*')
+        success "Registered $count repo secret(s) with proxy"
+    else
+        warn "Failed to register repo secrets with proxy (proxy may not be ready)"
+    fi
+}
+
+do_export_dummy_env() {
+    local repo_name="$1"
+    info "Exporting dummy repo credentials to agent environment..."
+    docker exec -u agent slapenir-agent bash -c '
+        repo_name="'"$repo_name"'"
+        workspace="/home/agent/workspace/$repo_name"
+        s6_dir="/var/run/s6/container_environment"
+        export_file="/home/agent/.env.repo"
+        count=0
+        > "$export_file"
+        while IFS= read -r -d "" envfile; do
+            while IFS= read -r line; do
+                [[ "$line" =~ ^#.*$ ]] && continue
+                [[ -z "$line" ]] && continue
+                if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]+)=(.*)$ ]]; then
+                    key="${BASH_REMATCH[1]}"
+                    value="${BASH_REMATCH[2]}"
+                    is_cred=0
+                    case "$key" in
+                        OPENAI_API_KEY|ANTHROPIC_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|\
+                        AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|\
+                        GITHUB_TOKEN|GITLAB_TOKEN|\
+                        SLACK_BOT_TOKEN|SLACK_APP_TOKEN|\
+                        STRIPE_SECRET_KEY|SENDGRID_API_KEY|\
+                        *API_KEY|*TOKEN|*SECRET|*PASSWORD)
+                            is_cred=1 ;;
+                    esac
+                    if [ "$is_cred" -eq 1 ]; then
+                        dummy="DUMMY_REPO_${key}"
+                        echo "${key}=${dummy}" >> "$export_file"
+                        if [ -d "$s6_dir" ]; then
+                            echo -n "$dummy" > "$s6_dir/${key}"
+                        fi
+                        count=$((count + 1))
+                    fi
+                fi
+            done < "$envfile"
+        done < <(find "$workspace" -maxdepth 1 -name ".env" -print0 2>/dev/null)
+        echo "  Exported $count dummy credential(s)"
+    '
+    success "Dummy repo credentials exported to agent"
+}
+
+do_unregister_repo_secrets() {
+    local repo_name="$1"
+    info "Clearing repo secrets from proxy and agent..."
+
+    local keys_json
+    keys_json=$(docker exec slapenir-agent bash -c '
+        repo_name="'"$repo_name"'"
+        workspace="/home/agent/workspace/$repo_name"
+        first=1
+        printf "{\"keys\":["
+        while IFS= read -r -d "" envfile; do
+            while IFS= read -r line; do
+                [[ "$line" =~ ^#.*$ ]] && continue
+                [[ -z "$line" ]] && continue
+                if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]+)=(.*)$ ]]; then
+                    key="${BASH_REMATCH[1]}"
+                    is_cred=0
+                    case "$key" in
+                        OPENAI_API_KEY|ANTHROPIC_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|\
+                        AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|\
+                        GITHUB_TOKEN|GITLAB_TOKEN|\
+                        SLACK_BOT_TOKEN|SLACK_APP_TOKEN|\
+                        STRIPE_SECRET_KEY|SENDGRID_API_KEY|\
+                        *API_KEY|*TOKEN|*SECRET|*PASSWORD)
+                            is_cred=1 ;;
+                    esac
+                    if [ "$is_cred" -eq 1 ]; then
+                        if [ $first -eq 1 ]; then first=0; else printf ","; fi
+                        printf "\"DUMMY_REPO_%s\"" "$key"
+                    fi
+                fi
+            done < "$envfile"
+        done < <(find "$workspace" -maxdepth 1 -name ".env" -print0 2>/dev/null)
+        printf "]}"
+    ')
+
+    curl -s -X DELETE http://localhost:3000/internal/secrets \
+        -H "Content-Type: application/json" \
+        -d "$keys_json" >/dev/null 2>&1 || true
+
+    docker exec slapenir-agent bash -c 'rm -f /home/agent/.env.repo' 2>/dev/null || true
+
+    success "Repo secrets cleared"
 }
 
 do_copy_out() {
@@ -376,6 +523,7 @@ cmd_done() {
 
     step "Extracting Changes"
 
+    do_unregister_repo_secrets "$(basename "$repo_path")"
     do_secret_scan_container "$repo_path"
     do_copy_out "$repo_path"
     do_secret_scan_host "$repo_path"

@@ -2,10 +2,12 @@
 // Zero-Knowledge credential sanitization gateway
 
 use axum::{
+    extract::State,
     response::Html,
-    routing::{any, get},
-    Extension, Router,
+    routing::{any, delete, get, post},
+    Extension, Json, Router,
 };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
@@ -69,6 +71,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(root))
         .route("/health", get(health))
         .route("/metrics", get(metrics_handler))
+        // Internal API for runtime secret management (slapenir CLI only)
+        .route("/internal/secrets", post(register_secrets_handler))
+        .route("/internal/secrets/list", get(list_secrets_handler))
+        .route("/internal/secrets", delete(unregister_secrets_handler))
         // Proxy routes - handle all HTTP methods
         .route("/v1/{*path}", any(proxy::proxy_handler))
         .with_state(app_state.clone())
@@ -319,6 +325,63 @@ fn load_secrets_fallback() -> anyhow::Result<SecretMap> {
     }
 
     SecretMap::new(secrets).map_err(|e| anyhow::anyhow!(e))
+}
+
+#[derive(Deserialize)]
+struct RegisterSecretsRequest {
+    secrets: HashMap<String, String>,
+    #[serde(default)]
+    source: Option<String>,
+}
+
+#[derive(Serialize)]
+struct SecretsResponse {
+    count: usize,
+    keys: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct UnregisterSecretsRequest {
+    keys: Vec<String>,
+}
+
+async fn register_secrets_handler(
+    State(state): State<AppState>,
+    Json(body): Json<RegisterSecretsRequest>,
+) -> Result<(axum::http::StatusCode, Json<SecretsResponse>), (axum::http::StatusCode, String)> {
+    let source = body.source.as_deref().unwrap_or("unknown");
+    if body.secrets.is_empty() {
+        return Ok((axum::http::StatusCode::OK, Json(SecretsResponse { count: 0, keys: vec![] })));
+    }
+    let keys: Vec<String> = body.secrets.keys().cloned().collect();
+    tracing::info!("🔑 Registering {} runtime secret(s) from '{}'", body.secrets.len(), source);
+    let n = state.register_secrets(body.secrets);
+    tracing::info!("✅ Registered {} secret(s) from '{}'", n, source);
+    Ok((axum::http::StatusCode::OK, Json(SecretsResponse { count: n, keys })))
+}
+
+async fn unregister_secrets_handler(
+    State(state): State<AppState>,
+    Json(body): Json<UnregisterSecretsRequest>,
+) -> (axum::http::StatusCode, &'static str) {
+    if body.keys.is_empty() {
+        return (axum::http::StatusCode::OK, "No keys to remove");
+    }
+    tracing::info!("🔑 Removing {} runtime secret(s)", body.keys.len());
+    state.unregister_secrets(&body.keys);
+    tracing::info!("✅ Removed {} secret(s)", body.keys.len());
+    (axum::http::StatusCode::OK, "Secrets removed")
+}
+
+async fn list_secrets_handler(
+    State(state): State<AppState>,
+) -> Json<SecretsResponse> {
+    let rt = state.runtime_secrets.read().unwrap();
+    let static_map = &state.secret_map;
+    let mut keys: Vec<String> = static_map.dummy_keys();
+    keys.extend(rt.keys().cloned());
+    let count = keys.len();
+    Json(SecretsResponse { count, keys })
 }
 
 /// Root endpoint

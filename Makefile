@@ -3,7 +3,7 @@
 
 DC := $(shell docker compose version > /dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 
-.PHONY: up down restart status logs shell shell-unrestricted shell-raw copy-in copy-out copy-out-safe copy-cache index ingest session-reset verify test rebuild clean work-start work-done
+.PHONY: up down restart status logs shell shell-proxy shell-unrestricted shell-raw copy-in copy-out copy-out-safe copy-cache index ingest session-reset verify test rebuild clean work-start work-done
 
 # Default: show available commands
 help:
@@ -68,6 +68,9 @@ shell:
 		-u agent \
 		$(or $(SERVICE),agent) /bin/bash 2>/dev/null || \
 	exec $(DC) exec -u agent $(or $(SERVICE),agent) /bin/sh
+
+shell-proxy:
+	@exec $(DC) exec -u proxy proxy /bin/sh
 
 shell-unrestricted:
 	@echo "🔓 Flushing iptables rules for unrestricted network access..."
@@ -274,11 +277,18 @@ ingest:
 
 session-reset:
 	@echo "Clearing workspace for fresh session..."
+	@keys=$$(curl -s http://localhost:3000/internal/secrets/list 2>/dev/null | grep -o '"keys":\[[^]]*\]' | grep -o '"DUMMY_REPO_[^"]*"' | tr '\n' ',' | sed 's/,$$//' | sed 's/"",//g; s/""//g'); \
+		if [ -n "$$keys" ]; then \
+			curl -s -X DELETE http://localhost:3000/internal/secrets \
+				-H "Content-Type: application/json" \
+				-d "{\"keys\":[$$keys]}" >/dev/null 2>&1; \
+		fi
 	$(DC) exec agent bash -c 'rm -rf /home/agent/workspace/*'
 	$(DC) exec agent bash -c 'rm -rf /home/agent/.local/share/mcp-memory/*'
 	$(DC) exec agent bash -c 'rm -rf /home/agent/.local/share/mcp-knowledge/*'
+	$(DC) exec agent bash -c 'rm -f /home/agent/.env.repo'
 	-rm -f .slapenir-session
-	@echo "Session reset complete - workspace, MCP data, and session cleared"
+	@echo "Session reset complete - workspace, secrets, MCP data, and session cleared"
 
 verify:
 	@echo "Running pre-flight security verification..."

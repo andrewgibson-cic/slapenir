@@ -197,6 +197,10 @@ impl SecretMap {
         self.real_secrets.is_empty()
     }
 
+    pub fn dummy_keys(&self) -> Vec<String> {
+        self.dummy_secrets.clone()
+    }
+
     /// Create a new SecretMap from authentication strategies
     ///
     /// This is the preferred method when using the strategy pattern

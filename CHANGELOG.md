@@ -1,3 +1,10 @@
+## [1.12.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.11.3...v1.12.0) (2026-04-12)
+
+
+### Features
+
+* add slapenir CLI with simplified workflow ([345b9c6](https://github.com/andrewgibson-cic/slapenir/commit/345b9c69c39bdcf0fbbce9e002b0a056d40dacd3))
+
 ## [1.11.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.11.1...v1.11.2) (2026-04-11)
 
 

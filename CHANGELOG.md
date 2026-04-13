@@ -1,3 +1,16 @@
+## [1.13.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.12.0...v1.13.0) (2026-04-13)
+
+
+### Features
+
+* runtime repo secret injection via proxy API ([135e54e](https://github.com/andrewgibson-cic/slapenir/commit/135e54e29f58f80935949304820fbe99969973d3))
+
+
+### Bug Fixes
+
+* add Read tool offset pagination instructions to AGENTS.md ([3f01774](https://github.com/andrewgibson-cic/slapenir/commit/3f01774d0d41d38be0fcf838a788233c28e75bfb))
+* opencode read offset loop - add pagination instructions to AGENTS.md ([4f8dcd5](https://github.com/andrewgibson-cic/slapenir/commit/4f8dcd5c1d24e2a72c56a4f9415d65f08224defb))
+
 ## [1.12.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.11.3...v1.12.0) (2026-04-12)
 
 

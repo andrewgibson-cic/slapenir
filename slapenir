@@ -125,132 +125,147 @@ do_verify() {
     success "Security verification passed"
 }
 
-do_copy_in() {
+is_credential_key() {
+    case "$1" in
+        OPENAI_API_KEY|ANTHROPIC_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|\
+        AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|\
+        GITHUB_TOKEN|GITLAB_TOKEN|\
+        SLACK_BOT_TOKEN|SLACK_APP_TOKEN|\
+        STRIPE_SECRET_KEY|SENDGRID_API_KEY|\
+        *API_KEY|*TOKEN|*SECRET|*PASSWORD|\
+        *PRIVATE_KEY|*ACCESS_KEY|*ENCRYPTION_KEY|*SIGNING_KEY|*SECRET_KEY|\
+        *AUTH_KEY|*CREDENTIAL*)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+do_presanitize_host() {
     local repo_path="$1"
-    local docs_path="${2:-}"
+    local backup_dir
+    backup_dir="$(mktemp -d)"
+    local count=0
+
+    info "Pre-sanitizing .env files on host (before copy)..."
+
+    while IFS= read -r -d "" envfile; do
+        [[ "$envfile" =~ \.env\.example$ ]] && continue
+        [[ "$envfile" =~ \.env\.sample$ ]] && continue
+        [[ "$envfile" =~ \.env\.template$ ]] && continue
+
+        local relpath="${envfile#$repo_path/}"
+        local backup_path="$backup_dir/$relpath"
+        mkdir -p "$(dirname "$backup_path")"
+        cp "$envfile" "$backup_path"
+
+        local touched=0
+        local tmpfile="${envfile}.sanitizing"
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then
+                echo "$line"
+                continue
+            fi
+            if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]+)=(.*)$ ]]; then
+                local key="${BASH_REMATCH[1]}"
+                local value="${BASH_REMATCH[2]}"
+                local dummy_value=""
+                case "$key" in
+                    OPENAI_API_KEY)         dummy_value="DUMMY_OPENAI" ;;
+                    ANTHROPIC_API_KEY)      dummy_value="DUMMY_ANTHROPIC" ;;
+                    GEMINI_API_KEY)         dummy_value="DUMMY_GEMINI" ;;
+                    MISTRAL_API_KEY)        dummy_value="DUMMY_MISTRAL" ;;
+                    AWS_ACCESS_KEY_ID)      dummy_value="DUMMY_AWS_ACCESS" ;;
+                    AWS_SECRET_ACCESS_KEY)  dummy_value="DUMMY_AWS_SECRET" ;;
+                    GITHUB_TOKEN)           dummy_value="DUMMY_GITHUB" ;;
+                    GITLAB_TOKEN)           dummy_value="DUMMY_GITLAB" ;;
+                    SLACK_BOT_TOKEN)        dummy_value="xoxb-DUMMY_SLACK" ;;
+                    SLACK_APP_TOKEN)        dummy_value="xapp-DUMMY_SLACK_APP" ;;
+                    STRIPE_SECRET_KEY)      dummy_value="sk_test_DUMMY_STRIPE" ;;
+                    SENDGRID_API_KEY)       dummy_value="SG.DUMMY" ;;
+                    *API_KEY|*TOKEN|*SECRET|*PASSWORD|\
+                    *PRIVATE_KEY|*ACCESS_KEY|*ENCRYPTION_KEY|*SIGNING_KEY|*SECRET_KEY|\
+                    *AUTH_KEY|*CREDENTIAL*)
+                        dummy_value="DUMMY_REPO_${key}" ;;
+                esac
+                if [ -n "$dummy_value" ]; then
+                    echo "${key}=${dummy_value}"
+                    touched=1
+                else
+                    echo "${key}=${value}"
+                fi
+            else
+                echo "$line"
+            fi
+        done < "$envfile" > "$tmpfile"
+
+        if [ "$touched" -eq 1 ]; then
+            mv "$tmpfile" "$envfile"
+            count=$((count + 1))
+        else
+            rm -f "$tmpfile"
+        fi
+    done < <(find "$repo_path" \( -name "*.env" -o -name ".env" -o -name ".env.*" \) -print0 2>/dev/null)
+
+    if [ "$count" -eq 0 ]; then
+        rm -rf "$backup_dir"
+        backup_dir=""
+        info "No .env files with credentials found"
+    else
+        info "Pre-sanitized $count .env file(s) on host"
+    fi
+
+    PRESANITIZE_BACKUP_DIR="$backup_dir"
+}
+
+do_restore_host_env() {
+    local backup_dir="$1"
+    local repo_path="$2"
+
+    if [ -z "$backup_dir" ] || [ ! -d "$backup_dir" ]; then
+        return 0
+    fi
+
+    info "Restoring original .env files on host..."
+    while IFS= read -r -d "" backup_file; do
+        local relpath="${backup_file#$backup_dir/}"
+        cp "$backup_file" "$repo_path/$relpath"
+    done < <(find "$backup_dir" -type f -print0 2>/dev/null)
+    rm -rf "$backup_dir"
+    success "Original .env files restored on host"
+}
+
+do_register_repo_secrets_host() {
+    local repo_path="$1"
     local repo_name
     repo_name="$(basename "$repo_path")"
-
-    info "Copying repository into container..."
-    docker exec slapenir-agent mkdir -p /home/agent/workspace/"$repo_name"
-    docker cp "$repo_path/." "slapenir-agent:/home/agent/workspace/$repo_name/"
-    docker exec -u root slapenir-agent chown -R 1000:1000 /home/agent/workspace/"$repo_name"
-    success "Repository copied to /home/agent/workspace/$repo_name"
-
-    do_register_repo_secrets "$repo_name"
-    do_sanitize_env "$repo_name"
-    do_export_dummy_env "$repo_name"
-
-    if [ -n "$docs_path" ] && [ -d "$docs_path" ]; then
-        info "Copying documents into container..."
-        docker exec slapenir-agent mkdir -p /home/agent/workspace/docs
-        docker cp "$docs_path/." slapenir-agent:/home/agent/workspace/docs/
-        docker exec -u root slapenir-agent chown -R 1000:1000 /home/agent/workspace/docs
-        success "Documents copied to /home/agent/workspace/docs"
-    fi
-}
-
-do_sanitize_env() {
-    local repo_name="$1"
-    info "Sanitizing credentials in workspace .env files..."
-    docker exec -u agent slapenir-agent bash -c '
-        repo_name="'"$repo_name"'"
-        workspace="/home/agent/workspace/$repo_name"
-        count=0
-        while IFS= read -r -d "" envfile; do
-            tmpfile="${envfile}.sanitized"
-            touched=0
-            while IFS= read -r line; do
-                if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then
-                    echo "$line"
-                    continue
-                fi
-                if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]+)=(.*)$ ]]; then
-                    key="${BASH_REMATCH[1]}"
-                    value="${BASH_REMATCH[2]}"
-                    dummy_value=""
-                    case "$key" in
-                        OPENAI_API_KEY)         dummy_value="DUMMY_OPENAI" ;;
-                        ANTHROPIC_API_KEY)      dummy_value="DUMMY_ANTHROPIC" ;;
-                        GEMINI_API_KEY)         dummy_value="DUMMY_GEMINI" ;;
-                        MISTRAL_API_KEY)        dummy_value="DUMMY_MISTRAL" ;;
-                        AWS_ACCESS_KEY_ID)      dummy_value="DUMMY_AWS_ACCESS" ;;
-                        AWS_SECRET_ACCESS_KEY)  dummy_value="DUMMY_AWS_SECRET" ;;
-                        GITHUB_TOKEN)           dummy_value="DUMMY_GITHUB" ;;
-                        GITLAB_TOKEN)           dummy_value="DUMMY_GITLAB" ;;
-                        SLACK_BOT_TOKEN)        dummy_value="xoxb-DUMMY_SLACK" ;;
-                        SLACK_APP_TOKEN)        dummy_value="xapp-DUMMY_SLACK_APP" ;;
-                        STRIPE_SECRET_KEY)      dummy_value="sk_test_DUMMY_STRIPE" ;;
-                        SENDGRID_API_KEY)       dummy_value="SG.DUMMY" ;;
-                        *API_KEY|*TOKEN|*SECRET|*PASSWORD)
-                            dummy_value="DUMMY_${key}" ;;
-                    esac
-                    if [ -n "$dummy_value" ]; then
-                        echo "${key}=${dummy_value}"
-                        touched=1
-                    else
-                        echo "${key}=${value}"
-                    fi
-                else
-                    echo "$line"
-                fi
-            done < "$envfile" > "$tmpfile"
-            if [ "$touched" -eq 1 ]; then
-                mv "$tmpfile" "$envfile"
-                echo "  Sanitized: ${envfile#$workspace/}"
-                count=$((count + 1))
-            else
-                rm -f "$tmpfile"
-            fi
-        done < <(find "$workspace" -maxdepth 3 -name "*.env" -o -name ".env" -o -name ".env.*" -print0 2>/dev/null | grep -zv "\.env\.example$" | grep -zv "\.env\.sample$")
-        if [ "$count" -eq 0 ]; then
-            echo "  No .env files with credentials found"
-        else
-            echo "  $count .env file(s) sanitized"
-        fi
-    '
-    success "Workspace .env files sanitized"
-}
-
-do_register_repo_secrets() {
-    local repo_name="$1"
-    info "Registering repo credentials with proxy..."
+    info "Registering repo credentials with proxy (from host)..."
 
     local secrets_json
-    secrets_json=$(docker exec slapenir-agent bash -c '
-        repo_name="'"$repo_name"'"
-        workspace="/home/agent/workspace/$repo_name"
+    secrets_json=$({
         first=1
-        printf "{"
+        printf "{\"secrets\":{"
         while IFS= read -r -d "" envfile; do
+            [[ "$envfile" =~ \.env\.example$ ]] && continue
+            [[ "$envfile" =~ \.env\.sample$ ]] && continue
             while IFS= read -r line; do
                 [[ "$line" =~ ^#.*$ ]] && continue
                 [[ -z "$line" ]] && continue
                 if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]+)=(.*)$ ]]; then
                     key="${BASH_REMATCH[1]}"
                     value="${BASH_REMATCH[2]}"
-                    is_cred=0
-                    case "$key" in
-                        OPENAI_API_KEY|ANTHROPIC_API_KEY|GEMINI_API_KEY|MISTRAL_API_KEY|\
-                        AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|\
-                        GITHUB_TOKEN|GITLAB_TOKEN|\
-                        SLACK_BOT_TOKEN|SLACK_APP_TOKEN|\
-                        STRIPE_SECRET_KEY|SENDGRID_API_KEY|\
-                        *API_KEY|*TOKEN|*SECRET|*PASSWORD)
-                            is_cred=1 ;;
-                    esac
-                    if [ "$is_cred" -eq 1 ] && [ -n "$value" ]; then
+                    if is_credential_key "$key" && [ -n "$value" ]; then
                         dummy="DUMMY_REPO_${key}"
                         if [ $first -eq 1 ]; then first=0; else printf ","; fi
                         printf "\"%s\":\"%s\"" "$dummy" "$value"
                     fi
                 fi
             done < "$envfile"
-        done < <(find "$workspace" -maxdepth 1 -name ".env" -print0 2>/dev/null)
-        printf ",\"source\":\"%s\"}" "$repo_name"
-    ')
+        done < <(find "$repo_path" -maxdepth 1 \( -name ".env" -o -name "*.env" \) -print0 2>/dev/null)
+        printf "},\"source\":\"%s\"}" "$repo_name"
+    })
 
-    if [ "$secrets_json" = "{\"source\":\"$repo_name\"}" ] || [ -z "$secrets_json" ]; then
+    if [ "$secrets_json" = "{\"secrets\":{},\"source\":\"$repo_name\"}" ] || [ -z "$secrets_json" ]; then
         info "No repo credentials found to register"
         return 0
     fi
@@ -266,6 +281,81 @@ do_register_repo_secrets() {
         success "Registered $count repo secret(s) with proxy"
     else
         warn "Failed to register repo secrets with proxy (proxy may not be ready)"
+    fi
+}
+
+do_inject_proxy_env() {
+    local repo_name="$1"
+    info "Injecting repo credentials into proxy environment..."
+
+    local repo_path="${REPO_PATH:-}"
+    if [ -z "$repo_path" ]; then
+        load_session 2>/dev/null || true
+        repo_path="${REPO_PATH:-}"
+    fi
+
+    if [ -z "$repo_path" ]; then
+        info "No repo path available for proxy env injection"
+        return 0
+    fi
+
+    local env_content
+    env_content=$({
+        while IFS= read -r -d "" envfile; do
+            [[ "$envfile" =~ \.env\.example$ ]] && continue
+            [[ "$envfile" =~ \.env\.sample$ ]] && continue
+            while IFS= read -r line; do
+                [[ "$line" =~ ^#.*$ ]] && continue
+                [[ -z "$line" ]] && continue
+                if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]+)=(.*)$ ]]; then
+                    key="${BASH_REMATCH[1]}"
+                    value="${BASH_REMATCH[2]}"
+                    if is_credential_key "$key" && [ -n "$value" ]; then
+                        printf "%s=%s\n" "$key" "$value"
+                    fi
+                fi
+            done < "$envfile"
+        done < <(find "$repo_path" -maxdepth 1 \( -name ".env" -o -name "*.env" \) -print0 2>/dev/null)
+    })
+
+    if [ -n "$env_content" ]; then
+        printf '%s\n' "$env_content" | docker exec -i slapenir-proxy sh -c 'cat > /home/proxy/.env.repo'
+        local count
+        count=$(printf '%s\n' "$env_content" | grep -c '=')
+        success "Injected $count repo credential(s) into proxy environment"
+    else
+        info "No repo credentials found to inject"
+    fi
+}
+
+do_copy_in() {
+    local repo_path="$1"
+    local docs_path="${2:-}"
+    local repo_name
+    repo_name="$(basename "$repo_path")"
+
+    REPO_PATH="$repo_path" do_register_repo_secrets_host "$repo_path"
+    REPO_PATH="$repo_path" do_inject_proxy_env "$repo_name"
+
+    PRESANITIZE_BACKUP_DIR=""
+    do_presanitize_host "$repo_path"
+
+    info "Copying repository into container..."
+    docker exec slapenir-agent mkdir -p /home/agent/workspace/"$repo_name"
+    docker cp "$repo_path/." "slapenir-agent:/home/agent/workspace/$repo_name/"
+    docker exec -u root slapenir-agent chown -R 1000:1000 /home/agent/workspace/"$repo_name"
+    success "Repository copied to /home/agent/workspace/$repo_name"
+
+    do_restore_host_env "$PRESANITIZE_BACKUP_DIR" "$repo_path"
+
+    do_export_dummy_env "$repo_name"
+
+    if [ -n "$docs_path" ] && [ -d "$docs_path" ]; then
+        info "Copying documents into container..."
+        docker exec slapenir-agent mkdir -p /home/agent/workspace/docs
+        docker cp "$docs_path/." slapenir-agent:/home/agent/workspace/docs/
+        docker exec -u root slapenir-agent chown -R 1000:1000 /home/agent/workspace/docs
+        success "Documents copied to /home/agent/workspace/docs"
     fi
 }
 
@@ -293,7 +383,9 @@ do_export_dummy_env() {
                         GITHUB_TOKEN|GITLAB_TOKEN|\
                         SLACK_BOT_TOKEN|SLACK_APP_TOKEN|\
                         STRIPE_SECRET_KEY|SENDGRID_API_KEY|\
-                        *API_KEY|*TOKEN|*SECRET|*PASSWORD)
+                        *API_KEY|*TOKEN|*SECRET|*PASSWORD|\
+                        *PRIVATE_KEY|*ACCESS_KEY|*ENCRYPTION_KEY|*SIGNING_KEY|*SECRET_KEY|\
+                        *AUTH_KEY|*CREDENTIAL*)
                             is_cred=1 ;;
                     esac
                     if [ "$is_cred" -eq 1 ]; then
@@ -306,7 +398,7 @@ do_export_dummy_env() {
                     fi
                 fi
             done < "$envfile"
-        done < <(find "$workspace" -maxdepth 1 -name ".env" -print0 2>/dev/null)
+        done < <(find "$workspace" -maxdepth 1 \( -name ".env" -o -name "*.env" \) -print0 2>/dev/null)
         echo "  Exported $count dummy credential(s)"
     '
     success "Dummy repo credentials exported to agent"
@@ -335,7 +427,9 @@ do_unregister_repo_secrets() {
                         GITHUB_TOKEN|GITLAB_TOKEN|\
                         SLACK_BOT_TOKEN|SLACK_APP_TOKEN|\
                         STRIPE_SECRET_KEY|SENDGRID_API_KEY|\
-                        *API_KEY|*TOKEN|*SECRET|*PASSWORD)
+                        *API_KEY|*TOKEN|*SECRET|*PASSWORD|\
+                        *PRIVATE_KEY|*ACCESS_KEY|*ENCRYPTION_KEY|*SIGNING_KEY|*SECRET_KEY|\
+                        *AUTH_KEY|*CREDENTIAL*)
                             is_cred=1 ;;
                     esac
                     if [ "$is_cred" -eq 1 ]; then
@@ -344,7 +438,7 @@ do_unregister_repo_secrets() {
                     fi
                 fi
             done < "$envfile"
-        done < <(find "$workspace" -maxdepth 1 -name ".env" -print0 2>/dev/null)
+        done < <(find "$workspace" -maxdepth 1 \( -name ".env" -o -name "*.env" \) -print0 2>/dev/null)
         printf "]}"
     ')
 
@@ -353,6 +447,7 @@ do_unregister_repo_secrets() {
         -d "$keys_json" >/dev/null 2>&1 || true
 
     docker exec slapenir-agent bash -c 'rm -f /home/agent/.env.repo' 2>/dev/null || true
+    docker exec slapenir-proxy rm -f /home/proxy/.env.repo 2>/dev/null || true
 
     success "Repo secrets cleared"
 }
@@ -475,7 +570,7 @@ cmd_init() {
     require_services_running
 
     step "Phase 3: Transferring Data"
-    do_copy_in "$repo_path" "$docs_path"
+    REPO_PATH="$repo_path" do_copy_in "$repo_path" "$docs_path"
 
     step "Phase 4: Security Verification"
     do_verify

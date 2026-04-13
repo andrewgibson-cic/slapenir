@@ -11,118 +11,167 @@ import json
 import sys
 import os
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+AGENTS_MD_PATH = os.path.join(SCRIPT_DIR, "..", "config", "AGENTS.md")
+
 
 def load_config():
     """Load OpenCode configuration"""
-    config_path = '/home/agent/.opencode/config.json'
+    config_path = "/home/agent/.opencode/config.json"
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found: {config_path}")
 
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         return json.load(f)
+
+
+def load_agents_md():
+    """Load AGENTS.md instruction file"""
+    if not os.path.exists(AGENTS_MD_PATH):
+        raise FileNotFoundError(f"AGENTS.md not found at {AGENTS_MD_PATH}")
+    with open(AGENTS_MD_PATH, "r") as f:
+        return f.read()
 
 
 def test_bash_denied():
     """Test that bash tool is denied"""
     config = load_config()
-    assert config['permission']['bash'] == 'deny', "bash should be denied"
+    assert config["permission"]["bash"] == "deny", "bash should be denied"
     print("✓ bash tool denied")
 
 
 def test_webfetch_denied():
     """Test that webfetch tool is denied"""
     config = load_config()
-    assert config['permission']['webfetch'] == 'deny', "webfetch should be denied"
+    assert config["permission"]["webfetch"] == "deny", "webfetch should be denied"
     print("✓ webfetch tool denied")
 
 
 def test_mcp_denied():
     """Test that MCP tools are denied"""
     config = load_config()
-    assert config['permission']['mcp_*'] == 'deny', "MCP tools should be denied"
+    assert config["permission"]["mcp_*"] == "deny", "MCP tools should be denied"
     print("✓ MCP tools denied")
 
 
 def test_read_allowed():
     """Test that read tool is allowed"""
     config = load_config()
-    assert config['permission']['read'] == 'allow', "read should be allowed"
+    assert config["permission"]["read"] == "allow", "read should be allowed"
     print("✓ read tool allowed")
 
 
 def test_edit_ask():
     """Test that edit tool requires approval"""
     config = load_config()
-    assert config['permission']['edit'] == 'ask', "edit should require approval"
+    assert config["permission"]["edit"] == "ask", "edit should require approval"
     print("✓ edit tool requires approval")
 
 
 def test_websearch_disabled():
     """Test that websearch is disabled"""
     config = load_config()
-    assert config['tools']['websearch'] == False, "websearch should be disabled"
+    assert config["tools"]["websearch"] == False, "websearch should be disabled"
     print("✓ websearch disabled")
 
 
 def test_autoupdate_disabled():
     """Test that autoupdate is disabled"""
     config = load_config()
-    assert config['autoupdate'] == False, "autoupdate should be disabled"
+    assert config["autoupdate"] == False, "autoupdate should be disabled"
     print("✓ autoupdate disabled")
 
 
 def test_opentelemetry_disabled():
     """Test that OpenTelemetry is disabled"""
     config = load_config()
-    assert config['experimental']['openTelemetry'] == False, "OpenTelemetry should be disabled"
+    assert config["experimental"]["openTelemetry"] == False, (
+        "OpenTelemetry should be disabled"
+    )
     print("✓ OpenTelemetry disabled")
 
 
 def test_share_disabled():
     """Test that share is disabled"""
     config = load_config()
-    assert config['share'] == 'disabled', "share should be disabled"
+    assert config["share"] == "disabled", "share should be disabled"
     print("✓ share disabled")
 
 
 def test_instructions_empty():
     """Test that instructions array is empty"""
     config = load_config()
-    assert config['instructions'] == [], "instructions should be empty"
+    assert config["instructions"] == [], "instructions should be empty"
     print("✓ instructions empty")
 
 
 def test_wildcard_deny():
     """Test that wildcard is set to deny"""
     config = load_config()
-    assert config['permission']['*'] == 'deny', "wildcard should be deny"
+    assert config["permission"]["*"] == "deny", "wildcard should be deny"
     print("✓ wildcard deny")
 
 
 def test_provider_local():
     """Test that provider uses local llama server"""
     config = load_config()
-    assert 'local-llama' in config['provider'], "local-llama provider should exist"
-    base_url = config['provider']['local-llama']['options']['baseURL']
-    assert 'host.docker.internal:8080' in base_url, "should use host.docker.internal:8080"
+    assert "local-llama" in config["provider"], "local-llama provider should exist"
+    base_url = config["provider"]["local-llama"]["options"]["baseURL"]
+    assert "host.docker.internal:8080" in base_url, (
+        "should use host.docker.internal:8080"
+    )
     print("✓ provider uses local llama server")
 
 
 def test_model_configuration():
     """Test that model configuration is correct"""
     config = load_config()
-    models = config['provider']['local-llama']['models']
+    models = config["provider"]["local-llama"]["models"]
     assert len(models) > 0, "at least one model should be configured"
 
     # Check first model has required fields
     model_name = list(models.keys())[0]
     model_config = models[model_name]
-    assert 'name' in model_config, "model should have name"
-    assert 'limit' in model_config, "model should have limit"
-    assert 'context' in model_config['limit'], "model limit should have context"
-    assert 'output' in model_config['limit'], "model limit should have output"
+    assert "name" in model_config, "model should have name"
+    assert "limit" in model_config, "model should have limit"
+    assert "context" in model_config["limit"], "model limit should have context"
+    assert "output" in model_config["limit"], "model limit should have output"
 
     print(f"✓ model configuration valid ({model_name})")
+
+
+def test_agents_md_contains_read_pagination():
+    """Test that AGENTS.md contains Read tool pagination section"""
+    content = load_agents_md()
+    assert "Read Tool Pagination" in content, (
+        "AGENTS.md must contain Read Tool Pagination section"
+    )
+    assert "CRITICAL - READ THIS" in content.split("Read Tool Pagination")[1][:50], (
+        "Read Tool Pagination section must be marked CRITICAL"
+    )
+    print("✓ AGENTS.md contains Read Tool Pagination section")
+
+
+def test_agents_md_documents_offset_parameter():
+    """Test that AGENTS.md documents the offset parameter"""
+    content = load_agents_md()
+    assert "`offset`" in content, "AGENTS.md must document the offset parameter"
+    assert "1-indexed" in content, "AGENTS.md must explain offset is 1-indexed"
+    assert "offset=101" in content, "AGENTS.md must show offset usage example"
+    print("✓ AGENTS.md documents offset parameter with examples")
+
+
+def test_agents_md_contains_read_loop_antipattern():
+    """Test that AGENTS.md contains anti-pattern for read loop"""
+    content = load_agents_md()
+    assert "Loop Pattern to AVOID" in content, (
+        "AGENTS.md must contain loop anti-pattern"
+    )
+    assert "Correct Pattern" in content, "AGENTS.md must contain correct pattern"
+    assert "NEVER repeat a Read call with identical offset and limit" in content, (
+        "AGENTS.md must explicitly warn against repeating identical Read calls"
+    )
+    print("✓ AGENTS.md contains read loop anti-pattern")
 
 
 def main():
@@ -141,6 +190,9 @@ def main():
         test_wildcard_deny,
         test_provider_local,
         test_model_configuration,
+        test_agents_md_contains_read_pagination,
+        test_agents_md_documents_offset_parameter,
+        test_agents_md_contains_read_loop_antipattern,
     ]
 
     print("=== OpenCode Permission Enforcement Tests ===\n")
@@ -171,5 +223,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -1,3 +1,10 @@
+## [1.13.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.13.1...v1.13.2) (2026-04-13)
+
+
+### Bug Fixes
+
+* increase code-graph-rag connect timeout from 5s to 60s for container-to-host LLM calls ([8b1a6ca](https://github.com/andrewgibson-cic/slapenir/commit/8b1a6cad3135cbe29ea6b47e06a58ea800fae665))
+
 ## [1.13.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.13.0...v1.13.1) (2026-04-13)
 
 

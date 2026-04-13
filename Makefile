@@ -70,7 +70,7 @@ shell:
 	exec $(DC) exec -u agent $(or $(SERVICE),agent) /bin/sh
 
 shell-proxy:
-	@exec $(DC) exec -u proxy proxy /bin/sh
+	@exec $(DC) exec -u proxy proxy /bin/sh -c 'set -a; [ -f /home/proxy/.env.repo ] && . /home/proxy/.env.repo; set +a; exec /bin/sh'
 
 shell-unrestricted:
 	@echo "🔓 Flushing iptables rules for unrestricted network access..."
@@ -287,6 +287,7 @@ session-reset:
 	$(DC) exec agent bash -c 'rm -rf /home/agent/.local/share/mcp-memory/*'
 	$(DC) exec agent bash -c 'rm -rf /home/agent/.local/share/mcp-knowledge/*'
 	$(DC) exec agent bash -c 'rm -f /home/agent/.env.repo'
+	$(DC) exec proxy rm -f /home/proxy/.env.repo
 	-rm -f .slapenir-session
 	@echo "Session reset complete - workspace, secrets, MCP data, and session cleared"
 

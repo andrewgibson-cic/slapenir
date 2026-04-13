@@ -148,7 +148,14 @@ class OpenAIProvider(ModelProvider):
     ) -> OpenAIResponsesModel:
         self.validate_config()
 
-        provider = PydanticOpenAIProvider(api_key=self.api_key, base_url=self.endpoint)
+        http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout=600.0, connect=60.0),
+        )
+        provider = PydanticOpenAIProvider(
+            api_key=self.api_key,
+            base_url=self.endpoint,
+            http_client=http_client,
+        )
         return OpenAIResponsesModel(model_id, provider=provider)
 
 
@@ -180,7 +187,14 @@ class OllamaProvider(ModelProvider):
     ) -> OpenAIChatModel:
         self.validate_config()
 
-        provider = PydanticOpenAIProvider(api_key=self.api_key, base_url=self.endpoint)
+        http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout=600.0, connect=60.0),
+        )
+        provider = PydanticOpenAIProvider(
+            api_key=self.api_key,
+            base_url=self.endpoint,
+            http_client=http_client,
+        )
         return OpenAIChatModel(model_id, provider=provider)
 
 

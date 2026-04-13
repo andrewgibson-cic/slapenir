@@ -1,3 +1,11 @@
+## [1.13.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.13.0...v1.13.1) (2026-04-13)
+
+
+### Bug Fixes
+
+* pre-sanitize .env secrets on host before docker cp ([cc8bd64](https://github.com/andrewgibson-cic/slapenir/commit/cc8bd64a44045a1ce8fea4bef4f83c8f8eab052a))
+* pre-sanitize .env secrets on host before docker cp ([bfb3cdb](https://github.com/andrewgibson-cic/slapenir/commit/bfb3cdb7cbb97c34b771313cd7b70eae9fdf4389))
+
 ## [1.13.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.12.0...v1.13.0) (2026-04-13)
 
 

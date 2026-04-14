@@ -170,7 +170,11 @@ async function getIngestedFiles(proc) {
       return new Set();
     }
     const files = parsed?.files || parsed?.documents || [];
-    return new Set(files.map(f => typeof f === 'string' ? f : f.path || f.filePath || f.name));
+    return new Set(
+      files
+        .filter(f => typeof f === 'string' || f.ingested === true)
+        .map(f => typeof f === 'string' ? f : f.path || f.filePath || f.name)
+    );
   } catch {
     return new Set();
   }

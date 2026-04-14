@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import socket
 import threading
+import time
 import types
 from collections import defaultdict
 from collections.abc import Generator, Sequence
@@ -57,9 +59,11 @@ from ..types_defs import (
 
 class MemgraphIngestor:
     __slots__ = (
+        "_connected",
         "_conn_lock",
         "_executor",
         "_host",
+        "_lazy",
         "_port",
         "_username",
         "_password",
@@ -79,6 +83,7 @@ class MemgraphIngestor:
         username: str | None = None,
         password: str | None = None,
         use_merge: bool = True,
+        lazy: bool = False,
     ):
         self._host = host
         self._port = port
@@ -98,12 +103,19 @@ class MemgraphIngestor:
         self._rel_groups: defaultdict[
             tuple[str, str, str, str, str], list[RelBatchRow]
         ] = defaultdict(list)
+        self._lazy = lazy
+        self._connected = False
 
     def __enter__(self) -> MemgraphIngestor:
         logger.info(ls.MG_CONNECTING.format(host=self._host, port=self._port))
-        self.conn = self._create_connection()
         self._executor = ThreadPoolExecutor(max_workers=settings.FLUSH_THREAD_POOL_SIZE)
-        logger.info(ls.MG_CONNECTED)
+        if self._lazy:
+            logger.info(ls.MG_LAZY_MODE)
+            self._connected = False
+        else:
+            self.conn = self._create_connection_with_retry()
+            self._connected = True
+            logger.info(ls.MG_CONNECTED)
         return self
 
     def __exit__(
@@ -115,9 +127,6 @@ class MemgraphIngestor:
         try:
             if exc_type:
                 logger.exception(ls.MG_EXCEPTION.format(error=exc_val))
-                # (H) Best-effort flush: attempt to persist buffered nodes/relationships
-                # (H) even when an exception occurred. Catching broad Exception so a
-                # (H) secondary flush failure never masks the original exception.
                 try:
                     self.flush_all()
                 except Exception as flush_err:
@@ -131,15 +140,15 @@ class MemgraphIngestor:
             if self.conn:
                 self.conn.close()
                 logger.info(ls.MG_DISCONNECTED)
+            self._connected = False
 
     @contextmanager
     def _get_cursor(self) -> Generator[CursorProtocol, None, None]:
-        if not self.conn:
-            raise ConnectionError(ex.CONN)
+        conn = self._ensure_connected()
         with self._conn_lock:
             cursor: CursorProtocol | None = None
             try:
-                cursor = self.conn.cursor()
+                cursor = conn.cursor()
                 yield cursor
             finally:
                 if cursor:
@@ -185,6 +194,75 @@ class MemgraphIngestor:
             conn = mgclient.connect(host=self._host, port=self._port)
         conn.autocommit = True
         return conn
+
+    def _check_socket_connectivity(self, timeout: float | None = None) -> None:
+        timeout = timeout if timeout is not None else settings.MEMGRAPH_CONNECT_TIMEOUT
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        try:
+            sock.connect((self._host, self._port))
+        finally:
+            sock.close()
+
+    def _create_connection_with_retry(self) -> mgclient.Connection:
+        retries = settings.MEMGRAPH_CONNECT_RETRIES
+        base_delay = settings.MEMGRAPH_RETRY_BASE_DELAY
+        last_error: Exception | None = None
+
+        for attempt in range(1, retries + 1):
+            try:
+                self._check_socket_connectivity()
+                conn = self._create_connection()
+                logger.info(
+                    ls.MG_CONNECT_SUCCESS.format(
+                        host=self._host, port=self._port, attempt=attempt
+                    )
+                )
+                return conn
+            except Exception as e:
+                last_error = e
+                if attempt < retries:
+                    delay = base_delay * (2 ** (attempt - 1))
+                    logger.warning(
+                        ls.MG_CONNECT_RETRY.format(
+                            host=self._host,
+                            port=self._port,
+                            attempt=attempt,
+                            retries=retries,
+                            delay=delay,
+                            error=e,
+                        )
+                    )
+                    time.sleep(delay)
+                else:
+                    logger.error(
+                        ls.MG_CONNECT_FAILED.format(
+                            host=self._host,
+                            port=self._port,
+                            retries=retries,
+                            error=e,
+                        )
+                    )
+
+        raise ConnectionError(
+            ls.MG_CONNECT_EXHAUSTED.format(
+                host=self._host, port=self._port, error=last_error
+            )
+        ) from last_error
+
+    def _ensure_connected(self) -> mgclient.Connection:
+        if self._connected and self.conn is not None:
+            return self.conn
+
+        with self._conn_lock:
+            if self._connected and self.conn is not None:
+                return self.conn
+
+            logger.info(ls.MG_LAZY_CONNECTING.format(host=self._host, port=self._port))
+            self.conn = self._create_connection_with_retry()
+            self._connected = True
+            logger.info(ls.MG_CONNECTED)
+            return self.conn
 
     def _execute_batch_on(
         self,
@@ -331,7 +409,7 @@ class MemgraphIngestor:
             build_merge_node_query if self._use_merge else build_create_node_query
         )
         query = build_query(label, id_key)
-        target_conn = conn or self.conn
+        target_conn = conn or self._ensure_connected()
         if not target_conn:
             logger.warning(ls.MG_NO_CONN_NODES.format(label=label))
             return 0, skipped + len(batch_rows)
@@ -439,7 +517,7 @@ class MemgraphIngestor:
             from_label, from_key, rel_type, to_label, to_key, has_props
         )
 
-        target_conn = conn or self.conn
+        target_conn = conn or self._ensure_connected()
         if not target_conn:
             logger.warning(ls.MG_NO_CONN_RELS.format(pattern=pattern))
             return len(params_list), 0

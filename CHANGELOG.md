@@ -1,3 +1,10 @@
+## [1.14.6](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.5...v1.14.6) (2026-04-14)
+
+
+### Bug Fixes
+
+* **session-reset:** properly clear LanceDB and force reingest on work-start ([04c4767](https://github.com/andrewgibson-cic/slapenir/commit/04c4767ae4ccc9e3f5d5fbcdf1461f74ae5057da))
+
 ## [1.14.5](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.4...v1.14.5) (2026-04-14)
 
 

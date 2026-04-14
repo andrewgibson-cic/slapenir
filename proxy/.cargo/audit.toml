@@ -1,0 +1,23 @@
+# Cargo audit configuration
+# https://github.com/rustsec/rustsec/tree/main/cargo-audit
+
+[advisories]
+# Ignore advisories that don't apply to our use case
+
+# RUSTSEC-2023-0071: Marvin Attack on rsa crate
+# This vulnerability affects MySQL connections via sqlx-mysql.
+# We only use PostgreSQL, so this vulnerability does not affect us.
+# Status: No fix available from rsa maintainers
+#
+# RUSTSEC-2026-0097: rand unsound with custom logger using rand::rng()
+# Affects rand 0.8.5 via sqlx-postgres. No 0.8.x patch exists.
+# Requires all of: custom logger + logger calls thread_rng + thread_rng
+# reseeds during logger call + trace/warn logging enabled. Our codebase
+# does not define a custom logger that calls thread_rng, so we are unaffected.
+# Status: Awaiting sqlx 0.9 stable release which will resolve this
+#
+# RUSTSEC-2025-0134: rustls-pemfile is unmaintained
+# Version 2.2.0 is the latest release and is now unmaintained.
+# Superseded by rustls-pki-types built-in PEM parsing in future migration.
+# No functional issue, only maintenance status warning.
+ignore = ["RUSTSEC-2023-0071", "RUSTSEC-2026-0097", "RUSTSEC-2025-0134"]

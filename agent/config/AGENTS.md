@@ -300,6 +300,45 @@ Action: Read file.py [offset=201, limit=100] → Returns lines 201-300
 - To read the last 50 lines of a 1000-line file: `offset=951, limit=50`
 - Default limit is 2000 (usually enough for the whole file)
 
+### Knowledge MCP Tool Behavior (CRITICAL - READ THIS)
+
+The `knowledge_list_files` and `knowledge_query_documents` tools operate on the **LanceDB vector database**, NOT the filesystem.
+
+**Key distinction:**
+- `knowledge_list_files` → Returns files that have been **ingested into the vector database**
+- `read` / `glob` / `grep` → Operate on the **actual filesystem**
+
+**These are separate systems.** A file appearing in `knowledge_list_files` means it was previously ingested and its embeddings are stored in LanceDB. It does NOT mean:
+- The file currently exists on disk (it may have been deleted after ingestion)
+- The file path is relative to BASE_DIR (paths are stored as they were at ingestion time)
+
+**Common mistake:**
+```
+knowledge_list_files → shows "/home/agent/workspace/tickets/TICKET-123.md"
+Agent: "Let me read that file" → read /home/agent/workspace/tickets/TICKET-123.md
+Agent: "The file doesn't exist!" ← WRONG CONCLUSION
+```
+
+**Correct behavior:**
+1. `knowledge_list_files` shows what's indexed in the DB
+2. To SEARCH indexed content, use `knowledge_query_documents` (semantic search)
+3. To access the actual file, use `read` with the exact path shown
+4. If `read` fails, the file was removed from disk but its embeddings remain in LanceDB
+5. Never tell the user a file "doesn't exist" just because `read` fails - explain it's indexed in the knowledge DB but may not be on disk
+
+**To ingest new files:**
+```bash
+~/scripts/ingest-knowledge.sh /path/to/directory
+~/scripts/ingest-knowledge.sh --reingest --verbose /path/to/directory
+```
+
+**BASE_DIR configuration:**
+- The knowledge MCP uses `BASE_DIR=/home/agent/workspace/docs`
+- Ingested file paths are stored as absolute paths in LanceDB
+- `ingest_file` accepts absolute paths regardless of BASE_DIR
+
+---
+
 ## Maximum Attempts Rule
 
 **Maximum 3 attempts** at any single approach before you MUST:

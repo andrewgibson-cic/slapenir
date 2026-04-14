@@ -1,3 +1,10 @@
+## [1.14.3](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.2...v1.14.3) (2026-04-14)
+
+
+### Bug Fixes
+
+* **vendor:** add missing _lazy and _connected to MemgraphIngestor __slots__ ([6791e85](https://github.com/andrewgibson-cic/slapenir/commit/6791e85f365ec958968891f5c3e69be244636193))
+
 ## [1.14.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.1...v1.14.2) (2026-04-14)
 
 

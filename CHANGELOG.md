@@ -1,3 +1,10 @@
+## [1.14.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.0...v1.14.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* **ci:** correct dependabot docker and pip directory paths ([d09968f](https://github.com/andrewgibson-cic/slapenir/commit/d09968f892f9c5876b837998efc16679e38116a3))
+
 ## [1.14.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.13.3...v1.14.0) (2026-04-14)
 
 

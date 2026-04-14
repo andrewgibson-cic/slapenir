@@ -217,6 +217,9 @@ services:
       - GIT_CONFIG_COUNT=1
       - GIT_CONFIG_KEY_0=safe.directory
       - GIT_CONFIG_VALUE_0=*
+      # GIT - User identity for commits (read from host .env)
+      - GIT_USER_NAME=${GIT_USER_NAME:-SLAPENIR Agent}
+      - GIT_USER_EMAIL=${GIT_USER_EMAIL:-agent@slapenir.local}
     volumes:
       - ./.env:/host-env/.env:ro  # Mount host .env read-only for processing
       - ${HOME}/.claude:/home/agent/.claude:ro  # Claude settings and memory
@@ -239,6 +242,7 @@ services:
       - ~/.gitconfig-ho:/home/agent/.gitconfig-ho:ro
       - ~/.gitconfig-ibm:/home/agent/.gitconfig-ibm:ro
       - ~/.gitconfig-personal:/home/agent/.gitconfig-personal:ro
+      - ~/.gitconfig-cic:/home/agent/.gitconfig-cic:ro
       # SSH config (keys accessed via agent socket)
       # Mount as config.host so setup script can filter macOS-specific options
       - ~/.ssh/config:/home/agent/.ssh/config.host:ro

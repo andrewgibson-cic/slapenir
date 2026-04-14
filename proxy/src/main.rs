@@ -351,13 +351,26 @@ async fn register_secrets_handler(
 ) -> Result<(axum::http::StatusCode, Json<SecretsResponse>), (axum::http::StatusCode, String)> {
     let source = body.source.as_deref().unwrap_or("unknown");
     if body.secrets.is_empty() {
-        return Ok((axum::http::StatusCode::OK, Json(SecretsResponse { count: 0, keys: vec![] })));
+        return Ok((
+            axum::http::StatusCode::OK,
+            Json(SecretsResponse {
+                count: 0,
+                keys: vec![],
+            }),
+        ));
     }
     let keys: Vec<String> = body.secrets.keys().cloned().collect();
-    tracing::info!("🔑 Registering {} runtime secret(s) from '{}'", body.secrets.len(), source);
+    tracing::info!(
+        "🔑 Registering {} runtime secret(s) from '{}'",
+        body.secrets.len(),
+        source
+    );
     let n = state.register_secrets(body.secrets);
     tracing::info!("✅ Registered {} secret(s) from '{}'", n, source);
-    Ok((axum::http::StatusCode::OK, Json(SecretsResponse { count: n, keys })))
+    Ok((
+        axum::http::StatusCode::OK,
+        Json(SecretsResponse { count: n, keys }),
+    ))
 }
 
 async fn unregister_secrets_handler(
@@ -373,9 +386,7 @@ async fn unregister_secrets_handler(
     (axum::http::StatusCode::OK, "Secrets removed")
 }
 
-async fn list_secrets_handler(
-    State(state): State<AppState>,
-) -> Json<SecretsResponse> {
+async fn list_secrets_handler(State(state): State<AppState>) -> Json<SecretsResponse> {
     let rt = state.runtime_secrets.read().unwrap();
     let static_map = &state.secret_map;
     let mut keys: Vec<String> = static_map.dummy_keys();

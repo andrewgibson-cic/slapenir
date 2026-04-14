@@ -82,6 +82,15 @@ if [ -f "$PROXY_ENV_PATH" ]; then
             echo "${var_name}=${DUMMY_MAP[$var_name]}" >> /home/agent/.env
             echo -e "${GREEN}   ✓ ${var_name}=${DUMMY_MAP[$var_name]}${NC}"
         fi
+
+        # Preserve non-credential configuration variables as-is
+        case "$var_name" in
+            GIT_USER_NAME|GIT_USER_EMAIL|POSTGRES_USER|POSTGRES_DB)
+                var_value=$(echo "$line" | cut -d '=' -f 2- | sed 's/^"//;s/"$//')
+                echo "${var_name}=${var_value}" >> /home/agent/.env
+                echo -e "${GREEN}   ✓ ${var_name}=${var_value} (preserved)${NC}"
+                ;;
+        esac
     done < "$PROXY_ENV_PATH"
 else
     echo -e "${YELLOW}   ⚠️  Could not access $PROXY_ENV_PATH${NC}"

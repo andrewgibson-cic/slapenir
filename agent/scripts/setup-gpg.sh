@@ -18,14 +18,16 @@ else
     exit 0
 fi
 
+GIT_CONFIG_FILE="${HOME}/.config/git/config"
+
 # Configure git to use GPG if key is specified
 if [ -n "$GPG_KEY" ]; then
-    git config --global user.signingkey "$GPG_KEY"
-    git config --global commit.gpgsign true
-    git config --global gpg.program gpg
-    echo "✅ Git configured to sign commits with key: $GPG_KEY"
+    git config --file "$GIT_CONFIG_FILE" user.signingkey "$GPG_KEY"
+    git config --file "$GIT_CONFIG_FILE" commit.gpgsign true
+    git config --file "$GIT_CONFIG_FILE" gpg.program gpg
+    echo "Git configured to sign commits with key: $GPG_KEY"
 else
-    echo "⚠️  GPG_KEY not set - skipping git configuration"
+    echo "GPG_KEY not set - skipping git configuration"
 fi
 
 # Verify GPG can communicate with agent

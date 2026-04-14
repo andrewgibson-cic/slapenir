@@ -528,7 +528,7 @@ do_index() {
 do_ingest() {
     info "Ingesting documents into knowledge RAG (via MCP ingest_file)..."
     docker exec -u agent slapenir-agent bash -c \
-        "node /home/agent/scripts/ingest-via-mcp.mjs /home/agent/workspace/docs" || \
+        "node /home/agent/scripts/ingest-via-mcp.mjs --reingest /home/agent/workspace/docs" || \
         warn "Document ingestion had failures (see above)"
     success "Document ingestion complete"
 }

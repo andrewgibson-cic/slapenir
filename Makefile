@@ -285,7 +285,7 @@ session-reset:
 		fi
 	$(DC) exec agent bash -c 'rm -rf /home/agent/workspace/*'
 	$(DC) exec agent bash -c 'rm -rf /home/agent/.local/share/mcp-memory/*'
-	$(DC) exec agent bash -c 'rm -rf /home/agent/.local/share/mcp-knowledge/*'
+	$(DC) exec agent bash -c 'rm -rf /home/agent/.local/share/mcp-knowledge/{*,.*} 2>/dev/null || true'
 	$(DC) exec agent bash -c 'rm -f /home/agent/.env.repo'
 	$(DC) exec proxy rm -f /home/proxy/.env.repo
 	-rm -f .slapenir-session

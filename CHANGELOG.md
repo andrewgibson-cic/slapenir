@@ -1,3 +1,15 @@
+## [1.14.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.13.3...v1.14.0) (2026-04-14)
+
+
+### Features
+
+* improve knowledge ingestion and fix agent file-existence confusion ([99c8cf7](https://github.com/andrewgibson-cic/slapenir/commit/99c8cf7b81035831149cda541790b83c35e7bc4e))
+
+
+### Bug Fixes
+
+* **deps:** suppress rand 0.8.5 advisory (RUSTSEC-2026-0097) ([ce61173](https://github.com/andrewgibson-cic/slapenir/commit/ce61173738ba00f173fe6024dc7afba2ffe93e1e))
+
 ## [1.13.3](https://github.com/andrewgibson-cic/slapenir/compare/v1.13.2...v1.13.3) (2026-04-14)
 
 

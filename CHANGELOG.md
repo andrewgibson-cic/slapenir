@@ -1,3 +1,10 @@
+## [1.14.7](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.6...v1.14.7) (2026-04-14)
+
+
+### Bug Fixes
+
+* **docker:** retry apk add to handle transient Chainguard repo failures ([1189d1f](https://github.com/andrewgibson-cic/slapenir/commit/1189d1f0347445ba1b0b857fc401b0befa166c9d))
+
 ## [1.14.6](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.5...v1.14.6) (2026-04-14)
 
 

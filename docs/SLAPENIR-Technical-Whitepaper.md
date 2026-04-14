@@ -2,7 +2,7 @@
 
 **Technical Whitepaper**
 
-**Version:** 1.0 | **Date:** 2026-04-10 | **Classification:** IBM Internal
+**Version:** 1.14.6 | **Date:** 2026-04-14 | **Classification:** IBM Internal
 
 ---
 
@@ -47,7 +47,7 @@ SLAPENIR (Secure LLM Agent Proxy Environment with Network Isolation & Resilience
 | Air-gapped LLM support | Yes | No | No | No | No |
 | DNS exfiltration prevention | Yes | No | No | Partial | Partial |
 
-**Current status:** The system is production-capable for development use with 5,881 lines of Rust proxy code, 58 Mermaid architecture diagrams, 143 security bypass test cases, a complete iptables enforcement chain, a Step-CA mTLS certificate authority, Prometheus/Grafana observability, and a Criterion benchmark suite. The most significant remaining gap is the incomplete CONNECT tunnel sanitization path (HTTPS MITM), which is the top priority in the four-phase roadmap (Hardening → Capability → Enterprise → Scale, spanning Q3 2026 through Q2 2027).
+**Current status:** The system is production-capable for development use with 7,104 lines of Rust proxy code, 58 Mermaid architecture diagrams, 381 total test cases (including 38 security bypass/authorization tests), a complete iptables enforcement chain, a Step-CA mTLS certificate authority, Prometheus/Grafana observability, native TLS upstream support, a runtime secret injection API, and a Criterion benchmark suite. The most significant remaining gap is the incomplete CONNECT tunnel sanitization path (HTTPS MITM), which is the top priority in the four-phase roadmap (Hardening → Capability → Enterprise → Scale, spanning Q3 2026 through Q2 2027).
 
 This whitepaper provides exhaustive technical detail on every network interaction, security mechanism, credential lifecycle stage, and workflow sequence in the SLAPENIR system, along with a detailed threat model and comparative analysis against existing industry alternatives.
 
@@ -630,6 +630,7 @@ PID 1: /init (s6-overlay)
     ├── bash-init (oneshot)         → Generate .bashrc with traps
     ├── git-init (oneshot)          → Configure git credentials
     ├── gpg-init (oneshot)          → Configure GPG signing
+    ├── ssh-config-init (oneshot)   → Configure SSH for host access
     ├── build-config (oneshot)      → Configure package managers
     ├── startup-validation (oneshot)→ Run 9-test security suite
     ├── memgraph-verify (oneshot)   → Check Memgraph connectivity
@@ -651,12 +652,12 @@ The proxy consists of 24 source files organized into 4 functional modules:
 
 ```text
 proxy/src/
-├── main.rs              (401 lines) — Entry point, config loading, router setup
+├── main.rs              (475 lines) — Entry point, config loading, router setup
 ├── lib.rs               (30 lines)  — Module declarations and re-exports
 ├── config.rs            (367 lines) — YAML configuration parsing
-├── proxy.rs             (618 lines) — Core HTTP forwarding handler
-├── middleware.rs         (325 lines) — Shared AppState and middleware functions
-├── sanitizer.rs         (392 lines) — Credential injection and sanitization engine
+├── proxy.rs             (624 lines) — Core HTTP forwarding handler
+├── middleware.rs         (408 lines) — Shared AppState and middleware functions
+├── sanitizer.rs         (396 lines) — Credential injection and sanitization engine
 ├── mtls.rs              (177 lines) — mTLS configuration and verification
 ├── builder.rs           (225 lines) — Auth strategy factory
 ├── strategy.rs          (337 lines) — AuthStrategy trait + BearerStrategy
@@ -664,9 +665,9 @@ proxy/src/
 ├── metrics.rs           (254 lines) — Prometheus metrics definitions
 ├── connect.rs           (658 lines) — HTTP CONNECT tunnel handler
 ├── connect_middleware.rs (79 lines)  — Tower layer for CONNECT interception
-├── connect_mitm.rs      (110 lines) — TLS MITM (handshake only)
-├── connect_http.rs      (334 lines) — TLS MITM + HTTP parsing
-├── connect_full.rs      (381 lines) — Full MITM: TLS + HTTP + injection + sanitization
+├── connect_mitm.rs      (109 lines) — TLS MITM (handshake only)
+├── connect_http.rs      (333 lines) — TLS MITM + HTTP parsing
+├── connect_full.rs      (380 lines) — Full MITM: TLS + HTTP + injection + sanitization
 ├── http_parser.rs       (582 lines) — HTTP/1.x request/response parser
 ├── strategies/
 │   ├── mod.rs           (7 lines)   — Module declarations
@@ -679,7 +680,7 @@ proxy/src/
     └── error.rs         (56 lines)  — TLS error types
 ```
 
-**Total:** ~5,881 lines of Rust.
+**Total:** ~7,104 lines of Rust.
 
 #### 7.2 Request Processing Pipeline
 
@@ -707,6 +708,7 @@ flowchart TD
     ROUTE --> | /health | HEALTH["health() → OK"]
     ROUTE --> | /metrics | METRICS["metrics_handler()"]
     ROUTE --> | / | ROOT["root() → Landing page"]
+    ROUTE --> | /internal/secrets | SECRETS["Runtime secret injection API<br/>(register / list / unregister)"]
     ROUTE --> | /v1/* | PROXY_H["proxy_handler()"]
     
     PROXY_H --> BYPASS{"should_bypass_proxy?<br/>(localhost/127.0.0.1)"}
@@ -714,7 +716,7 @@ flowchart TD
     BYPASS --> | No | READ_REQ["Read body<br/>(size-limited: 10MB)"]
     READ_REQ --> INJ["secret_map.inject()<br/>(DUMMY → REAL)"]
     INJ --> TARGET["determine_target_url()<br/>(X-Target-URL / Host / env)"]
-    TARGET --> FWD["hyper client<br/>→ upstream"]
+    TARGET -->     FWD["hyper client<br/>→ upstream<br/>(native TLS)"]
     FWD --> READ_RESP["Read response<br/>(size-limited: 100MB)"]
     READ_RESP --> SAN["secret_map.sanitize_bytes()<br/>(REAL → [REDACTED])"]
     SAN --> PARANOID["Paranoid verification<br/>(fail-closed: 500 on leak)"]
@@ -866,7 +868,7 @@ graph LR
 
 4. **The agent container is built on 12 security layers** — from the Wolfi base image through binary shadowing to the setuid netctl binary — each designed to prevent credential exfiltration and code leakage.
 
-5. **The proxy processes 5,881 lines of Rust** through a multi-stage middleware pipeline that performs credential injection, binary-safe sanitization, header scrubbing, and paranoid verification on every request.
+5. **The proxy processes 7,104 lines of Rust** through a multi-stage middleware pipeline that performs credential injection, binary-safe sanitization, header scrubbing, and paranoid verification on every request.
 
 ---
 
@@ -3563,6 +3565,28 @@ fi
 #### 9.4 Secret Scanning (Host-Side)
 
 Before code is extracted from the agent container, the host-side `make verify` pipeline runs secret scanning tools (gitleaks, trufflehog) against the extracted codebase. These tools detect any real credentials that may have been inadvertently written into source files by the agent during development. Any detected secrets block the extraction process and trigger a security review.
+
+#### 9.5 Runtime Secret Injection API
+
+In addition to the startup-time credential loading pipeline, the proxy exposes an internal API for runtime secret injection. This enables the `make work-start` workflow to dynamically register repository-specific credentials (e.g., `DUMMY_REPO_GITHUB_TOKEN`) without restarting the proxy.
+
+**Routes:**
+
+| Route | Method | Purpose |
+| --- | --- | --- |
+| `/internal/secrets` | POST | Register new DUMMY→REAL credential pairs |
+| `/internal/secrets/list` | GET | List currently registered DUMMY keys |
+| `/internal/secrets` | DELETE | Unregister specific credential pairs |
+
+These routes are accessible only within the Docker network and are used by the `slapenir` CLI during `work-start` and `session-reset` operations. Registered secrets are injected and sanitized using the same Aho-Corasick pipeline as startup-loaded credentials.
+
+**Ref:** `proxy/src/main.rs` (internal routes), `slapenir` CLI (invocation)
+
+#### 9.6 Pre-Sanitization of Host Secrets
+
+When copying the `.env` file into the agent container for credential derivation, the host-side tooling pre-sanitizes the file by replacing all real credential values with their corresponding `DUMMY_*` placeholders before the `docker cp` operation. This ensures that even if the copy operation were intercepted or misconfigured, the container would only receive dummy values — the real credentials never enter the container filesystem at any point in the transfer process.
+
+**Ref:** `slapenir` CLI (pre-sanitize step in `init`)
 
 ---
 

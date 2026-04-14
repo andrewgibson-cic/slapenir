@@ -1032,8 +1032,13 @@ docker compose exec proxy --help
 2. Proxy maintains secret mapping: `DUMMY_* → real credentials`
 3. Request interception: proxy replaces dummies with real values
 4. response sanitization: proxy removes real credentials before agent sees them
+5. `.env` file is pre-sanitized before transfer into the container
 
-5. **Agent NEVER sees real credentials**
+6. **Agent NEVER sees real credentials**
+
+### Runtime Secret Injection
+
+The proxy exposes an internal API (`/internal/secrets`) for registering credentials at runtime. This is used by the `slapenir` CLI during `work-start` to inject repository-specific secrets (e.g., per-repo GitHub tokens) without restarting the proxy.
 
 ### Network Isolation
 
@@ -1088,16 +1093,18 @@ make work-done REPO=~/Projects/vaultpay
 
 ### Step 1: `make work-start`
 
-Sets up the entire environment and waits for indexing to complete:
+Sets up the entire environment and waits for indexing to complete (delegates to `./slapenir init`):
 
 1. Validates Docker and llama-server are running
 2. Starts SLAPENIR services if not running
-3. Copies repository to `/home/agent/workspace`
-4. Copies documents to `/home/agent/workspace/docs`
-5. Runs security verification (zero-knowledge + network isolation)
-6. Indexes repository with Code-Graph-RAG (saves as project `<repo-name>` in Memgraph)
-7. Ingests documents into knowledge RAG (via `ingest-markdown.sh`)
-8. Saves session state
+3. Pre-sanitizes `.env` (replaces real secrets with `DUMMY_*` before transfer)
+4. Copies repository to `/home/agent/workspace`
+5. Copies documents to `/home/agent/workspace/docs`
+6. Registers repo-specific secrets via proxy `/internal/secrets` API
+7. Runs security verification (zero-knowledge + network isolation)
+8. Indexes repository with Code-Graph-RAG (saves as project `<repo-name>` in Memgraph)
+9. Ingests documents into knowledge RAG (via MCP `ingest_file` tool)
+10. Saves session state
 
 ```bash
 # With documents (tickets, specs, etc.)
@@ -1132,14 +1139,15 @@ exit
 
 ### Step 3: `make work-done`
 
-Extracts your work from the container and runs security checks:
+Extracts your work from the container and runs security checks (delegates to `./slapenir done`):
 
 1. Scans for leaked secrets inside the container
-2. Creates timestamped backup of host repository
-3. Copies repository back to host
-4. Scans for secrets on host (gitleaks/trufflehog if available)
-5. Prints git log + diff summary
-6. Prints push instructions
+2. Unregisters runtime secrets from proxy via `/internal/secrets` API
+3. Creates timestamped backup of host repository
+4. Copies repository back to host
+5. Scans for secrets on host (gitleaks/trufflehog if available)
+6. Prints git log + diff summary
+7. Prints push instructions
 
 ```bash
 make work-done REPO=~/Projects/vaultpay
@@ -1182,9 +1190,10 @@ The agent container can perform all local git operations (branch, commit, diff, 
 | `make copy-cache TYPE=gradle\|npm\|pip\|yarn\|maven\|all` | Copy host build caches for offline builds |
 | **Indexing & Knowledge** | |
 | `make index REPO=...` | Index repo for Code-Graph-RAG |
-| `make ingest` | Ingest docs into knowledge RAG |
+| `make ingest` | Ingest docs into knowledge RAG (via MCP ingest_file tool) |
 | **Shell Access** | |
 | `make shell` | Open agent shell (builds blocked, no internet) |
+| `make shell-proxy` | Open proxy shell (for debugging credential injection) |
 | `make shell-unrestricted` | Open shell with internet (flushes iptables) |
 | `make shell-raw` | Open raw shell bypassing all config |
 | **Operations** | |
@@ -1202,7 +1211,7 @@ The agent container can perform all local git operations (branch, commit, diff, 
 ### Running Tests
 
 ```bash
-# All tests (381+ tests, 82% coverage)
+# All tests (381+ tests)
 make test
 
 # Rust tests
@@ -1221,7 +1230,7 @@ cd proxy/tests/load
 
 ### Test Coverage
 
-- **Unit tests**: 381 tests (Rust)
+- **Unit tests**: 124 tests in proxy/src (Rust)
 - **Integration tests**: Comprehensive suite across all modules
 - **Property tests**: Proptest for generative testing
 - **Security tests**: Authorization boundary tests, bypass prevention
@@ -1254,7 +1263,7 @@ cd proxy/tests/load
 ## Status
 
 **Production Ready** - All development phases complete:
-- 381 tests passing (82% coverage)
+- 381+ tests passing (124 unit + 257 integration/property/chaos/security)
 - Zero compiler warnings
 - Chaos testing validated
 - Security review passed
@@ -1262,10 +1271,13 @@ cd proxy/tests/load
 - Autonomous development workflow integrated
 - MCP tools (Memory, Knowledge, Code-Graph-RAG) operational
 - Secure work process with session isolation
+- Runtime secret injection API for per-repo credentials
+- Native TLS upstream support for external API connections
+- Pre-sanitized .env transfer prevents credential exposure during copy-in
 
-**Version**: 1.10.0
+**Version**: 1.14.6
 
-**Last Updated**: 2026-04-11
+**Last Updated**: 2026-04-14
 
 ---
 

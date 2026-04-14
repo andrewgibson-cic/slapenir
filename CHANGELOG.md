@@ -1,3 +1,10 @@
+## [1.13.3](https://github.com/andrewgibson-cic/slapenir/compare/v1.13.2...v1.13.3) (2026-04-14)
+
+
+### Bug Fixes
+
+* replace CLI-based doc ingestion with MCP ingest_file tool ([7d5db26](https://github.com/andrewgibson-cic/slapenir/commit/7d5db26bd581a0e90e553411b95fe337f8ba5ce6))
+
 ## [1.13.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.13.1...v1.13.2) (2026-04-13)
 
 

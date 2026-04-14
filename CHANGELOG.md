@@ -1,3 +1,11 @@
+## [1.14.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.1...v1.14.2) (2026-04-14)
+
+
+### Bug Fixes
+
+* add TLS support to proxy HTTP client ([1402f1a](https://github.com/andrewgibson-cic/slapenir/commit/1402f1a320015ffe2e3710ef3cdf7b58c81df267))
+* add TLS support to proxy HTTP client ([fb0d62e](https://github.com/andrewgibson-cic/slapenir/commit/fb0d62e9ae927df015ac09f2c05f6f6ed81cb035))
+
 ## [1.14.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.0...v1.14.1) (2026-04-14)
 
 

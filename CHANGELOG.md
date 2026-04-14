@@ -1,3 +1,12 @@
+## [1.14.4](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.3...v1.14.4) (2026-04-14)
+
+
+### Bug Fixes
+
+* agent git config writes to wrong file with read-only host gitconfig ([a4d4c2b](https://github.com/andrewgibson-cic/slapenir/commit/a4d4c2ba82d7049c8be5e1984fe50907543b01b7))
+* agent git config writes to wrong file with read-only host gitconfig ([d795467](https://github.com/andrewgibson-cic/slapenir/commit/d7954673f21dbe37d339da0833558edfd8f316ec))
+* **vendor:** patch code-graph-rag mgclient.MemgraphError compatibility ([a23bfce](https://github.com/andrewgibson-cic/slapenir/commit/a23bfcefa3d7123c05528d649d14d5e293d0ba37))
+
 ## [1.14.3](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.2...v1.14.3) (2026-04-14)
 
 

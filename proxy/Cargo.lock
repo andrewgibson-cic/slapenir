@@ -1158,6 +1158,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyper-rustls"
+version = "0.27.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2b52f86d1d4bc0d6b4e6826d960b1b333217e07d36b882dca570a5e1c48895b"
+dependencies = [
+ "http 1.4.0",
+ "hyper",
+ "hyper-util",
+ "rustls",
+ "tokio",
+ "tokio-rustls",
+ "tower-service",
+ "webpki-roots 1.0.6",
+]
+
+[[package]]
 name = "hyper-util"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2323,7 +2339,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "slapenir-proxy"
-version = "1.13.3"
+version = "1.14.1"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2338,6 +2354,7 @@ dependencies = [
  "hmac 0.13.0",
  "httparse",
  "hyper",
+ "hyper-rustls",
  "hyper-util",
  "lazy_static",
  "mockito",
@@ -2363,6 +2380,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "webpki-roots 0.26.11",
  "x509-parser",
  "zeroize",
 ]

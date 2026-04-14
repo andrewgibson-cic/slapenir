@@ -527,10 +527,34 @@ do_index() {
 
 do_ingest() {
     info "Ingesting documents into knowledge RAG (via MCP ingest_file)..."
+    local ingest_exit=0
     docker exec -u agent slapenir-agent bash -c \
-        "node /home/agent/scripts/ingest-via-mcp.mjs --reingest /home/agent/workspace/docs" || \
+        "node /home/agent/scripts/ingest-via-mcp.mjs --reingest /home/agent/workspace/docs" || ingest_exit=$?
+
+    if [ "$ingest_exit" -eq 2 ]; then
+        warn "Document ingestion completed but verification found missing files (exit code 2)"
+        warn "Some documents may not be retrievable. Run with --reingest to retry."
+    elif [ "$ingest_exit" -eq 1 ]; then
         warn "Document ingestion had failures (see above)"
-    success "Document ingestion complete"
+    else
+        success "Document ingestion complete"
+    fi
+}
+
+do_verify_knowledge() {
+    info "Verifying knowledge database integrity..."
+    local verify_exit=0
+    docker exec -u agent slapenir-agent bash -c \
+        "node /home/agent/scripts/ingest-via-mcp.mjs --verify-only /home/agent/workspace/docs" || verify_exit=$?
+
+    if [ "$verify_exit" -eq 0 ]; then
+        success "Knowledge database verification passed"
+    elif [ "$verify_exit" -eq 2 ]; then
+        warn "Knowledge database verification found missing files"
+    else
+        warn "Knowledge database verification failed (exit code $verify_exit)"
+    fi
+    return $verify_exit
 }
 
 # ============================================================================
@@ -581,6 +605,9 @@ cmd_init() {
     if [ -n "$docs_path" ]; then
         step "Phase 6: Ingesting Documents"
         do_ingest
+
+        step "Phase 7: Verifying Ingestion"
+        do_verify_knowledge || true
     fi
 
     step "Saving Session"

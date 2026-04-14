@@ -275,6 +275,10 @@ class AppConfig(BaseSettings):
     QUERY_RESULT_ROW_CAP: int = Field(default=500, gt=0)
 
     OLLAMA_HEALTH_TIMEOUT: float = 5.0
+    MEMGRAPH_CONNECT_TIMEOUT: int = Field(default=10, gt=0)
+    MEMGRAPH_CONNECT_RETRIES: int = Field(default=3, gt=0)
+    MEMGRAPH_RETRY_BASE_DELAY: float = Field(default=1.0, gt=0)
+    LLM_RETRY_BASE_DELAY: float = Field(default=1.0, gt=0)
 
     _active_orchestrator: ModelConfig | None = None
     _active_cypher: ModelConfig | None = None

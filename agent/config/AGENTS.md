@@ -265,40 +265,42 @@ You: I cannot run gradle, but I can analyze the build.gradle file.
 
 **You MUST use the `offset` parameter to read beyond the first batch of lines.**
 
-The Read tool returns a limited number of lines per call. When you need to read content that starts after the last line you received, you MUST provide the `offset` parameter with the next line number (1-indexed).
+The `read` tool and `code-graph-rag_read_file` tool both return a limited number of lines per call.
+When you need to read content beyond what was returned, you MUST provide the `offset` parameter.
 
-**Read tool parameters:**
-- `offset`: The line number to start reading from (1-indexed). Default is 1 (start of file).
-- `limit`: Maximum number of lines to return. Default is 2000.
+**Two tools, different indexing:**
+- `read` tool: offset is **1-indexed** (first line = 1)
+- `code-graph-rag_read_file` tool: offset is **0-indexed** (first line = 0)
 
 **Pagination rules:**
-1. If a Read returns lines 1-100 and you need more, call Read with `offset=101`
-2. If that returns lines 101-200 and you still need more, call Read with `offset=201`
-3. **NEVER repeat a Read call with identical offset and limit** - this is a loop
+1. If a read returns lines 1-100 and you need more, call with `offset=101` (1-indexed) or `offset=100` (0-indexed)
+2. **NEVER repeat a read call with the same offset** - this is a loop and wastes tokens
+3. If the response says "(more available: call again with offset=N)", use that exact offset value
 4. Use `grep` to find specific content in large files instead of reading everything
 5. If you only need a specific section, calculate the offset and read only that range
 
 **Loop Pattern to AVOID:**
 ```
-Action: Read file.py [limit=100]           → Returns lines 1-100
-Action: Read file.py [limit=100]           → Returns lines 1-100 (SAME!)
-Action: Read file.py [limit=100]           → Returns lines 1-100 (LOOP!)
+Action: read file.py [limit=100]           → Returns lines 1-100
+Action: read file.py [limit=100]           → Returns lines 1-100 (SAME! LOOP!)
+Action: read file.py [limit=100]           → Returns lines 1-100 (STILL LOOPING!)
 [Model never reaches line 101+]
 ```
 
 **Correct Pattern:**
 ```
-Action: Read file.py [limit=100]           → Returns lines 1-100
-Action: Read file.py [offset=101, limit=100] → Returns lines 101-200
-Action: Read file.py [offset=201, limit=100] → Returns lines 201-300
+Action: read file.py [limit=100]           → Returns lines 1-100
+Action: read file.py [offset=101, limit=100] → Returns lines 101-200
+Action: read file.py [offset=201, limit=100] → Returns lines 201-300
 [Model advances through the file correctly]
 ```
 
-**Quick reference:**
-- To read from line 101: `offset=101`
-- To read from line 501: `offset=501`
-- To read the last 50 lines of a 1000-line file: `offset=951, limit=50`
-- Default limit is 2000 (usually enough for the whole file)
+**For code-graph-rag_read_file (0-indexed offset):**
+```
+Action: code-graph-rag_read_file path=file.py [offset=0, limit=100]   → Lines 1-100
+Action: code-graph-rag_read_file path=file.py [offset=100, limit=100] → Lines 101-200
+[Use offset=N from the "more available" hint in the response]
+```
 
 ### Knowledge MCP Tool Behavior (CRITICAL - READ THIS)
 

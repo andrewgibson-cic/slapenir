@@ -2480,6 +2480,10 @@ MCP_JSON_INDENT = 2
 MCP_LOG_LEVEL_INFO = "INFO"
 MCP_LOG_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>"
 MCP_PAGINATION_HEADER = "# Lines {start}-{end} of {total}\n"
+MCP_PAGINATION_HAS_MORE = (
+    "# Lines {start}-{end} of {total} "
+    "(more available: call again with offset={next_offset} to continue reading)\n"
+)
 
 # (H) MCP response messages
 MCP_INDEX_SUCCESS = "Successfully indexed repository at {path}. Knowledge graph has been updated (previous data cleared)."

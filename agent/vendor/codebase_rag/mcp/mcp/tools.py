@@ -1,12 +1,17 @@
 import asyncio
 import itertools
+import time
+from collections.abc import Callable, Coroutine
+from functools import wraps
 from pathlib import Path
+from typing import Any, ParamSpec, TypeVar
 
 from loguru import logger
 
 from codebase_rag import constants as cs
 from codebase_rag import logs as lg
 from codebase_rag import tool_errors as te
+from codebase_rag.config import settings
 from codebase_rag.graph_updater import GraphUpdater
 from codebase_rag.models import ToolMetadata
 from codebase_rag.parser_loader import load_parsers
@@ -37,6 +42,61 @@ from codebase_rag.types_defs import (
     QueryResultDict,
 )
 from codebase_rag.vector_store import delete_project_embeddings
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+_NETWORK_RETRYABLE_ERRORS: tuple[type[Exception], ...] = (
+    ConnectionError,
+    OSError,
+)
+
+try:
+    import mgclient
+
+    _NETWORK_RETRYABLE_ERRORS = (*_NETWORK_RETRYABLE_ERRORS, mgclient.MemgraphError)
+except (ImportError, AttributeError):
+    pass
+
+
+def _retry_on_network_error(
+    max_attempts: int | None = None,
+    base_delay: float | None = None,
+    tool_name: str = "unknown",
+) -> Callable[
+    [Callable[_P, Coroutine[Any, Any, _R]]], Callable[_P, Coroutine[Any, Any, _R]]
+]:
+    retries = max_attempts or settings.MEMGRAPH_CONNECT_RETRIES
+    delay = base_delay or settings.MEMGRAPH_RETRY_BASE_DELAY
+
+    def decorator(
+        func: Callable[_P, Coroutine[Any, Any, _R]],
+    ) -> Callable[_P, Coroutine[Any, Any, _R]]:
+        @wraps(func)
+        async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+            last_error: Exception | None = None
+            for attempt in range(1, retries + 1):
+                try:
+                    return await func(*args, **kwargs)
+                except _NETWORK_RETRYABLE_ERRORS as e:
+                    last_error = e
+                    if attempt < retries:
+                        wait = delay * (2 ** (attempt - 1))
+                        logger.warning(
+                            f"[MCP] {tool_name} network error "
+                            f"(attempt {attempt}/{retries}), "
+                            f"retrying in {wait:.1f}s: {e}"
+                        )
+                        await asyncio.sleep(wait)
+                    else:
+                        logger.error(
+                            f"[MCP] {tool_name} failed after {retries} attempts: {e}"
+                        )
+            raise last_error  # type: ignore[misc]
+
+        return wrapper
+
+    return decorator
 
 
 class MCPToolsRegistry:
@@ -251,6 +311,7 @@ class MCPToolsRegistry:
             ),
         }
 
+    @_retry_on_network_error(tool_name="list_projects")
     async def list_projects(self) -> ListProjectsResult:
         logger.info(lg.MCP_LISTING_PROJECTS)
         try:
@@ -293,6 +354,7 @@ class MCPToolsRegistry:
             message=cs.MCP_PROJECT_DELETED.format(project_name=project_name),
         )
 
+    @_retry_on_network_error(tool_name="delete_project")
     async def delete_project(self, project_name: str) -> DeleteProjectResult:
         logger.info(lg.MCP_DELETING_PROJECT.format(project_name=project_name))
         try:
@@ -302,6 +364,7 @@ class MCPToolsRegistry:
             logger.error(lg.MCP_ERROR_DELETE_PROJECT.format(error=e))
             return DeleteProjectErrorResult(success=False, error=str(e))
 
+    @_retry_on_network_error(tool_name="wipe_database")
     async def wipe_database(self, confirm: bool) -> str:
         if not confirm:
             return cs.MCP_WIPE_CANCELLED
@@ -332,6 +395,7 @@ class MCPToolsRegistry:
             path=self.project_root, project_name=project_name
         )
 
+    @_retry_on_network_error(tool_name="index_repository")
     async def index_repository(self) -> str:
         logger.info(lg.MCP_INDEXING_REPO.format(path=self.project_root))
         try:
@@ -341,6 +405,7 @@ class MCPToolsRegistry:
             logger.error(lg.MCP_ERROR_INDEXING.format(error=e))
             return cs.MCP_INDEX_ERROR.format(error=e)
 
+    @_retry_on_network_error(tool_name="query_code_graph")
     async def query_code_graph(self, natural_language_query: str) -> QueryResultDict:
         logger.info(lg.MCP_QUERY_CODE_GRAPH.format(query=natural_language_query))
         try:
@@ -363,6 +428,7 @@ class MCPToolsRegistry:
                 ),
             )
 
+    @_retry_on_network_error(tool_name="get_code_snippet")
     async def get_code_snippet(self, qualified_name: str) -> CodeSnippetResultDict:
         logger.info(lg.MCP_GET_CODE_SNIPPET.format(name=qualified_name))
         try:
@@ -422,11 +488,20 @@ class MCPToolsRegistry:
                         skipped_count + len(sliced_lines) + remaining_lines_count
                     )
 
-                    header = cs.MCP_PAGINATION_HEADER.format(
-                        start=start + 1,
-                        end=start + len(sliced_lines),
-                        total=total_lines,
-                    )
+                    has_more = remaining_lines_count > 0
+                    if has_more:
+                        header = cs.MCP_PAGINATION_HAS_MORE.format(
+                            start=start + 1,
+                            end=start + len(sliced_lines),
+                            total=total_lines,
+                            next_offset=start + len(sliced_lines),
+                        )
+                    else:
+                        header = cs.MCP_PAGINATION_HEADER.format(
+                            start=start + 1,
+                            end=start + len(sliced_lines),
+                            total=total_lines,
+                        )
                     return header + paginated_content
             else:
                 result = await self._file_reader_tool.function(file_path=file_path)

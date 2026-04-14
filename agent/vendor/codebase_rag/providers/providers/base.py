@@ -149,7 +149,7 @@ class OpenAIProvider(ModelProvider):
         self.validate_config()
 
         http_client = httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout=600.0, connect=60.0),
+            timeout=httpx.Timeout(timeout=300.0, connect=30.0),
         )
         provider = PydanticOpenAIProvider(
             api_key=self.api_key,
@@ -188,7 +188,7 @@ class OllamaProvider(ModelProvider):
         self.validate_config()
 
         http_client = httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout=600.0, connect=60.0),
+            timeout=httpx.Timeout(timeout=300.0, connect=30.0),
         )
         provider = PydanticOpenAIProvider(
             api_key=self.api_key,

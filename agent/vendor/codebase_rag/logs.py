@@ -170,6 +170,23 @@ SOURCE_AST_FAILED = "AST extraction failed for {name}: {error}"
 # (H) Memgraph logs
 MG_CONNECTING = "Connecting to Memgraph at {host}:{port}..."
 MG_CONNECTED = "Successfully connected to Memgraph."
+MG_LAZY_MODE = (
+    "Lazy connection mode enabled. Deferring Memgraph connection to first use."
+)
+MG_LAZY_CONNECTING = (
+    "[Lazy] Establishing deferred connection to Memgraph at {host}:{port}..."
+)
+MG_CONNECT_SUCCESS = "Connected to Memgraph at {host}:{port} (attempt {attempt})"
+MG_CONNECT_RETRY = (
+    "Memgraph connection attempt {attempt}/{retries} failed "
+    "({host}:{port}), retrying in {delay:.1f}s: {error}"
+)
+MG_CONNECT_FAILED = (
+    "All {retries} Memgraph connection attempts failed ({host}:{port}): {error}"
+)
+MG_CONNECT_EXHAUSTED = (
+    "Could not connect to Memgraph at {host}:{port} after all retries: {error}"
+)
 MG_EXCEPTION = "An exception occurred: {error}. Attempting best-effort flush..."
 MG_FLUSH_ERROR = "Failed to flush during cleanup: {error}"
 MG_DISCONNECTED = "\nDisconnected from Memgraph."
@@ -618,6 +635,9 @@ MCP_ERROR_WIPE = "[MCP] Error wiping database: {error}"
 MCP_QUERY_CODE_GRAPH = "[MCP] query_code_graph: {query}"
 MCP_QUERY_RESULTS = "[MCP] Query returned {count} results"
 MCP_ERROR_QUERY = "[MCP] Error querying code graph: {error}"
+MCP_RETRY_QUERY = (
+    "[MCP] Retrying query_code_graph (attempt {attempt}/{max_attempts}): {error}"
+)
 MCP_GET_CODE_SNIPPET = "[MCP] get_code_snippet: {name}"
 MCP_ERROR_CODE_SNIPPET = "[MCP] Error retrieving code snippet: {error}"
 MCP_SURGICAL_REPLACE = "[MCP] surgical_replace_code in {path}"

@@ -110,7 +110,13 @@ MCP_SURGICAL_REPLACE_CODE = (
 )
 
 MCP_READ_FILE = (
-    "Read the contents of a file from the project. Supports pagination for large files."
+    "Read the contents of a file from the project. Returns ALL lines by default. "
+    "If you only need a specific range, use offset and limit to read a window of lines. "
+    "CRITICAL: When a paginated response shows 'Lines X-Y of Z' and Y < Z, "
+    "the file has more content. To continue reading, call this tool again with "
+    "offset=Y to get the next chunk. "
+    "Example: if response shows 'Lines 1-100 of 350', call again with offset=100,limit=100 "
+    "to get lines 101-200. NEVER repeat the same call expecting different results."
 )
 
 MCP_WRITE_FILE = "Write content to a file, creating it if it doesn't exist."
@@ -126,8 +132,17 @@ MCP_PARAM_QUALIFIED_NAME = (
 MCP_PARAM_FILE_PATH = "Relative path to the file from project root"
 MCP_PARAM_TARGET_CODE = "Exact code block to replace"
 MCP_PARAM_REPLACEMENT_CODE = "New code to insert"
-MCP_PARAM_OFFSET = "Line number to start reading from (0-based, optional)"
-MCP_PARAM_LIMIT = "Maximum number of lines to read (optional)"
+MCP_PARAM_OFFSET = (
+    "0-based line number to start reading from. "
+    "Use this to read beyond the first chunk. "
+    "Example: offset=100 starts reading from line 101. "
+    "If previous response showed 'Lines 1-100 of 350', set offset=100 to get lines 101+."
+)
+MCP_PARAM_LIMIT = (
+    "Maximum number of lines to return. "
+    "Use together with offset to read files in chunks. "
+    "Example: offset=100, limit=100 returns lines 101-200."
+)
 MCP_PARAM_CONTENT = "Content to write to the file"
 MCP_PARAM_DIRECTORY_PATH = "Relative path to directory from project root (default: '.')"
 

@@ -11,7 +11,7 @@ const DB_PATH = process.env.DB_PATH || '/home/agent/.local/share/mcp-knowledge/l
 const CACHE_DIR = process.env.CACHE_DIR || '/home/agent/.cache/huggingface';
 const BASE_DIR = process.env.BASE_DIR || '/home/agent/workspace/docs';
 const MODEL_NAME = process.env.MODEL_NAME || 'Xenova/all-MiniLM-L6-v2';
-const MCP_SERVER_PATH = '/usr/local/lib/node_modules/mcp-local-rag/dist/server-main.js';
+const MCP_SERVER_PATH = '/usr/local/lib/node_modules/mcp-local-rag/dist/index.js';
 
 const RE_INGEST = process.argv.includes('--reingest') || process.argv.includes('--force');
 const DRY_RUN = process.argv.includes('--dry-run');

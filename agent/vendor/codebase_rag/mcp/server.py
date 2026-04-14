@@ -73,6 +73,7 @@ def create_server() -> tuple[Server, MemgraphIngestor]:
         batch_size=settings.MEMGRAPH_BATCH_SIZE,
         username=settings.MEMGRAPH_USERNAME,
         password=settings.MEMGRAPH_PASSWORD,
+        lazy=True,
     )
 
     cypher_generator = CypherGenerator()

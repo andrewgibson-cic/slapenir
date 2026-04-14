@@ -59,12 +59,11 @@ pub async fn tunnel_with_tls_mitm_full(
     info!("✓ Client TLS handshake complete for '{}'", hostname);
     
     debug!("Establishing TLS connection to upstream server '{}'...", hostname);
-    
-    // Create a permissive TLS config for outbound connections
-    // Note: For production, this should validate certificates properly
-    let root_store = rustls::RootCertStore::empty();
-    // Use webpki-roots equivalent - Mozilla CA bundle is included with rustls
-    // For now, we will skip cert validation (dangerous but works for proxy)
+
+    let mut root_store = rustls::RootCertStore::empty();
+    for cert in webpki_roots::TLS_SERVER_ROOTS.iter() {
+        root_store.roots.push(cert.clone());
+    }
 
     let client_config = rustls::ClientConfig::builder()
         .with_root_certificates(root_store)

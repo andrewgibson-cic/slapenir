@@ -15,6 +15,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
 };
+use hyper_rustls::HttpsConnector;
 use hyper_util::{
     client::legacy::{connect::HttpConnector, Client},
     rt::TokioExecutor,
@@ -27,12 +28,17 @@ pub const DEFAULT_MAX_REQUEST_SIZE: usize = 10 * 1024 * 1024;
 /// Default maximum response body size (100 MB)
 pub const DEFAULT_MAX_RESPONSE_SIZE: usize = 100 * 1024 * 1024;
 
-/// HTTP client for forwarding requests
-pub type HttpClient = Client<HttpConnector, Body>;
+/// HTTP client for forwarding requests (supports both HTTP and HTTPS)
+pub type HttpClient = Client<HttpsConnector<HttpConnector>, Body>;
 
-/// Create a configured HTTP client for proxying
+/// Create a configured HTTP client for proxying with TLS support
 pub fn create_http_client() -> HttpClient {
-    Client::builder(TokioExecutor::new()).build_http()
+    let https = hyper_rustls::HttpsConnectorBuilder::new()
+        .with_webpki_roots()
+        .https_or_http()
+        .enable_http1()
+        .build();
+    Client::builder(TokioExecutor::new()).build(https)
 }
 
 /// Proxy configuration with security limits

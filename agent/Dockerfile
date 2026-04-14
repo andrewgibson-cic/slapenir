@@ -9,31 +9,33 @@ LABEL description="SLAPENIR Agent: Secure Python execution environment with proc
 LABEL version="0.1.0"
 
 # Install build tools, Python, bash, iptables for traffic enforcement, and Java 21
-RUN apk add --no-cache \
-    python-3.12 \
-    python-3.12-dev \
-    py3-pip \
-    build-base \
-    git \
-    curl \
-    ca-certificates \
-    xz \
-    openssh-client \
-    bash \
-    iptables \
-    iproute2 \
-    gnupg \
-    openjdk-21 \
-    gradle \
-    maven \
-    yarn \
-    pnpm \
-    rust \
-    cmake \
-    ripgrep \
-    openssl-dev \
-    netcat-openbsd \
-    jq
+RUN for i in 1 2 3; do \
+        apk add --no-cache \
+            python-3.12 \
+            python-3.12-dev \
+            py3-pip \
+            build-base \
+            git \
+            curl \
+            ca-certificates \
+            xz \
+            openssh-client \
+            bash \
+            iptables \
+            iproute2 \
+            gnupg \
+            openjdk-21 \
+            gradle \
+            maven \
+            yarn \
+            pnpm \
+            rust \
+            cmake \
+            ripgrep \
+            openssl-dev \
+            netcat-openbsd \
+            jq && break || (echo "apk add attempt $i failed, retrying in 10s..." && sleep 10); \
+    done
 
 # Create minimal getconf wrapper for VS Code server compatibility (Wolfi lacks getconf)
 RUN printf '#!/bin/sh\n\

@@ -107,7 +107,7 @@ RUN chmod +x /etc/cont-init.d/* 2>/dev/null || true
 
 # Copy agent scripts
 COPY scripts/ /home/agent/scripts/
-RUN chmod +x /home/agent/scripts/*.sh
+RUN chmod +x /home/agent/scripts/*.sh /home/agent/scripts/*.mjs 2>/dev/null || true
 
 # Copy package manager configs for isolated builds
 COPY config/npm/ /home/agent/config/npm/

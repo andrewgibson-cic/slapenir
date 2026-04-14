@@ -34,7 +34,7 @@ help:
 	@echo ""
 	@echo "  Indexing & Knowledge:"
 	@echo "  index               Index repo for Code-Graph-RAG (REPO=)"
-	@echo "  ingest              Ingest docs into knowledge RAG (runs ingest-markdown.sh)"
+	@echo "  ingest              Ingest docs into knowledge RAG (via MCP ingest_file tool)"
 	@echo ""
 	@echo "  Operations:"
 	@echo "  session-reset       Clear workspace, MCP memory, and knowledge for fresh session"
@@ -271,8 +271,8 @@ endif
 	@echo "Index complete"
 
 ingest:
-	@echo "Ingesting documents into knowledge RAG..."
-	$(DC) exec -T -u agent agent bash -c '/home/agent/scripts/ingest-markdown.sh -r /home/agent/workspace/docs'
+	@echo "Ingesting documents into knowledge RAG (via MCP ingest_file)..."
+	$(DC) exec -T -u agent agent bash -c 'node /home/agent/scripts/ingest-via-mcp.mjs /home/agent/workspace/docs'
 	@echo "Ingest complete"
 
 session-reset:

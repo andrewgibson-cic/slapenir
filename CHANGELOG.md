@@ -1,3 +1,10 @@
+## [1.14.5](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.4...v1.14.5) (2026-04-14)
+
+
+### Bug Fixes
+
+* **ingest:** filter list_files by ingested status before skipping ([bcdbf86](https://github.com/andrewgibson-cic/slapenir/commit/bcdbf8680d4be3cc70493306df4a7d969682fff3))
+
 ## [1.14.4](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.3...v1.14.4) (2026-04-14)
 
 

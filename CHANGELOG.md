@@ -1,3 +1,11 @@
+## [1.14.8](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.7...v1.14.8) (2026-04-14)
+
+
+### Bug Fixes
+
+* **ingest:** detect and report silent knowledge ingestion failures ([86f632f](https://github.com/andrewgibson-cic/slapenir/commit/86f632fee5740f9f53c14f03bb5ed88eb6d6c3c7))
+* knowledge-ingest-silent-failure - detect and report silent ingestion failures ([634e08b](https://github.com/andrewgibson-cic/slapenir/commit/634e08ba67e324dfcf6acf977967df939c2416d9))
+
 ## [1.14.7](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.6...v1.14.7) (2026-04-14)
 
 

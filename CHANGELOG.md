@@ -1,3 +1,16 @@
+## [1.15.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.8...v1.15.0) (2026-04-16)
+
+
+### Features
+
+* improve MCP tool access for agent container opencode instance ([7ac7fcd](https://github.com/andrewgibson-cic/slapenir/commit/7ac7fcd822a9c7380e0dcdeba958b8af2d0afc52))
+
+
+### Documentation
+
+* audit and update whitepaper, demo script, and README to match v1.14.6 codebase ([6a327e5](https://github.com/andrewgibson-cic/slapenir/commit/6a327e592e25c3f21f7a14b1fc887a3ba2390c0f))
+* remove demo script from git tracking ([25ab90c](https://github.com/andrewgibson-cic/slapenir/commit/25ab90cc9b163d5428e111b60d4ea31192d3384f))
+
 ## [1.14.8](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.7...v1.14.8) (2026-04-14)
 
 

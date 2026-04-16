@@ -1,0 +1,47 @@
+#!/command/execlineb -P
+
+foreground { s6-echo "[mcp-verify] Checking MCP tool availability..." }
+
+foreground {
+  ifelse -n { which mcp-server-memory >/dev/null 2>&1 }
+  { s6-echo "[mcp-verify] WARNING: mcp-server-memory not found - memory tools will not work" }
+  s6-echo "[mcp-verify] mcp-server-memory: OK"
+}
+
+foreground {
+  ifelse -n { which mcp-local-rag >/dev/null 2>&1 }
+  { s6-echo "[mcp-verify] WARNING: mcp-local-rag not found - knowledge tools will not work" }
+  s6-echo "[mcp-verify] mcp-local-rag: OK"
+}
+
+foreground {
+  ifelse -n { which code-graph-rag >/dev/null 2>&1 }
+  { s6-echo "[mcp-verify] WARNING: code-graph-rag not found - code graph tools will not work" }
+  s6-echo "[mcp-verify] code-graph-rag: OK"
+}
+
+foreground {
+  ifelse -n { test -d /home/agent/.local/share/mcp-memory }
+  { s6-echo "[mcp-verify] WARNING: Memory data directory missing" }
+  s6-echo "[mcp-verify] Memory data dir: OK"
+}
+
+foreground {
+  ifelse -n { test -d /home/agent/.local/share/mcp-knowledge }
+  { s6-echo "[mcp-verify] WARNING: Knowledge data directory missing" }
+  s6-echo "[mcp-verify] Knowledge data dir: OK"
+}
+
+foreground {
+  ifelse -n { test -d /home/agent/.cache/huggingface/models--Xenova--all-MiniLM-L6-v2 }
+  { s6-echo "[mcp-verify] WARNING: HuggingFace embedding model not cached - knowledge tools may fail offline" }
+  s6-echo "[mcp-verify] HuggingFace model cache: OK"
+}
+
+foreground {
+  ifelse -n { python3.13 -c "import codebase_rag" 2>/dev/null }
+  { s6-echo "[mcp-verify] WARNING: codebase_rag Python module not importable" }
+  s6-echo "[mcp-verify] codebase_rag module: OK"
+}
+
+s6-echo "[mcp-verify] Verification complete (non-blocking - warnings do not prevent startup)"

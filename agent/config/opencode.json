@@ -14,20 +14,7 @@
       "type": "local",
       "command": ["code-graph-rag", "mcp-server"],
       "enabled": true,
-      "timeout": 9000000,
-      "environment": {
-        "TARGET_REPO_PATH": "/home/agent/workspace",
-        "ORCHESTRATOR_PROVIDER": "openai",
-        "ORCHESTRATOR_MODEL": "qwen3.5-35b-a3b-ud-q4_k_xl",
-        "ORCHESTRATOR_ENDPOINT": "http://host.docker.internal:8080/v1",
-        "ORCHESTRATOR_API_KEY": "sk-local",
-        "CYPHER_PROVIDER": "openai",
-        "CYPHER_MODEL": "qwen3.5-35b-a3b-ud-q4_k_xl",
-        "CYPHER_ENDPOINT": "http://host.docker.internal:8080/v1",
-        "CYPHER_API_KEY": "sk-local",
-        "MEMGRAPH_HOST": "memgraph",
-        "MEMGRAPH_PORT": "7687"
-      }
+      "timeout": 9000000
     },
     "memory": {
       "type": "local",
@@ -39,16 +26,7 @@
       "type": "local",
       "command": ["mcp-local-rag"],
       "enabled": true,
-      "timeout": 3600000,
-      "environment": {
-        "BASE_DIR": "/home/agent/workspace/docs",
-        "DB_PATH": "/home/agent/.local/share/mcp-knowledge/lancedb",
-        "MODEL_NAME": "Xenova/all-MiniLM-L6-v2",
-        "CACHE_DIR": "/home/agent/.cache/huggingface",
-        "HF_HOME": "/home/agent/.cache/huggingface",
-        "TRANSFORMERS_CACHE": "/home/agent/.cache/huggingface",
-        "HF_HUB_OFFLINE": "1"
-      }
+      "timeout": 3600000
     }
   },
   "permission": {

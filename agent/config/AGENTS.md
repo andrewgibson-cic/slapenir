@@ -1,4 +1,132 @@
-# Loop Prevention Instructions for OpenCode Agent
+# Instructions for OpenCode Agent
+
+## MCP Tools Available (USE THESE PROACTIVELY)
+
+You have THREE MCP tool groups. Use them BEFORE falling back to grep/glob/read.
+
+### Decision Tree
+
+```
+Task received
+  ├─ "How does X connect to Y?" / "Who calls this?" / "Show dependencies"
+  │   → code-graph-rag FIRST, then grep/glob for specifics
+  │
+  ├─ "What did we decide about X?" / "Previous work on Y?" / Cross-session context
+  │   → memory_* FIRST
+  │
+  ├─ "Find documentation about X" / "Search ingested docs for Y"
+  │   → knowledge_* FIRST
+  │
+  └─ "Show me file X" / "Find files matching Y" / "What's in directory Z?"
+      → read/glob/grep (direct file access)
+```
+
+### Tool Groups
+
+**code-graph-rag (Code Relationships)**
+- `code-graph-rag_index_repository` - Index repo into Memgraph graph DB
+- `code-graph-rag_query_code_graph` - Natural language code queries
+- `code-graph-rag_get_code_snippet` - Get source by qualified name
+- `code-graph-rag_surgical_replace_code` - Precise code replacement
+- `code-graph-rag_list_projects` / `code-graph-rag_delete_project`
+- `code-graph-rag_read_file` / `code-graph-rag_write_file` / `code-graph-rag_list_directory`
+
+**memory (Cross-Session State)**
+- `memory_create_entities` - Store decisions, milestones, architecture choices
+- `memory_search_nodes` - Recall prior decisions and context
+- `memory_read_graph` / `memory_open_nodes`
+- `memory_add_observations` / `memory_delete_entities` / `memory_delete_observations`
+- `memory_create_relations` - Link entities (e.g., `myapp:auth` uses `myapp:jwt`)
+
+Entity naming convention: `{project}:{topic}` (e.g., `myapp:auth-architecture`)
+Entity types: `decision`, `milestone`, `blocker`, `architecture`, `convention`
+
+**knowledge (Document Search)**
+- `knowledge_query_documents` - Semantic search across ingested docs
+- `knowledge_ingest_file` / `knowledge_ingest_data` - Add documents to vector DB
+- `knowledge_list_files` / `knowledge_status` / `knowledge_delete_file`
+
+### Memory Workflow
+
+1. **Session start**: `memory_search_nodes` with project/topic keywords to recall prior context
+2. **After milestones**: `memory_create_entities` with decisions made, trade-offs, files modified
+3. **Before complex tasks**: `memory_search_nodes` for prior work on the topic
+4. **Entity creation**: Always include context - what was decided, why, and relevant file paths
+
+### Code-Graph-RAG Workflow
+
+1. **After repo copy-in**: `code-graph-rag_index_repository` to build the code graph
+2. **For code questions**: `code-graph-rag_query_code_graph` with natural language
+3. **For specific functions**: `code-graph-rag_get_code_snippet` by qualified name (e.g., `app.services.UserService.create_user`)
+4. **For precise edits**: `code-graph-rag_surgical_replace_code` targets exact code blocks
+5. **Note**: offset is **0-indexed** for code-graph-rag_read_file, **1-indexed** for read tool
+
+### Knowledge Workflow
+
+1. **To ingest docs**: `bash ~/scripts/ingest-knowledge.sh /path/to/directory`
+2. **To search docs**: `knowledge_query_documents` (semantic + keyword matching)
+3. **`knowledge_list_files`** shows DB contents, NOT filesystem contents
+4. `knowledge_list_files` operates on the LanceDB vector database, not the filesystem
+5. A file in `knowledge_list_files` may no longer exist on disk (it was ingested earlier)
+
+### Priority Rules
+
+1. **Code relationship** questions: `code-graph-rag` > grep > read
+2. **Cross-session** questions: `memory` > re-reading files
+3. **Document** questions: `knowledge` > glob+read
+4. **File content** questions: read > code-graph-rag
+5. **File search** by name: glob (fastest)
+
+---
+
+## Tool Permissions (CRITICAL - READ THIS)
+
+Your environment has restricted tool access. Here is what is allowed and denied:
+
+### Allowed Tools
+
+| Tool | Access | Notes |
+|------|--------|-------|
+| `read` | ALLOWED | Read any file |
+| `edit` | ALLOWED | Edit files directly |
+| `grep` | ALLOWED | Search file contents |
+| `glob` | ALLOWED | Find files by pattern |
+| `list` | ALLOWED | List directories |
+| `code-graph-rag_*` | ALLOWED | All code-graph-rag MCP tools |
+| `memory_*` | ALLOWED | All memory MCP tools |
+| `knowledge_*` | ALLOWED | All knowledge MCP tools |
+
+### Denied / Restricted Tools
+
+| Tool | Access | Notes |
+|------|--------|-------|
+| `bash` | ASK | Read-only and safe commands allowed, others require permission |
+| `webfetch` | DENIED | Cannot fetch external URLs |
+| `websearch` | DENIED | Cannot search the web |
+| `mcp_*` | DENIED | Generic MCP wildcard (specific tools above override this) |
+
+**When a tool is denied:**
+1. **STOP IMMEDIATELY** - Do not retry or work around
+2. **Do NOT write shell scripts** (`.sh` files) - they cannot be executed without bash
+3. **Do NOT try different file paths** - if write is denied, changing location won't help
+4. **Do NOT try to write to /tmp or external directories** - restricted for security
+5. **Ask the user** for an alternative approach that uses allowed tools
+
+**Loop Pattern to AVOID:**
+```
+Attempt 1: Write /tmp/setup-worktree.sh → DENIED
+Attempt 2: Write ../../tmp/setup-worktree.sh → DENIED
+Attempt 3: Write ./setup-worktree.sh → DENIED
+[INFINITE LOOP - BAD]
+```
+
+**Correct Response:**
+```
+First denial: STOP. Tool is denied by configuration.
+Ask user: "I cannot write shell scripts because bash is denied. What alternative approach would you like?"
+```
+
+---
 
 ## Critical: Loop Detection and Recovery
 
@@ -99,38 +227,6 @@ If you keep getting permission denied:
 2. Check file/directory permissions: `ls -la`
 3. Don't repeat the same action - it won't magically work
 4. Ask user to adjust permissions or provide alternative
-
-### Tool Denied by Configuration (CRITICAL - READ THIS)
-
-Your environment has restricted tool access. Check opencode.json for allowed tools.
-
-**Current restrictions:**
-- `bash`: DENIED - Cannot execute shell commands or scripts
-- `edit`: ASK - Must get permission to edit files
-- `webfetch`: DENIED - Cannot fetch external URLs
-- `mcp_*`: DENIED - No MCP tools available
-- `read`: ALLOWED - Can read files
-
-**When a tool is denied:**
-1. **STOP IMMEDIATELY** - Do not retry or work around
-2. **Do NOT write shell scripts** (`.sh` files) - they cannot be executed without bash
-3. **Do NOT try different file paths** - if write is denied, changing location won't help
-4. **Do NOT try to write to /tmp or external directories** - restricted for security
-5. **Ask the user** for an alternative approach that uses allowed tools
-
-**Loop Pattern to AVOID:**
-```
-Attempt 1: Write /tmp/setup-worktree.sh → DENIED
-Attempt 2: Write ../../tmp/setup-worktree.sh → DENIED
-Attempt 3: Write ./setup-worktree.sh → DENIED
-[INFINITE LOOP - BAD]
-```
-
-**Correct Response:**
-```
-First denial: STOP. Tool is denied by configuration.
-Ask user: "I cannot write shell scripts because bash is denied. What alternative approach would you like?"
-```
 
 ---
 
@@ -302,43 +398,6 @@ Action: code-graph-rag_read_file path=file.py [offset=100, limit=100] → Lines 
 [Use offset=N from the "more available" hint in the response]
 ```
 
-### Knowledge MCP Tool Behavior (CRITICAL - READ THIS)
-
-The `knowledge_list_files` and `knowledge_query_documents` tools operate on the **LanceDB vector database**, NOT the filesystem.
-
-**Key distinction:**
-- `knowledge_list_files` → Returns files that have been **ingested into the vector database**
-- `read` / `glob` / `grep` → Operate on the **actual filesystem**
-
-**These are separate systems.** A file appearing in `knowledge_list_files` means it was previously ingested and its embeddings are stored in LanceDB. It does NOT mean:
-- The file currently exists on disk (it may have been deleted after ingestion)
-- The file path is relative to BASE_DIR (paths are stored as they were at ingestion time)
-
-**Common mistake:**
-```
-knowledge_list_files → shows "/home/agent/workspace/tickets/TICKET-123.md"
-Agent: "Let me read that file" → read /home/agent/workspace/tickets/TICKET-123.md
-Agent: "The file doesn't exist!" ← WRONG CONCLUSION
-```
-
-**Correct behavior:**
-1. `knowledge_list_files` shows what's indexed in the DB
-2. To SEARCH indexed content, use `knowledge_query_documents` (semantic search)
-3. To access the actual file, use `read` with the exact path shown
-4. If `read` fails, the file was removed from disk but its embeddings remain in LanceDB
-5. Never tell the user a file "doesn't exist" just because `read` fails - explain it's indexed in the knowledge DB but may not be on disk
-
-**To ingest new files:**
-```bash
-~/scripts/ingest-knowledge.sh /path/to/directory
-~/scripts/ingest-knowledge.sh --reingest --verbose /path/to/directory
-```
-
-**BASE_DIR configuration:**
-- The knowledge MCP uses `BASE_DIR=/home/agent/workspace/docs`
-- Ingested file paths are stored as absolute paths in LanceDB
-- `ingest_file` accepts absolute paths regardless of BASE_DIR
-
 ---
 
 ## Maximum Attempts Rule
@@ -357,4 +416,4 @@ Agent: "The file doesn't exist!" ← WRONG CONCLUSION
 
 ---
 
-**This instruction file is loaded into your context to prevent cyclic behavior. Follow it strictly.**
+**This instruction file is loaded into your context to prevent cyclic behavior and guide MCP tool usage. Follow it strictly.**

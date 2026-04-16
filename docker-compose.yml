@@ -200,6 +200,7 @@ services:
       - OPENCODE_CONFIG_PATH=/home/agent/.config/opencode/opencode.json
       - OPENCODE_YOLO=${OPENCODE_YOLO:-false}
       # Code-Graph-RAG Configuration
+      - TARGET_REPO_PATH=/home/agent/workspace
       - ORCHESTRATOR_PROVIDER=openai
       - ORCHESTRATOR_MODEL=${ORCHESTRATOR_MODEL:-qwen3.5-35b-a3b-ud-q4_k_xl}
       - ORCHESTRATOR_ENDPOINT=${ORCHESTRATOR_ENDPOINT:-http://host.docker.internal:8080/v1}
@@ -210,6 +211,14 @@ services:
       - CYPHER_API_KEY=${CYPHER_API_KEY:-sk-local}
       - MEMGRAPH_HOST=memgraph
       - MEMGRAPH_PORT=7687
+      # MCP Knowledge Configuration
+      - BASE_DIR=/home/agent/workspace/docs
+      - DB_PATH=/home/agent/.local/share/mcp-knowledge/lancedb
+      - MODEL_NAME=Xenova/all-MiniLM-L6-v2
+      - CACHE_DIR=/home/agent/.cache/huggingface
+      - HF_HOME=/home/agent/.cache/huggingface
+      - TRANSFORMERS_CACHE=/home/agent/.cache/huggingface
+      - HF_HUB_OFFLINE=1
       # SSH/GPG Agent forwarding for git operations
       - SSH_AUTH_SOCK=/home/agent/.ssh/agent.sock
       - GPG_KEY=${GPG_KEY:-164DA43B214F0144}

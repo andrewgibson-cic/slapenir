@@ -1,3 +1,10 @@
+## [1.15.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.15.0...v1.15.1) (2026-04-17)
+
+
+### Bug Fixes
+
+* patch rustls-webpki to v0.103.12 (RUSTSEC-2026-0098, RUSTSEC-2026-0099) ([eb94b19](https://github.com/andrewgibson-cic/slapenir/commit/eb94b19234a87ed22aaf19b19b431f00d4cb15c9))
+
 ## [1.15.0](https://github.com/andrewgibson-cic/slapenir/compare/v1.14.8...v1.15.0) (2026-04-16)
 
 

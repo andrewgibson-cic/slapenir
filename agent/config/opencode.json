@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "local-llama/qwen3.5-35b-a3b-ud-q4_k_xl",
+  "model": "local-llama/qwen3.6-35b-a3b-ud-q4_k_xl",
   "share": "disabled",
   "tools": {
     "websearch": false
@@ -13,6 +13,9 @@
     "code-graph-rag": {
       "type": "local",
       "command": ["code-graph-rag", "mcp-server"],
+      "env": {
+        "TARGET_REPO_PATH": "/Users/andrewgibson/Projects/personal"
+      },
       "enabled": true,
       "timeout": 9000000
     },
@@ -24,7 +27,7 @@
     },
     "knowledge": {
       "type": "local",
-      "command": ["mcp-local-rag"],
+      "command": ["mcp-local-rag", "--db-path", "/Users/andrewgibson/Projects/personal/.knowledge"],
       "enabled": true,
       "timeout": 3600000
     }
@@ -232,8 +235,8 @@
         "baseURL": "http://host.docker.internal:8080/v1"
       },
       "models": {
-        "qwen3.5-35b-a3b-ud-q4_k_xl": {
-          "name": "Qwen 3.5 35B A3B UD Q4_K_XL (Local)",
+        "qwen3.6-35b-a3b-ud-q4_k_xl": {
+          "name": "Qwen 3.6 35B A3B UD Q4_K_XL (Local)",
           "limit": {
             "context": 262144,
             "output": 65536

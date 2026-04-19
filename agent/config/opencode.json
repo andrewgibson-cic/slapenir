@@ -13,9 +13,6 @@
     "code-graph-rag": {
       "type": "local",
       "command": ["code-graph-rag", "mcp-server"],
-      "env": {
-        "TARGET_REPO_PATH": "/Users/andrewgibson/Projects/personal"
-      },
       "enabled": true,
       "timeout": 9000000
     },
@@ -27,7 +24,7 @@
     },
     "knowledge": {
       "type": "local",
-      "command": ["mcp-local-rag", "--db-path", "/Users/andrewgibson/Projects/personal/.knowledge"],
+      "command": ["mcp-local-rag"],
       "enabled": true,
       "timeout": 3600000
     }

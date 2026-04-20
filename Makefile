@@ -3,14 +3,14 @@
 
 DC := $(shell docker compose version > /dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 
-.PHONY: up down restart status logs shell shell-proxy shell-unrestricted shell-raw copy-in copy-out copy-out-safe copy-cache index ingest session-reset verify test rebuild clean work-start work-done
+.PHONY: up down restart status logs shell shell-proxy shell-unrestricted shell-raw copy-in copy-out copy-out-safe copy-cache index session-reset verify test rebuild clean work-start work-done
 
 # Default: show available commands
 help:
 	@echo "Usage: make <command>"
 	@echo ""
 	@echo "  Workflow:"
-	@echo "  work-start          Setup: start + copy-in + verify + index + ingest (REPO= DOCS=)"
+	@echo "  work-start          Setup: start + copy-in + verify (index/ingest are manual)"
 	@echo "  shell               Enter agent workspace (opencode, git, builds, etc.)"
 	@echo "  work-done           Extract: scan + copy-out + summary (REPO=)"
 	@echo ""
@@ -33,7 +33,7 @@ help:
 	@echo "  copy-cache          Copy host build cache into container (TYPE=gradle|npm|pip|yarn|maven|all)"
 	@echo ""
 	@echo "  Indexing & Knowledge:"
-	@echo "  index               Index repo for Code-Graph-RAG (REPO=)"
+	@echo "  index               Index repo + optionally ingest docs (REPO= [DOCS=])"
 	@echo "  ingest              Ingest docs into knowledge RAG (via MCP ingest_file tool)"
 	@echo ""
 	@echo "  Operations:"
@@ -264,16 +264,16 @@ endif
 
 index:
 ifndef REPO
-	$(error REPO is required - usage: make index REPO=/path/to/repo)
+	$(error REPO is required - usage: make index REPO=/path/to/repo [DOCS=/path/to/docs])
 endif
 	@echo "Indexing repository for Code-Graph-RAG (project: $(notdir $(REPO)))..."
 	$(DC) exec -T -u agent agent bash -c 'cgr start --repo-path /home/agent/workspace --update-graph --clean --project-name $(notdir $(REPO))'
 	@echo "Index complete"
-
-ingest:
-	@echo "Ingesting documents into knowledge RAG (via MCP ingest_file)..."
+ifneq ($(DOCS),)
+	@echo "Ingesting documents into knowledge RAG (DOCS= provided)..."
 	$(DC) exec -T -u agent agent bash -c 'node /home/agent/scripts/ingest-via-mcp.mjs /home/agent/workspace/docs'
 	@echo "Ingest complete"
+endif
 
 session-reset:
 	@echo "Clearing workspace for fresh session..."

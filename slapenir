@@ -599,8 +599,8 @@ cmd_init() {
     step "Phase 4: Security Verification"
     do_verify
 
-    step "Phase 5: Indexing Repository"
-    do_index "$repo_name"
+    step "Phase 5: Indexing Repository (OPTIONAL)"
+    echo "  Run 'make index REPO=<repo>' to index after starting"
 
     if [ -n "$docs_path" ]; then
         step "Phase 6: Ingesting Documents"
@@ -620,9 +620,9 @@ cmd_init() {
     if [ -n "$docs_path" ]; then
         echo -e "  ${BOLD}Documents:${NC}  $(basename "$docs_path")  →  /home/agent/workspace/docs"
     fi
-    echo -e "  ${BOLD}Code Graph:${NC}  project \"$repo_name\" indexed in Memgraph"
     echo ""
     echo -e "  ${BOLD}Next:${NC}"
+    echo "    make index REPO=<repo>     # Index for Code-Graph-RAG (optional)"
     echo "    make shell                # Enter agent workspace"
     echo "    # ... work inside agent (opencode, git, builds, etc.) ..."
     echo "    # ... type 'exit' when done ..."

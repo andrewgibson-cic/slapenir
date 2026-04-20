@@ -2,7 +2,7 @@
 # Multi-stage build for minimal production image
 
 # Build stage
-FROM rust:1.93-alpine AS builder
+FROM rust:1.95-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig

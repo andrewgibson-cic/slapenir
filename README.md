@@ -2,6 +2,8 @@
 
 **Secure LLM Agent Proxy Environment with Network Isolation & Resilience (SLAPENIR)** - A zero-knowledge credential sanitization proxy for AI agents.
 
+> **Why the name?** SLAPENIR is an acronym (see above), but it also sounds like Sleipnir — Odin's legendary eight-legged horse that could traverse impossible terrain. Our tool carries your code through similarly impossible constraints: no internet, no real credentials, no escape — yet still gets the job done. The agent rides, but the horse does the heavy lifting.
+
 ## Overview
 
 SLAPENIR sits between AI agents and external APIs, ensuring agents never see real credentials:

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from functools import cache
+import re
+from typing import Callable
 
 import tiktoken
 from loguru import logger
@@ -11,13 +12,15 @@ from .. import logs as ls
 from ..types_defs import ResultRow
 
 
-@cache
-def _get_encoding() -> tiktoken.Encoding:
-    return tiktoken.get_encoding(cs.TIKTOKEN_ENCODING)
+_fallback_counter: Callable[[str], int] = lambda text: len(re.findall(r"\w+|[^\w\s]", text)) * 2
 
 
 def count_tokens(text: str) -> int:
-    return len(_get_encoding().encode(text))
+    try:
+        enc = tiktoken.get_encoding(cs.TIKTOKEN_ENCODING)
+        return len(enc.encode(text))
+    except Exception:
+        return _fallback_counter(text)
 
 
 def truncate_results_by_tokens(

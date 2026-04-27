@@ -34,7 +34,7 @@ help:
 	@echo ""
 	@echo "  Indexing & Knowledge:"
 	@echo "  index               Index repo + optionally ingest docs (REPO= [DOCS=])"
-	@echo "  ingest              Ingest docs into knowledge RAG (via MCP ingest_file tool)"
+	@echo "  ingest              Ingest docs into knowledge RAG (DOCS= path in container)"
 	@echo ""
 	@echo "  Operations:"
 	@echo "  session-reset       Clear workspace, MCP memory, and knowledge for fresh session"
@@ -262,18 +262,21 @@ else
 endif
 	@echo "Copy-cache complete"
 
-index:
+index: copy-in
 ifndef REPO
-	$(error REPO is required - usage: make index REPO=/path/to/repo [DOCS=/path/to/docs])
+	$(error REPO is required - usage: make index REPO=/path/to/repo)
 endif
 	@echo "Indexing repository for Code-Graph-RAG (project: $(notdir $(REPO)))..."
 	$(DC) exec -T -u agent agent bash -c 'cgr start --repo-path /home/agent/workspace --update-graph --clean --project-name $(notdir $(REPO))'
 	@echo "Index complete"
-ifneq ($(DOCS),)
-	@echo "Ingesting documents into knowledge RAG (DOCS= provided)..."
-	$(DC) exec -T -u agent agent bash -c 'node /home/agent/scripts/ingest-via-mcp.mjs /home/agent/workspace/docs'
-	@echo "Ingest complete"
+
+ingest:
+ifndef DOCS
+	$(error DOCS is required - usage: make ingest DOCS=/path/to/docs)
 endif
+	@echo "Ingesting documents into knowledge RAG..."
+	$(DC) exec -T -u agent agent bash -c 'node /home/agent/scripts/ingest-via-mcp.mjs /home/agent/workspace/$(DOCS)'
+	@echo "Ingest complete"
 
 session-reset:
 	@echo "Clearing workspace for fresh session..."

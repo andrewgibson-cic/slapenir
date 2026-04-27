@@ -1,3 +1,15 @@
+## [1.15.2](https://github.com/andrewgibson-cic/slapenir/compare/v1.15.1...v1.15.2) (2026-04-27)
+
+
+### Bug Fixes
+
+* graceful fallback when tiktoken cannot reach openaipublic.blob.core.windows.net ([4a116e6](https://github.com/andrewgibson-cic/slapenir/commit/4a116e61f968934c3ae829d83fe09ed34d7c74b0))
+
+
+### Documentation
+
+* explain name origin (acronym + Sleipnir reference) ([700c0b9](https://github.com/andrewgibson-cic/slapenir/commit/700c0b9070ced4b8f9a86c8909d1bc8b9e8ff8c8))
+
 ## [1.15.1](https://github.com/andrewgibson-cic/slapenir/compare/v1.15.0...v1.15.1) (2026-04-17)
 
 
